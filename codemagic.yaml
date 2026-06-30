@@ -1,0 +1,73 @@
+# Codemagic CI/CD — customize for your app before first build.
+#
+# TODO(template):
+# - Rename workflows and env groups (<app>_runtime, app_secrets)
+# - Set bundle ID in iOS signing scripts (com.uthings.myapp)
+# - Configure App Store Connect integration name
+#
+# Required Codemagic env groups:
+#   github_credentials — GITHUB_TOKEN (repo scope) for private common-app-kit
+#   app_runtime        — APP_API_BASE
+#   app_secrets        — APP_RC_KEY_IOS, APP_RC_KEY_ANDROID, keystore vars
+
+definitions:
+  scripts:
+    - &configure_private_git
+      name: Configure Git for private pub dependencies
+      script: |
+        if [ -z "$GITHUB_TOKEN" ]; then
+          echo "GITHUB_TOKEN is not set."
+          exit 1
+        fi
+        git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+    - &pub_get
+      name: Resolve dependencies
+      script: flutter pub get
+
+workflows:
+  android:
+    name: Template Android
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      groups:
+        - github_credentials
+        - app_runtime
+        - app_secrets
+    scripts:
+      - *configure_private_git
+      - *pub_get
+      - name: Analyze
+        script: flutter analyze
+      - name: Test
+        script: flutter test
+      - name: Build App Bundle
+        script: |
+          flutter build appbundle --release \
+            --build-number="$BUILD_NUMBER" \
+            --dart-define=APP_API_BASE="$APP_API_BASE" \
+            --dart-define=APP_RC_KEY_ANDROID="$APP_RC_KEY_ANDROID"
+    artifacts:
+      - build/app/outputs/**/*.aab
+
+  ios-smoke:
+    name: Template iOS (smoke)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      groups:
+        - github_credentials
+        - app_runtime
+        - app_secrets
+    scripts:
+      - *configure_private_git
+      - *pub_get
+      - name: Install CocoaPods dependencies
+        script: cd ios && pod install
+      - name: Build iOS (unsigned)
+        script: flutter build ios --release --no-codesign --build-number="$BUILD_NUMBER"
+    artifacts:
+      - build/ios/iphoneos/Runner.app

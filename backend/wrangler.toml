@@ -1,0 +1,12 @@
+name = "my-app-api"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# TODO(template): rename worker to <your-app>-api before deploy.
+
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "my_app_events"
+
+[vars]
+XAI_MODEL = "grok-3-mini"
