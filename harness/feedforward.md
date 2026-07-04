@@ -57,18 +57,41 @@ Customize in lib/src/config/app_config.dart:
 
 ---
 
-## 5. Forbidden Actions
+## 5. App Store / Play compliance (any purchase flow)
+
+```text
+- No cross-store references in the binary: the shop/paywall must name only the
+  store running the app (no "Google Play" text on iOS, no "App Store" on
+  Android). Derive it at runtime (see ShopPage._storeName or the kit's
+  platformStoreName()). — App Store guideline 2.3.10.
+- The purchase flow must show functional Privacy Policy and Terms of Use (EULA)
+  links, plus (for subscriptions) title, length, price, and an auto-renewal
+  disclosure. URLs live in lib/src/config/app_config.dart
+  (kPrivacyPolicyUrl / kTermsOfUseUrl). — App Store guideline 3.1.2(c).
+- url_launcher opens those links; Android needs the https VIEW <queries> intent
+  in AndroidManifest.xml for them to open on Android 11+.
+- Store metadata (App Store Connect / Play Console) must also carry a privacy
+  policy link and (for subscriptions) the EULA link — this is a listing step in
+  task-000, not a code change.
+- Promoted in-app purchase / win-back images must not contain price text.
+```
+
+---
+
+## 6. Forbidden Actions
 
 ```text
 - Do not ship xAI keys in the mobile app.
 - Do not add real billing enforcement that gates features (WinRAR-style nag only until approved).
 - Do not persist user content/PII in LocalStore.
 - Do not add per-user behavioral tracking.
+- Do not hard-code a store name or reference a store other than the current
+  platform's in the app binary.
 ```
 
 ---
 
-## 6. Verification
+## 7. Verification
 
 ```text
 - flutter analyze

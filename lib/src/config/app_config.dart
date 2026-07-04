@@ -10,6 +10,18 @@ const String kAppName = 'My App';
 ///   flutter run --dart-define=APP_API_BASE=https://my-app-api.YOUR_SUBDOMAIN.workers.dev
 const String kApiBase = String.fromEnvironment('APP_API_BASE', defaultValue: '');
 
+/// Privacy Policy URL surfaced in the purchase flow. App Store Review guideline
+/// 3.1.2(c) requires a functional privacy policy link inside the app for apps
+/// offering auto-renewable subscriptions.
+/// TODO(template): point this at your app's published privacy policy page.
+const String kPrivacyPolicyUrl = 'https://u-things.com/privacy/my-app';
+
+/// Terms of Use (EULA) URL surfaced in the purchase flow. Defaults to Apple's
+/// standard licensed-application EULA, which Apple accepts (guideline 3.1.2(c)).
+/// Replace only if your app ships a custom EULA.
+const String kTermsOfUseUrl =
+    'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+
 const String _kRevenueCatKeyIos =
     String.fromEnvironment('APP_RC_KEY_IOS', defaultValue: '');
 const String _kRevenueCatKeyAndroid =
@@ -49,6 +61,8 @@ final LicenseConfig appLicenseConfig = LicenseConfig(
     'Supports ongoing development',
     'Keeps the app simple and ad-free',
   ],
+  privacyPolicyUrl: kPrivacyPolicyUrl,
+  termsOfUseUrl: kTermsOfUseUrl,
   theme: const PaywallTheme(
     primary: Color(0xFF2563EB),
     primaryGradient: LinearGradient(

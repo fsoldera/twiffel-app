@@ -60,6 +60,15 @@ Files to edit first:
 - [ ] Create RevenueCat project + entitlement + products
 - [ ] App Store Connect + Google Play Console listings
 - [ ] Wire real paywall (kit `PaywallScreen` or custom shop page)
+- [ ] Set `kPrivacyPolicyUrl` / `kTermsOfUseUrl` in `lib/src/config/app_config.dart`
+      and confirm the shop page shows both links + subscription disclosure
+      (App Store guideline 3.1.2(c))
+- [ ] Confirm the shop page names only the current store, never both
+      (guideline 2.3.10)
+- [ ] App Store Connect: add the privacy policy link (Privacy Policy field) and
+      the EULA link (App Description or EULA field)
+- [ ] Ensure any promoted IAP / win-back promotional images contain no price text
+      (guideline 2.3.2)
 
 ---
 
@@ -98,3 +107,6 @@ cd backend && npm run typecheck
 - [ ] AI output validated with kit helpers (+ Worker `tone.ts` if using backend AI)
 - [ ] Analytics sends only allowlisted events, no task text
 - [ ] Privacy policy published on u-things-web before store submission
+- [ ] In-app Privacy Policy + Terms of Use (EULA) links open correctly on iOS
+      and Android (guideline 3.1.2(c))
+- [ ] No cross-store references in the binary (guideline 2.3.10)
