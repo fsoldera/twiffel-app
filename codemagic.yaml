@@ -1,14 +1,17 @@
 # Codemagic CI/CD — customize for your app before first build.
+# Full setup walkthrough + gotchas: harness/infrastructure-setup.md (step 4).
 #
-# TODO(template):
-# - Rename workflows and env groups (<app>_runtime, app_secrets)
-# - Set bundle ID in iOS signing scripts (com.uthings.myapp)
-# - Configure App Store Connect integration name
+# TODO(template) — one app = one set of secrets, everything app-prefixed:
+# - Rename env groups to <app>_github, <app>_runtime, <app>_secrets
+# - Rename vars APP_* → <APP>_* (GITHUB_TOKEN → <APP>_GITHUB_TOKEN etc.)
+# - Rename workflows, set bundle ID (com.uthings.<app>), ASC integration <app>_asc
+# - Groups are app-level (free plan has no team groups); names here must match
+#   the groups created on the app's Environment variables page exactly.
 #
 # Required Codemagic env groups:
-#   github_credentials — GITHUB_TOKEN (repo scope) for private common-app-kit
-#   app_runtime        — APP_API_BASE
-#   app_secrets        — APP_RC_KEY_IOS, APP_RC_KEY_ANDROID, keystore vars
+#   <app>_github  — <APP>_GITHUB_TOKEN (repo scope) for private common-app-kit
+#   <app>_runtime — <APP>_API_BASE
+#   <app>_secrets — <APP>_RC_KEY_IOS, <APP>_RC_KEY_ANDROID, <APP>_CM_KEYSTORE* vars
 
 definitions:
   scripts:

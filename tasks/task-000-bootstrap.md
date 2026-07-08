@@ -35,13 +35,17 @@ Files to edit first:
 
 ---
 
-## 3. Cloudflare Worker
+## 3. Cloudflare Worker + secrets chain
 
-- [ ] Rename worker in `backend/wrangler.toml` (`name`, analytics dataset)
-- [ ] `cd backend && npm install`
-- [ ] `npx wrangler secret put XAI_API_KEY`
-- [ ] `npm run deploy`
-- [ ] Note the deployed URL for `APP_API_BASE`
+Follow **`harness/infrastructure-setup.md` steps 1–3** (xAI → Doppler → Worker).
+Key rule: **one app = one set of secrets**, everything prefixed `<APP>_*`.
+
+- [ ] xAI key named `<app>`; Doppler project `<app>` with `<APP>_XAI_API_KEY` / `<APP>_XAI_MODEL`
+- [ ] Rename worker in `backend/wrangler.toml` (`name`, analytics dataset, `DOPPLER_PROJECT`)
+- [ ] Rename env keys in `backend/src/ai.ts` to `<APP>_XAI_*` (resolved via Doppler)
+- [ ] `cd backend && npm install && npm run deploy`
+- [ ] `npx wrangler secret put DOPPLER_SERVICE_TOKEN` (prd token)
+- [ ] Note the deployed URL for `<APP>_API_BASE`
 
 ---
 
@@ -57,7 +61,12 @@ Files to edit first:
 
 ## 5. RevenueCat + stores (when ready)
 
-- [ ] Create RevenueCat project + entitlement + products
+Follow **`harness/infrastructure-setup.md` steps 5–8** (keystore → Play → RevenueCat
+→ App Store Connect). Watch the gotchas: identifiers are immutable, the Play Console
+"API access" page no longer exists (invite the service account as a user), and Play
+builds need the `goog_…` key — `test_…` gives "Wrong API key" on launch.
+
+- [ ] Create RevenueCat project + entitlement + products (exact IDs from `app_config.dart`)
 - [ ] App Store Connect + Google Play Console listings
 - [ ] Wire real paywall (kit `PaywallScreen` or custom shop page)
 - [ ] Set `kPrivacyPolicyUrl` / `kTermsOfUseUrl` in `lib/src/config/app_config.dart`
@@ -74,9 +83,16 @@ Files to edit first:
 
 ## 6. Codemagic
 
-- [ ] Copy `codemagic.yaml` env groups from Joppling as reference
-- [ ] Create groups: `github_credentials`, `<app>_runtime`, `app_secrets`
-- [ ] Set `APP_API_BASE`, `APP_RC_KEY_IOS`, `APP_RC_KEY_ANDROID`
+Follow **`harness/infrastructure-setup.md` step 4**. Do **not** share env groups with
+other apps — app-prefixed groups only, and group names must match `codemagic.yaml`
+exactly. Start builds from the **codemagic.yaml** tab, not the Workflow Editor.
+
+- [ ] Rename groups + variables in `codemagic.yaml` to `<app>_github`,
+      `<app>_runtime`, `<app>_secrets` / `<APP>_*` vars
+- [ ] Create those groups on the app's Environment variables page (after switching
+      to codemagic.yaml mode — switching can wipe variables entered before)
+- [ ] Set `<APP>_GITHUB_TOKEN`, `<APP>_API_BASE`, `<APP>_RC_KEY_IOS`,
+      `<APP>_RC_KEY_ANDROID`, `<APP>_CM_KEYSTORE*`
 - [ ] Run Android + iOS smoke workflows
 
 ---

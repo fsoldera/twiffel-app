@@ -46,13 +46,18 @@ u-things-web pages for marketing + privacy.
 ## 4. Configuration
 
 ```text
-Dart-defines (injected at build time via Codemagic or flutter run):
-- APP_API_BASE       — Worker URL (empty = local fallback, analytics no-op)
-- APP_RC_KEY_IOS     — RevenueCat Apple public key (empty = honor-system nag only)
-- APP_RC_KEY_ANDROID — RevenueCat Google public key
+Dart-defines (injected at build time via Codemagic or flutter run).
+Rename APP_ to the app's own prefix (e.g. STIKKTELLER_) during bootstrap —
+one app = one set of secrets, nothing shared between apps:
+- <APP>_API_BASE       — Worker URL (empty = local fallback, analytics no-op)
+- <APP>_RC_KEY_IOS     — RevenueCat Apple public key (empty = honor-system nag only)
+- <APP>_RC_KEY_ANDROID — RevenueCat Google public key
 
 Customize in lib/src/config/app_config.dart:
 - kAppName, LicenseConfig, product IDs, nag copy, theme
+
+Full external-tool setup (xAI, Doppler, Cloudflare, Codemagic, Play, RevenueCat):
+harness/infrastructure-setup.md
 ```
 
 ---
