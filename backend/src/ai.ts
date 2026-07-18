@@ -9,9 +9,23 @@ export type MessageKind = "completion" | "bailout";
 
 export interface Env {
   ANALYTICS?: AnalyticsEngineDataset;
+  DOPPLER_SERVICE_TOKEN?: string;
+  DOPPLER_API_BASE_URL?: string;
+  DOPPLER_CACHE_TTL_MS?: string;
+  DOPPLER_PROJECT?: string;
+  DOPPLER_CONFIG?: string;
+  /** TODO(template): rename APP_ → <APP>_ during bootstrap. */
+  APP_XAI_API_KEY?: string;
+  APP_XAI_MODEL?: string;
+  /** Direct override / legacy fallback (prefer Doppler + APP_XAI_*). */
   XAI_API_KEY?: string;
   XAI_MODEL?: string;
 }
+
+const DEFAULT_DOPPLER_API_BASE_URL = "https://api.doppler.com/v3";
+const DEFAULT_DOPPLER_CACHE_TTL_MS = 300000;
+
+let dopplerCache: { expiresAt: number; secrets: Record<string, string> } | null = null;
 
 const SAFE_FALLBACK_STEPS = [
   "Stand up and move to the place where you can begin.",
@@ -56,19 +70,74 @@ function toExactlyThreeSafeSteps(steps: string[]): string[] {
   return padded.slice(0, 3);
 }
 
-function resolveXaiConfig(env: Env): { apiKey?: string; model: string } {
-  return {
-    apiKey: env.XAI_API_KEY,
-    model: env.XAI_MODEL || "grok-3-mini",
-  };
+function getDopplerCacheTtlMs(env: Env): number {
+  const value = Number.parseInt(env.DOPPLER_CACHE_TTL_MS ?? "", 10);
+  return Number.isFinite(value) && value > 0 ? value : DEFAULT_DOPPLER_CACHE_TTL_MS;
+}
+
+async function fetchDopplerSecrets(env: Env): Promise<Record<string, string>> {
+  if (!env.DOPPLER_SERVICE_TOKEN) return {};
+  const now = Date.now();
+  if (dopplerCache && dopplerCache.expiresAt > now) return dopplerCache.secrets;
+
+  const baseUrl = (env.DOPPLER_API_BASE_URL || DEFAULT_DOPPLER_API_BASE_URL).replace(/\/+$/, "");
+  const params = new URLSearchParams({ format: "json" });
+  if (env.DOPPLER_PROJECT) params.set("project", env.DOPPLER_PROJECT);
+  if (env.DOPPLER_CONFIG) params.set("config", env.DOPPLER_CONFIG);
+  const url = `${baseUrl}/configs/config/secrets/download?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${env.DOPPLER_SERVICE_TOKEN}`,
+      Accept: "application/json",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Doppler request failed with status ${response.status}`);
+  }
+  const payload = (await response.json()) as Record<string, unknown>;
+  const secrets: Record<string, string> = {};
+  for (const [key, value] of Object.entries(payload)) {
+    if (typeof value === "string") secrets[key] = value;
+  }
+  dopplerCache = { secrets, expiresAt: now + getDopplerCacheTtlMs(env) };
+  return secrets;
+}
+
+async function resolveXaiConfig(env: Env): Promise<{ apiKey?: string; model: string }> {
+  try {
+    const secrets = await fetchDopplerSecrets(env);
+    const apiKey =
+      secrets.APP_XAI_API_KEY ||
+      env.APP_XAI_API_KEY ||
+      secrets.XAI_API_KEY ||
+      env.XAI_API_KEY;
+    const model =
+      secrets.APP_XAI_MODEL ||
+      env.APP_XAI_MODEL ||
+      secrets.XAI_MODEL ||
+      env.XAI_MODEL ||
+      "grok-3-mini";
+    return { apiKey, model };
+  } catch {
+    return {
+      apiKey: env.APP_XAI_API_KEY || env.XAI_API_KEY,
+      model: env.APP_XAI_MODEL || env.XAI_MODEL || "grok-3-mini",
+    };
+  }
 }
 
 async function callXaiChat(
   messages: Array<{ role: "system" | "user"; content: string }>,
   env: Env,
 ): Promise<string> {
-  const { apiKey, model } = resolveXaiConfig(env);
-  if (!apiKey) throw new Error("Missing XAI_API_KEY — set via wrangler secret put XAI_API_KEY");
+  const { apiKey, model } = await resolveXaiConfig(env);
+  if (!apiKey) {
+    throw new Error(
+      "Missing xAI API key — set APP_XAI_API_KEY in Doppler (preferred) or as a Worker secret",
+    );
+  }
 
   const response = await fetch("https://api.x.ai/v1/chat/completions", {
     method: "POST",

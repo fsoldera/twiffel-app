@@ -1,3 +1,7 @@
 # Copy to `.dev.vars` for local `wrangler dev`. NEVER commit real secrets.
-XAI_API_KEY=
-XAI_MODEL=grok-3-mini
+DOPPLER_SERVICE_TOKEN=
+DOPPLER_PROJECT=my-app
+DOPPLER_CONFIG=dev
+# Optional direct override (skip Doppler):
+# APP_XAI_API_KEY=
+# APP_XAI_MODEL=grok-3-mini

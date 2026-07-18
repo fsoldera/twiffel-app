@@ -2,7 +2,8 @@
 
 Server-side AI proxy + anonymous analytics for U-Things apps.
 
-The xAI API key lives in Cloudflare Workers secrets — never in the mobile app.
+**Secrets SoT is Doppler.** The Worker reads `APP_XAI_API_KEY` (rename to `<APP>_XAI_*`
+during bootstrap) via a Doppler service token. Never put xAI keys in the mobile app.
 
 ## Endpoints
 
@@ -16,7 +17,7 @@ The xAI API key lives in Cloudflare Workers secrets — never in the mobile app.
 
 ```bash
 npm install
-cp .dev.vars.example .dev.vars   # fill in XAI_API_KEY
+cp .dev.vars.example .dev.vars   # Doppler service token for config `dev`
 npm run dev
 ```
 
@@ -24,8 +25,10 @@ npm run dev
 
 ```bash
 npm run deploy
-npx wrangler secret put XAI_API_KEY
+npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token
 ```
+
+`wrangler.toml` already sets `DOPPLER_PROJECT` / `DOPPLER_CONFIG` / `APP_XAI_MODEL`.
 
 Point the Flutter app at the deployed URL:
 

@@ -23,10 +23,12 @@ u-things-web pages for marketing + privacy.
 - common_app_kit (pinned git tag): licensing/nag/paywall, LocalStore, tone/safety, UI helpers.
 - go_router for navigation.
 - backend/: Cloudflare Worker — xAI proxy + anonymous analytics.
-- Secrets: XAI_API_KEY in Cloudflare Workers secrets (wrangler secret put).
-- No Doppler in the default template (optional upgrade for multi-service setups).
+- Secrets SoT: Doppler (per-app project). Worker + Codemagic consume Doppler.
+  Never put xAI keys in the mobile app. RC goog_/appl_ are public SDK keys but
+  still live in Doppler and are injected at build time as dart-defines.
 - Marketing + privacy: u-things-web repo (separate).
 - CI: Codemagic (cloud iOS + Android builds).
+- Store launch: harness/store-launch-checklist.md + infrastructure-setup.md.
 ```
 
 ---
@@ -55,9 +57,13 @@ one app = one set of secrets, nothing shared between apps:
 
 Customize in lib/src/config/app_config.dart:
 - kAppName, LicenseConfig, product IDs, nag copy, theme
+- Android monthly id is productId:basePlanId; iOS keeps bare monthly id
+- Terms: Apple EULA on iOS only; empty on Android
 
 Full external-tool setup (xAI, Doppler, Cloudflare, Codemagic, Play, RevenueCat):
 harness/infrastructure-setup.md
+Store + RC launch order / gotchas:
+harness/store-launch-checklist.md
 ```
 
 ---

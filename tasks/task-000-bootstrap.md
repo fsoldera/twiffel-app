@@ -22,7 +22,10 @@ Search/replace across the repo (carefully — review each match):
 | `uthings_app_template` | `my_app` (package name) |
 | `com.uthings.uthings_app_template` | `com.uthings.myapp` (bundle ID) |
 | `my_app_pro`, `my_app_unlock`, `my_app_monthly` | Your RevenueCat product IDs |
+| `my_app_monthly:monthly` | Android monthly id after Play import |
 | `my-app-api` | `<app>-api` (Worker name) |
+| `APP_XAI_*` (Worker / Doppler) | `<APP>_XAI_*` |
+| `APP_RC_KEY_*` / `APP_API_BASE` | `<APP>_RC_KEY_*` / `<APP>_API_BASE` |
 
 Files to edit first:
 
@@ -38,9 +41,12 @@ Files to edit first:
 ## 3. Cloudflare Worker + secrets chain
 
 Follow **`harness/infrastructure-setup.md` steps 1–3** (xAI → Doppler → Worker).
-Key rule: **one app = one set of secrets**, everything prefixed `<APP>_*`.
+Key rule: **Doppler is the secrets SoT**; **one app = one Doppler project**, everything
+prefixed `<APP>_*`. Never put xAI keys in the Flutter app.
 
 - [ ] xAI key named `<app>`; Doppler project `<app>` with `<APP>_XAI_API_KEY` / `<APP>_XAI_MODEL`
+- [ ] Create worker service tokens (`<app>-worker-dev` / `<app>-worker-prd`); optional
+      `<app>-codemagic-ci` for Codemagic
 - [ ] Rename worker in `backend/wrangler.toml` (`name`, analytics dataset, `DOPPLER_PROJECT`)
 - [ ] Rename env keys in `backend/src/ai.ts` to `<APP>_XAI_*` (resolved via Doppler)
 - [ ] `cd backend && npm install && npm run deploy`
@@ -61,39 +67,42 @@ Key rule: **one app = one set of secrets**, everything prefixed `<APP>_*`.
 
 ## 5. RevenueCat + stores (when ready)
 
-Follow **`harness/infrastructure-setup.md` steps 5–8** (keystore → Play → RevenueCat
-→ App Store Connect). Watch the gotchas: identifiers are immutable, the Play Console
-"API access" page no longer exists (invite the service account as a user), and Play
-builds need the `goog_…` key — `test_…` gives "Wrong API key" on launch.
+Follow **`harness/store-launch-checklist.md`** (short path) and
+**`harness/infrastructure-setup.md` steps 5–8** (detail + gotchas).
 
-- [ ] Create RevenueCat project + entitlement + products (exact IDs from `app_config.dart`)
-- [ ] App Store Connect + Google Play Console listings
-- [ ] Wire real paywall (kit `PaywallScreen` or custom shop page)
-- [ ] Set `kPrivacyPolicyUrl` / `kTermsOfUseUrl` in `lib/src/config/app_config.dart`
-      and confirm the shop page shows both links + subscription disclosure
-      (App Store guideline 3.1.2(c))
-- [ ] Confirm the shop page names only the current store, never both
-      (guideline 2.3.10)
-- [ ] App Store Connect: add the privacy policy link (Privacy Policy field) and
-      the EULA link (App Description or EULA field)
-- [ ] Ensure any promoted IAP / win-back promotional images contain no price text
-      (guideline 2.3.2)
+**Doppler is the secrets SoT** — store `goog_…` / `appl_…` there; Codemagic consumes
+them (preferred) or mirrors them once from Doppler. Never invent a second SoT.
+
+- [ ] Freeze product IDs in `lib/src/config/app_config.dart` before dashboards
+      (`<app>_pro` / `_unlock` / `_monthly`; Android monthly → `<app>_monthly:monthly`)
+- [ ] Play: internal track + products + license tester
+- [ ] RevenueCat: Play app → import → entitlement + offering `default` → `goog_…` in Doppler
+- [ ] ASC: IAPs (description ≤ 45 chars) + review screenshots via
+      `scripts/export-iap-review-screenshot.py`
+- [ ] RevenueCat: App Store app + shared IAP `.p8` → `appl_…` in Doppler (key is
+      **only** in RevenueCat, never ASC)
+- [ ] Wire a real shop (prefer custom plan cards; kit `PaywallScreen` alone shows
+      raw store titles)
+- [ ] Confirm shop: privacy + iOS EULA links + subscription disclosure (3.1.2(c));
+      Android omits Apple EULA (template already platform-resolves terms)
+- [ ] Confirm shop names only the current store (guideline 2.3.10)
+- [ ] ASC listing: privacy policy + EULA fields; no price text on promo images (2.3.2)
 
 ---
 
 ## 6. Codemagic
 
-Follow **`harness/infrastructure-setup.md` step 4**. Do **not** share env groups with
-other apps — app-prefixed groups only, and group names must match `codemagic.yaml`
-exactly. Start builds from the **codemagic.yaml** tab, not the Workflow Editor.
+Follow **`harness/infrastructure-setup.md` step 4**. Prefer **Doppler → Codemagic**
+(`DOPPLER_TOKEN` + `<APP>_API_BASE`). Fallback: app-prefixed env groups that mirror
+Doppler. Group names must match `codemagic.yaml` exactly. Start builds from the
+**codemagic.yaml** tab, not the Workflow Editor.
 
-- [ ] Rename groups + variables in `codemagic.yaml` to `<app>_github`,
-      `<app>_runtime`, `<app>_secrets` / `<APP>_*` vars
-- [ ] Create those groups on the app's Environment variables page (after switching
-      to codemagic.yaml mode — switching can wipe variables entered before)
-- [ ] Set `<APP>_GITHUB_TOKEN`, `<APP>_API_BASE`, `<APP>_RC_KEY_IOS`,
-      `<APP>_RC_KEY_ANDROID`, `<APP>_CM_KEYSTORE*`
-- [ ] Run Android + iOS smoke workflows
+- [ ] Rename groups + variables in `codemagic.yaml` to `<app>_*` / `<APP>_*`
+- [ ] Preferred: put RC keys + signing + GitHub PAT in Doppler `ci`/`prd`; Codemagic
+      holds only `DOPPLER_TOKEN` (+ `<APP>_API_BASE`)
+- [ ] Fallback: create `<app>_github` / `<app>_runtime` / `<app>_secrets` and paste
+      values **from Doppler** (after switching to yaml mode — switching can wipe vars)
+- [ ] Run Android + iOS smoke workflows; after RC keys exist, rebuild store tracks
 
 ---
 

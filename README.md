@@ -40,15 +40,18 @@ Without `APP_API_BASE`, the template uses **local fallback** steps and honor-sys
 ```bash
 cd backend
 npm install
-cp .dev.vars.example .dev.vars   # add XAI_API_KEY
+cp .dev.vars.example .dev.vars   # Doppler service token for config `dev`
 npm run dev
 
 # Deploy
 npm run deploy
-npx wrangler secret put XAI_API_KEY
+npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token
 ```
 
-Secrets live in **Cloudflare Workers** (`XAI_API_KEY`). Doppler is not used in the default template.
+**Secrets SoT is Doppler** (per-app project): xAI keys for the Worker, and later
+RevenueCat `goog_…` / `appl_…` for Codemagic builds. The Worker reads Doppler via
+`DOPPLER_SERVICE_TOKEN`. See `harness/infrastructure-setup.md` and
+`harness/store-launch-checklist.md`.
 
 ---
 
@@ -62,8 +65,11 @@ lib/src/
   state/                    ← example SessionController
 backend/                    ← Cloudflare Worker (rename before deploy)
 harness/                    ← canonical agent harness
+  infrastructure-setup.md   ← xAI → Doppler → Worker → Codemagic → stores
+  store-launch-checklist.md ← Play / RC / ASC gotchas (Stikkteller lessons)
 tasks/task-000-bootstrap.md ← new-app checklist
-codemagic.yaml              ← CI (customize env groups)
+scripts/export-iap-review-screenshot.py ← ASC IAP review image sizes
+codemagic.yaml              ← CI (Doppler preferred; env groups as fallback)
 ```
 
 ---

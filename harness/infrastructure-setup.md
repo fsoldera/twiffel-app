@@ -2,16 +2,26 @@
 
 Step-by-step guide to wire a new app into all external tools. Written after doing it
 the hard way for Stikkteller — follow the order and the gotchas and it should take
-under an hour.
+under an hour for infra, plus the store catalog pass in
+`harness/store-launch-checklist.md`.
 
 Replace `<APP>` with the uppercase app name (e.g. `STIKKTELLER`) and `<app>` with the
 lowercase name (e.g. `stikkteller`) everywhere below.
 
-**Golden rule: one app = one set of secrets.** Never share keys between apps
+**Golden rule: one app = one set of secrets.** Never share app keys between apps
 (they outlive each other and rotating one must not break another). Every secret and
-variable is prefixed with the app name: `<APP>_*`. The only allowed shared pieces are
-the Google Cloud **service account** (per developer account, not per app) and your
-personal logins.
+variable is prefixed with the app name: `<APP>_*`.
+
+**Secret source of truth = Doppler.** Put immutable secrets in Doppler first. The
+Worker and Codemagic **consume** Doppler. Do not hand-duplicate RC keys into
+Codemagic if they already live in Doppler.
+
+The only allowed **shared** pieces (not per-app secrets) are:
+
+- Google Cloud service account `revenuecat-play@…` (invite per new Play app)
+- ASC **In-App Purchase** `.p8` + Issuer ID + Key ID (account-wide, reuse in RC)
+- ASC **App Store Connect API** key (Codemagic integration; name `<app>_asc` OK)
+- Personal logins / dashboard access
 
 ---
 
@@ -19,16 +29,17 @@ personal logins.
 
 ```text
 1. xAI            → API key exists
-2. Doppler        → key stored + service tokens
+2. Doppler        → SoT for XAI + (later) RC keys + optional signing
 3. Cloudflare     → Worker deployed, reads Doppler   → gives <APP>_API_BASE URL
-4. Codemagic      → GitHub PAT + API base            → CI builds pass
+4. Codemagic      → thin CI: PAT + Doppler token (or mirrored groups)
 5. Android keystore → signed .aab
-6. Google Play    → app created, internal test track
-7. RevenueCat     → catalog + goog_ key              → billing works in Play builds
-8. App Store Connect → <app>_asc integration         → TestFlight (when iOS ships)
+6. Google Play    → app created, internal test track + products
+7. RevenueCat     → catalog + goog_ key → store goog_ in Doppler → Play billing
+8. App Store Connect → IAPs + <app>_asc → appl_ in Doppler → TestFlight
 ```
 
 Each step only needs outputs from the steps above it. Do them in order.
+For the store/RC click-path and gotchas, also use `harness/store-launch-checklist.md`.
 
 ---
 
@@ -39,22 +50,32 @@ Each step only needs outputs from the steps above it. Do them in order.
 2. Note the model (default: `grok-3-mini`).
 3. Keep both in a password manager until step 2.
 
+> **Never** put the xAI key in the Flutter app, Codemagic dart-defines, or git.
+> Only Doppler → Worker.
+
 ---
 
-## Step 2 — Doppler (dashboard.doppler.com)
+## Step 2 — Doppler (dashboard.doppler.com) — secrets SoT
 
 1. **Create a project named after the app** (`<app>`) — do not add configs to
    another app's project.
-2. Use the default `dev` and `prd` configs. Add to **both**:
+2. Use the default `dev` and `prd` configs. Optionally add a `ci` config that
+   mirrors the secrets Codemagic needs (RC keys, keystore, GitHub PAT).
+3. Add to **`dev` and `prd`** (and `ci` if you use it):
 
-   | Secret | Value |
-   |---|---|
-   | `<APP>_XAI_API_KEY` | key from step 1 |
-   | `<APP>_XAI_MODEL` | `grok-3-mini` |
+   | Secret | Value | When |
+   |---|---|---|
+   | `<APP>_XAI_API_KEY` | key from step 1 | now |
+   | `<APP>_XAI_MODEL` | `grok-3-mini` | now |
+   | `<APP>_RC_KEY_ANDROID` | `goog_…` | after step 7 |
+   | `<APP>_RC_KEY_IOS` | `appl_…` | after step 8 |
+   | Optional: `<APP>_GITHUB_TOKEN` | GitHub PAT | if Codemagic pulls from Doppler |
+   | Optional: `<APP>_CM_KEYSTORE*` | signing | if Codemagic pulls from Doppler |
 
-3. Create **service tokens** — one per config:
-   - `<app>-worker-dev` (config `dev`)
-   - `<app>-worker-prd` (config `prd`)
+4. Create **service tokens**:
+   - `<app>-worker-dev` (config `dev`) — local Worker / `.dev.vars`
+   - `<app>-worker-prd` (config `prd`) — deployed Worker
+   - `<app>-codemagic-ci` (config `ci` or `prd`) — Codemagic only
 
 > **Gotcha — where are service tokens?** Not on the Secrets page. Left sidebar →
 > **Tokens**, or open a config → **Access** tab. Tokens start with `dp.st.`.
@@ -103,6 +124,21 @@ Local dev: copy `backend/.dev.vars.example` → `.dev.vars`, use the **dev** tok
 
 ## Step 4 — Codemagic (free personal plan)
 
+**Preferred:** Doppler holds secrets; Codemagic holds only a thin set:
+
+| Group | Variable | Secret? | Value |
+|---|---|---|---|
+| `<app>_ci` | `DOPPLER_TOKEN` | yes | service token `<app>-codemagic-ci` |
+| `<app>_runtime` | `<APP>_API_BASE` | no | Worker URL from step 3 |
+
+Then the YAML install Doppler CLI and `doppler run --project <app> --config ci -- …`
+so builds see `<APP>_RC_KEY_*`, `<APP>_GITHUB_TOKEN`, keystore vars from Doppler.
+See comments in `codemagic.yaml`.
+
+**Fallback (Stikkteller-style mirror):** if you prefer not to wire Doppler into CI yet,
+put the same values in Codemagic groups (still **copy from Doppler**, do not invent a
+second SoT):
+
 The free plan has **no team-level variable groups**. Everything lives on
 **Applications → \<app\> → Environment variables**, where the *Select group* field
 creates groups on first use.
@@ -122,8 +158,8 @@ creates groups on first use.
    | `<app>_secrets` | `<APP>_CM_KEYSTORE_PASSWORD` | yes | |
    | `<app>_secrets` | `<APP>_CM_KEY_ALIAS` | no | `<app>-upload` |
    | `<app>_secrets` | `<APP>_CM_KEY_PASSWORD` | yes | |
-   | `<app>_secrets` | `<APP>_RC_KEY_ANDROID` | yes | `goog_…` (step 7) |
-   | `<app>_secrets` | `<APP>_RC_KEY_IOS` | yes | `appl_…` (step 8 era) |
+   | `<app>_secrets` | `<APP>_RC_KEY_ANDROID` | yes | `goog_…` from Doppler / step 7 |
+   | `<app>_secrets` | `<APP>_RC_KEY_IOS` | yes | `appl_…` from Doppler / step 8 |
 
 > **Gotcha — variables wiped:** switching the app from Workflow Editor to
 > codemagic.yaml mode can erase already-entered variables. Re-add them after
@@ -156,8 +192,8 @@ keytool -genkeypair -v `
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("<app>-upload.jks")) | Set-Clipboard
 ```
 
-Paste the base64 + passwords into the `<app>_secrets` group (step 4 table).
-Back up the `.jks` and passwords in a password manager.
+Paste the base64 + passwords into Doppler (preferred) and/or the `<app>_secrets`
+group (step 4 fallback). Back up the `.jks` and passwords in a password manager.
 
 > **Gotcha — regeneration:** free to regenerate with new passwords **until the first
 > `.aab` is uploaded to Play**. After that the upload key is pinned (reset requires a
@@ -175,6 +211,11 @@ Back up the `.jks` and passwords in a password manager.
 4. Roll out the release (status must say *available to internal testers*, not draft).
 5. **Testers tab**: add your Gmail to a tester list, save, then copy the
    **opt-in link** (`https://play.google.com/apps/test/<package>/...`).
+6. Add yourself as a **license tester** (Settings → License testing) so purchases
+   are free / sandbox-like for billing tests.
+7. Create products (IDs must match `app_config.dart`):
+   - One-time: `<app>_unlock`, purchase option `default`, activate + price.
+   - Subscription: `<app>_monthly`, base plan id `monthly`, auto-renew, activate + price.
 
 > **Gotcha — nothing "arrives":** Play sends **no email** and the app is **not
 > searchable** in the store. The opt-in link is the only entry point: open it on an
@@ -183,6 +224,12 @@ Back up the `.jks` and passwords in a password manager.
 > **Gotcha — dashboard blockers:** privacy policy URL, content rating, target
 > audience, and app access declarations can block the test link even after rollout.
 > Clear the dashboard tasks if the link claims the app is unavailable.
+
+> **Gotcha — listing icon:** the 512×512 store icon is listing metadata. Shipping a
+> new `.aab` does **not** fix a missing/robot listing icon.
+
+> **Gotcha — `(unreviewed)` + robot + package name:** normal on internal testing
+> until the store listing is reviewed. Does not block internal install or IAP tests.
 
 ---
 
@@ -197,11 +244,16 @@ Back up the `.jks` and passwords in a password manager.
 | Monthly subscription | `<app>_monthly` |
 | Offering | `default` (packages `$rc_lifetime`, `$rc_monthly`) |
 
+Freeze IDs in `app_config.dart` **before** creating dashboard objects.
+
 > **Gotcha — identifiers can never be edited**, only display names. A wrong ID means
 > delete + recreate (safe while there are no transactions).
 
 Skip the "Install the SDK" wizard code — `common_app_kit` already wraps
 `purchases_flutter`; only the dashboard objects and API keys matter.
+
+Prefer a custom shop (plan cards) over the kit `PaywallScreen` alone — the kit
+shows raw store titles (`… (com.uthings.…)`).
 
 ### Play Store app + service credentials
 
@@ -221,12 +273,28 @@ Skip the "Install the SDK" wizard code — `common_app_kit` already wraps
 > *manage orders and subscriptions* → invite. It turns **Active immediately**
 > (service accounts don't accept invitations). Allow ~15 min to propagate.
 
+### Import Play products + Android monthly id
+
+1. Play **Products** may be empty while Test Store still has placeholders — expected.
+2. **Import** from Play. Monthly becomes `<app>_monthly:monthly`
+   (`productId:basePlanId`).
+3. Set Android monthly id in `app_config.dart` to that exact string (template already
+   resolves platform monthly ids). Kit filters by exact `StoreProduct.identifier`.
+4. Attach **Play** products to entitlement + offering `default` — not only Test Store
+   rows named `Monthly` / `Lifetime`.
+
 ### API keys
 
-**API keys** page → per-app **SDK** keys (never the secret keys):
+**API keys** / Apps page → per-app **SDK** keys (never the secret keys):
 
-- Test Store key `test_…` → only for sideloaded/dev builds.
-- Play Store key `goog_…` → required for **any build installed from Google Play**.
+| Key | Prefix | Use |
+|---|---|---|
+| Test Store | `test_…` | sideloaded / local only |
+| Play Store | `goog_…` | any build installed from Google Play |
+| App Store | `appl_…` | TestFlight / App Store (step 8) |
+
+5. Copy `goog_…` → **Doppler** as `<APP>_RC_KEY_ANDROID` (then Codemagic via Doppler
+   or a thin mirror). Rebuild the Android workflow.
 
 > **Gotcha — "Wrong API key" on launch** of a Play-installed build means a `test_`
 > key was baked in. Put the `goog_…` key in `<APP>_RC_KEY_ANDROID`, rebuild,
@@ -239,12 +307,32 @@ Until keys are set, the app runs in honor/nag-only mode — fine for early testi
 ## Step 8 — App Store Connect / TestFlight (when iOS ships)
 
 1. App Store Connect: create the app for bundle `com.uthings.<app>`.
-2. Codemagic → Integrations → App Store Connect API key, named `<app>_asc`
+2. Create IAPs matching `app_config.dart`:
+   - Non-consumable `<app>_unlock`
+   - Auto-renewable `<app>_monthly` (1 month)
+3. Localization **description ≤ 45 characters** (ASC hard limit).
+4. Review screenshot required — exact iPhone sizes only
+   (`1242×2688`, `1284×2778`, …). Use `scripts/export-iap-review-screenshot.py`.
+5. First IAP often must ship with a **new app version** (ASC banner) — expected.
+6. Codemagic → Integrations → App Store Connect API key, named `<app>_asc`
    (matches `integrations.app_store_connect` in `codemagic.yaml`).
-3. Run the **iOS (signed)** workflow — it fetches/creates signing files and submits
+7. Run the **iOS (signed)** workflow — it fetches/creates signing files and submits
    to TestFlight.
-4. RevenueCat: add the App Store app, copy the `appl_…` key into
-   `<APP>_RC_KEY_IOS`.
+8. RevenueCat: Apps → App Store + shared IAP `.p8` credentials.
+9. Copy **`appl_…` only from RevenueCat** (Apps → App Store app → Show key) —
+   it never appears in ASC. Store in Doppler as `<APP>_RC_KEY_IOS`.
+10. Import App Store products; offering `default` must show **App Store** product
+    rows (e.g. `… Lifetime` / `… Monthly`), not only Test Store placeholders.
+11. New signed iOS build with `appl_…` → Internal TestFlight → sandbox purchase.
+
+> **Gotcha — Codemagic 422 on `betaAppReviewSubmissions`:** IPA + publishing can
+> still succeed; external beta metadata is the failure. **Internal Testing** works.
+
+> **Gotcha — seller “personal name”:** Individual Apple Developer account shows your
+> legal name as seller. Brand name needs Organization + D-U-N-S.
+
+> **Gotcha — terms in app:** Apple EULA on iOS only; omit Apple EULA link on Android
+> (template `app_config.dart` already does this).
 
 ---
 
@@ -253,10 +341,11 @@ Until keys are set, the app runs in honor/nag-only mode — fine for early testi
 | Tool | Names |
 |---|---|
 | xAI | key labeled `<app>` |
-| Doppler project `<app>` | `<APP>_XAI_API_KEY`, `<APP>_XAI_MODEL`; tokens `<app>-worker-dev/prd` |
+| **Doppler project `<app>` (SoT)** | `<APP>_XAI_*`, `<APP>_RC_KEY_*`, optional `<APP>_GITHUB_TOKEN` / `<APP>_CM_*`; tokens `<app>-worker-dev/prd`, `<app>-codemagic-ci` |
 | Cloudflare Worker `<app>-api` | secret `DOPPLER_SERVICE_TOKEN`; vars `DOPPLER_PROJECT`, `DOPPLER_CONFIG` |
-| Codemagic groups `<app>_github/runtime/secrets` | `<APP>_GITHUB_TOKEN`, `<APP>_API_BASE`, `<APP>_CM_*`, `<APP>_RC_KEY_*` |
+| Codemagic | Prefer `DOPPLER_TOKEN` + `<APP>_API_BASE`; fallback groups `<app>_github/runtime/secrets` |
 | Google Cloud `u-things-500622` | service account `revenuecat-play` (+ JSON key) — shared |
 | Google Play | package `com.uthings.<app>`; `revenuecat-play` invited as user |
 | RevenueCat project `<app>` | `<app>_pro/_unlock/_monthly`, offering `default`, SDK keys `test_/goog_/appl_` |
+| ASC | IAP catalog + shared IAP `.p8` + ASC API key for Codemagic |
 | Local backup (password manager) | `.jks` + passwords, all of the above |

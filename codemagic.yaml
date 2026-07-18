@@ -1,28 +1,59 @@
 # Codemagic CI/CD — customize for your app before first build.
 # Full setup walkthrough + gotchas: harness/infrastructure-setup.md (step 4).
+# Store / RC launch order: harness/store-launch-checklist.md
+#
+# Secrets SoT = Doppler. Prefer Codemagic holding only:
+#   <app>_ci       — DOPPLER_TOKEN (service token for config `ci` or `prd`)
+#   <app>_runtime  — <APP>_API_BASE
+# then wrap builds with: doppler run --project <app> --config ci -- <command>
+#
+# Fallback (mirror from Doppler into Codemagic groups — do not invent a 2nd SoT):
+#   <app>_github  — <APP>_GITHUB_TOKEN
+#   <app>_runtime — <APP>_API_BASE
+#   <app>_secrets — <APP>_RC_KEY_*, <APP>_CM_KEYSTORE*
 #
 # TODO(template) — one app = one set of secrets, everything app-prefixed:
-# - Rename env groups to <app>_github, <app>_runtime, <app>_secrets
-# - Rename vars APP_* → <APP>_* (GITHUB_TOKEN → <APP>_GITHUB_TOKEN etc.)
+# - Rename env groups / vars APP_* → <APP>_*
 # - Rename workflows, set bundle ID (com.uthings.<app>), ASC integration <app>_asc
 # - Groups are app-level (free plan has no team groups); names here must match
 #   the groups created on the app's Environment variables page exactly.
-#
-# Required Codemagic env groups:
-#   <app>_github  — <APP>_GITHUB_TOKEN (repo scope) for private common-app-kit
-#   <app>_runtime — <APP>_API_BASE
-#   <app>_secrets — <APP>_RC_KEY_IOS, <APP>_RC_KEY_ANDROID, <APP>_CM_KEYSTORE* vars
 
 definitions:
   scripts:
     - &configure_private_git
       name: Configure Git for private pub dependencies
       script: |
-        if [ -z "$GITHUB_TOKEN" ]; then
-          echo "GITHUB_TOKEN is not set."
+        # Prefer APP_GITHUB_TOKEN (template) / <APP>_GITHUB_TOKEN after rename.
+        # When using Doppler, this var is injected by `doppler run` or exported below.
+        TOKEN="${APP_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
+        if [ -z "$TOKEN" ]; then
+          echo "APP_GITHUB_TOKEN (or GITHUB_TOKEN) is not set."
           exit 1
         fi
-        git config --global url."https://x-access-token:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+        git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+    - &load_doppler_if_configured
+      name: Load secrets from Doppler (optional)
+      script: |
+        # If DOPPLER_TOKEN is set, install CLI and export secrets into the job env.
+        # Skip silently when using Codemagic env-group fallback.
+        if [ -z "${DOPPLER_TOKEN:-}" ]; then
+          echo "DOPPLER_TOKEN unset — using Codemagic env groups."
+          exit 0
+        fi
+        if [ -z "${DOPPLER_PROJECT:-}" ]; then
+          echo "DOPPLER_TOKEN set but DOPPLER_PROJECT missing (e.g. my-app)."
+          exit 1
+        fi
+        DOPPLER_CONFIG="${DOPPLER_CONFIG:-ci}"
+        curl -Ls https://cli.doppler.com/install.sh | sh -s -- --no-install-pkgs
+        # Export KEY=value pairs for subsequent scripts in this job.
+        # (Codemagic does not keep shell exports across script steps unless written
+        #  to CM_ENV / a file — use doppler run on the build step instead if needed.)
+        doppler secrets download \
+          --project "$DOPPLER_PROJECT" \
+          --config "$DOPPLER_CONFIG" \
+          --no-file --format env >> "$CM_ENV"
+        echo "Doppler secrets loaded into CM_ENV (project=$DOPPLER_PROJECT config=$DOPPLER_CONFIG)."
     - &pub_get
       name: Resolve dependencies
       script: flutter pub get
@@ -34,10 +65,13 @@ workflows:
     environment:
       flutter: stable
       groups:
+        # Preferred thin CI: app_ci (DOPPLER_TOKEN) + app_runtime
+        # Fallback: github_credentials + app_runtime + app_secrets
         - github_credentials
         - app_runtime
         - app_secrets
     scripts:
+      - *load_doppler_if_configured
       - *configure_private_git
       - *pub_get
       - name: Analyze
@@ -66,6 +100,7 @@ workflows:
         - app_runtime
         - app_secrets
     scripts:
+      - *load_doppler_if_configured
       - *configure_private_git
       - *pub_get
       - name: Install CocoaPods dependencies

@@ -16,11 +16,17 @@ const String kApiBase = String.fromEnvironment('APP_API_BASE', defaultValue: '')
 /// TODO(template): point this at your app's published privacy policy page.
 const String kPrivacyPolicyUrl = 'https://u-things.com/privacy/my-app';
 
-/// Terms of Use (EULA) URL surfaced in the purchase flow. Defaults to Apple's
-/// standard licensed-application EULA, which Apple accepts (guideline 3.1.2(c)).
-/// Replace only if your app ships a custom EULA.
-const String kTermsOfUseUrl =
-    'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+/// Apple standard EULA for iOS purchase flows (App Store 3.1.2(c)).
+/// Android omits a separate EULA link — Play already covers billing terms.
+String _resolveTermsOfUseUrl() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.iOS:
+    case TargetPlatform.macOS:
+      return kAppleStandardEulaUrl;
+    default:
+      return '';
+  }
+}
 
 const String _kRevenueCatKeyIos =
     String.fromEnvironment('APP_RC_KEY_IOS', defaultValue: '');
@@ -38,14 +44,26 @@ String _resolveRevenueCatKey() {
   }
 }
 
+/// Play Store subscriptions are imported as `productId:basePlanId`.
+/// App Store / Test Store keep the bare product id.
+/// TODO(template): rename `my_app_*` to your product IDs.
+String _resolveMonthlyProductId() {
+  switch (defaultTargetPlatform) {
+    case TargetPlatform.android:
+      return 'my_app_monthly:monthly';
+    default:
+      return 'my_app_monthly';
+  }
+}
+
 /// TODO(template): customize product IDs, nag copy, and theme for your app.
 final LicenseConfig appLicenseConfig = LicenseConfig(
   appName: kAppName,
   revenueCatPublicKey: _resolveRevenueCatKey(),
   entitlementId: 'my_app_pro',
-  products: const LicenseProductIds(
+  products: LicenseProductIds(
     oneTime: 'my_app_unlock',
-    monthly: 'my_app_monthly',
+    monthly: _resolveMonthlyProductId(),
   ),
   trigger: NagTrigger.afterNUses,
   nagAfterUses: 10,
@@ -62,7 +80,7 @@ final LicenseConfig appLicenseConfig = LicenseConfig(
     'Keeps the app simple and ad-free',
   ],
   privacyPolicyUrl: kPrivacyPolicyUrl,
-  termsOfUseUrl: kTermsOfUseUrl,
+  termsOfUseUrl: _resolveTermsOfUseUrl(),
   theme: const PaywallTheme(
     primary: Color(0xFF2563EB),
     primaryGradient: LinearGradient(
