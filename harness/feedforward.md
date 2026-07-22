@@ -98,6 +98,8 @@ harness/store-launch-checklist.md
 - Do not add per-user behavioral tracking.
 - Do not hard-code a store name or reference a store other than the current
   platform's in the app binary.
+- Do not use "--" or "—" as punctuation in generated prose; use a comma ","
+  (see harness/writing-style.md).
 ```
 
 ---

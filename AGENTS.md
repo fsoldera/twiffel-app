@@ -11,12 +11,13 @@ This project uses **Harness Engineering**: agents must operate inside the projec
 Before making any change, read these files in order:
 
 1. `harness/feedforward.md`
-2. `harness/harness.yaml`
-3. `harness/correction-policy.md`
-4. `harness/risk-controls.md`
-5. `harness/final-response-contract.md`
-6. The relevant task file in `tasks/`
-7. Any files listed as required context in the task
+2. `harness/writing-style.md`
+3. `harness/harness.yaml`
+4. `harness/correction-policy.md`
+5. `harness/risk-controls.md`
+6. `harness/final-response-contract.md`
+7. The relevant task file in `tasks/`
+8. Any files listed as required context in the task
 
 Do not begin implementation before reading the relevant feedforward and task context.
 
@@ -256,7 +257,8 @@ The agent should prefer:
 - explicit assumptions over silent guesses,
 - tests for behavior over tests for implementation details,
 - clear escalation over risky autonomy,
-- improving the harness when gaps are discovered.
+- improving the harness when gaps are discovered,
+- commas instead of `--` / `—` in generated prose (see `harness/writing-style.md`).
 
 ---
 
