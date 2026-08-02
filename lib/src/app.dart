@@ -1,5 +1,6 @@
 import 'package:common_app_kit/common_app_kit.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:go_router/go_router.dart';
 
 import 'config/app_config.dart';
@@ -45,6 +46,10 @@ class _MyAppState extends State<MyApp> {
       analytics: _analytics,
       settings: _settings,
     );
+    // Drop the native stacked-logo plate once Flutter has painted.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      FlutterNativeSplash.remove();
+    });
   }
 
   @override

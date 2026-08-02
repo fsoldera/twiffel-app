@@ -136,11 +136,14 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
       _submitting = true;
     });
 
-    await widget.session.submitDecision(_buildRequest());
-
+    // Navigate immediately so analysis can show the Figma loading mark while
+    // the Worker request runs.
+    final future = widget.session.submitDecision(_buildRequest());
+    if (!mounted) return;
+    context.push('/analysis');
+    await future;
     if (!mounted) return;
     setState(() => _submitting = false);
-    context.push('/analysis');
   }
 
   @override

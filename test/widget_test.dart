@@ -5,11 +5,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:twiffel_app/src/app.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
 
+Future<void> _pumpApp(WidgetTester tester) async {
+  await tester.pumpWidget(const MyApp());
+  await tester.pump(); // FlutterNativeSplash.remove()
+  await tester.pumpAndSettle();
+}
+
 void main() {
   testWidgets('routing screen shows decision path cards', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+    await _pumpApp(tester);
 
     expect(find.text('Twiffel'), findsWidgets);
     expect(find.byIcon(Icons.menu), findsOneWidget);
@@ -21,8 +26,7 @@ void main() {
 
   testWidgets('Continue on Path A opens do-or-buy form', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+    await _pumpApp(tester);
 
     await tester.tap(find.text(DecisionCopy.pathATitle));
     await tester.pump();
@@ -37,8 +41,7 @@ void main() {
 
   testWidgets('Continue on Path B opens Option A/B fields', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
-    await tester.pumpWidget(const MyApp());
-    await tester.pumpAndSettle();
+    await _pumpApp(tester);
 
     await tester.tap(find.text(DecisionCopy.pathBTitle));
     await tester.pump();

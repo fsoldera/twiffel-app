@@ -1,0 +1,75 @@
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
+
+/// Rotating loading lines shown under the pulsing mark while AI runs.
+///
+/// Draws from a shuffled deck so each line is used once before reshuffling.
+class LoadingResponseTexts {
+  LoadingResponseTexts._();
+
+  /// Source list (same content as `assets/copy/loading_response_texts.txt`).
+  static const List<String> lines = <String>[
+    'Twiffel is thinking...',
+    'Twiffel is weighing the options...',
+    'Twiffel is overthinking this...',
+    'Twiffel is arguing with itself...',
+    'Twiffel is consulting its inner committee...',
+    'Twiffel is currently in a heated debate with itself...',
+    'Twiffel is making an unnecessarily detailed pro/con list...',
+    'Twiffel went full analysis mode...',
+    'Twiffel is weighing every possible outcome (again)...',
+    'Twiffel is having a productive identity crisis...',
+    'Twiffel is politely fighting both sides...',
+    'Twiffel is building a very serious spreadsheet in its head...',
+    'Twiffel is taking this decision personally...',
+    'Twiffel is double-checking the vibes...',
+    'Twiffel is negotiating with its own doubts...',
+    'Twiffel is doing mental gymnastics right now...',
+    'Twiffel is writing a short essay about your dilemma...',
+    'Twiffel is pretending this is easy...',
+    'Twiffel is deep in the decision trenches...',
+    'Twiffel is running the numbers (and the feelings)...',
+    'Twiffel is second-guessing its second guesses...',
+    'Twiffel is holding a private brainstorming session...',
+    'Twiffel is trying not to spiral...',
+    'Twiffel is comparing every possible future...',
+    'Twiffel is taking a very dramatic pause...',
+    'Twiffel is doing a full risk assessment...',
+    'Twiffel is quietly panicking in a professional way...',
+    'Twiffel is rewriting the pros and cons list...',
+    'Twiffel is having a long internal meeting...',
+    'Twiffel is zooming in on the details...',
+    'Twiffel is zooming out for perspective...',
+    'Twiffel is cross-examining both sides...',
+    'Twiffel is making this harder than it needs to be...',
+    'Twiffel is searching for the perfect answer...',
+    'Twiffel is lost in a thoughtful rabbit hole...',
+    'Twiffel is calculating the emotional ROI...',
+    'Twiffel is just one more analysis away...',
+  ];
+
+  static List<String>? _deck;
+  static int _cursor = 0;
+  static Random _random = Random();
+
+  /// Next line from the shuffled deck (reshuffles when exhausted).
+  static String next() {
+    if (_deck == null || _cursor >= _deck!.length) {
+      _reshuffle();
+    }
+    return _deck![_cursor++];
+  }
+
+  static void _reshuffle() {
+    _deck = List<String>.of(lines)..shuffle(_random);
+    _cursor = 0;
+  }
+
+  @visibleForTesting
+  static void resetForTest({Random? random, List<String>? deck}) {
+    _random = random ?? Random();
+    _deck = deck;
+    _cursor = 0;
+  }
+}

@@ -1,0 +1,25 @@
+<svg width="87" height="78" viewBox="0 0 87 78" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="87" height="78" fill="#1E1E1E"/>
+<g id="loading-animation">
+<rect width="390" height="158" transform="translate(-151.5 -40)" fill="#1F2937"/>
+<g id="loading-mark" clip-path="url(#clip0_0_1)">
+<g id="pills-row" clip-path="url(#clip1_0_1)">
+<g id="left-pill-wrapper">
+<rect id="left-pill" x="13" y="12" width="26" height="51" rx="13" fill="#D97706"/>
+</g>
+<g id="right-pill-wrapper">
+<rect id="right-pill" x="48" width="26" height="51" rx="13" fill="white"/>
+</g>
+</g>
+<rect id="balance-bar" y="71" width="87" height="7" rx="3.5" fill="#FBBF24"/>
+</g>
+</g>
+<defs>
+<clipPath id="clip0_0_1">
+<rect width="87" height="78" fill="white"/>
+</clipPath>
+<clipPath id="clip1_0_1">
+<rect width="61" height="63" fill="white" transform="translate(13)"/>
+</clipPath>
+</defs>
+</svg>

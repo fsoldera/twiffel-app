@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 import '../config/app_config.dart';
 import '../theme/tokens.dart';
@@ -45,10 +46,10 @@ class TwiffelLogo extends StatelessWidget {
           SizedBox(width: height * 0.28),
           Text(
             kAppName,
-            style: TextStyle(
+            style: GoogleFonts.outfit(
               color: colors.textPrimary,
               fontSize: height * 0.58,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w800,
               height: 1,
               letterSpacing: -0.2,
             ),

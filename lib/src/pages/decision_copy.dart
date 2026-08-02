@@ -64,7 +64,8 @@ abstract final class DecisionCopy {
   // Analysis results
   static const String analysisTitleSingle = 'Your Decision Analysis';
   static const String analysisTitleComparison = 'Your Comparison';
-  static const String analysisLoading = 'Generating your analysis...';
+  /// Fallback only; wait screen uses LoadingResponseTexts.next().
+  static const String analysisLoading = 'Twiffel is thinking...';
   static const String analysisStartOver = 'Start over';
   static const String analysisShare = 'Share results';
   static const String analysisShareCopied = 'Results copied to clipboard';

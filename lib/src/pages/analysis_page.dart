@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../copy/loading_response_texts.dart';
 import '../models/decision_models.dart';
 import '../state/session_controller.dart';
 import '../theme/tokens.dart';
+import '../widgets/loading_animation.dart';
 import '../widgets/twiffel_logo.dart';
 import 'decision_copy.dart';
 
@@ -60,215 +62,66 @@ class _AnalysisPageState extends State<AnalysisPage> {
 
         final colors = TwiffelColors.of(context);
 
+        final Widget body;
+        if (loading) {
+          body = const _LoadingBody(key: ValueKey<String>('loading'));
+        } else if (error || analysis == null) {
+          body = _ErrorBody(
+            key: const ValueKey<String>('error'),
+            message: session.inputError ?? DecisionCopy.analysisError,
+            onStartOver: () {
+              session.reset();
+              context.go('/');
+            },
+          );
+        } else {
+          body = KeyedSubtree(
+            key: const ValueKey<String>('results'),
+            child: _ResultsBody(
+              analysis: analysis,
+              isComparison: isComparison,
+              pageIndex: _pageIndex,
+              pageController: _pageController,
+              onPageChanged: (index) => setState(() => _pageIndex = index),
+              onShare: () => _share(analysis),
+              onStartOver: () {
+                session.reset();
+                context.go('/');
+              },
+              onBack: () {
+                if (context.canPop()) {
+                  context.pop();
+                } else {
+                  context.go('/');
+                }
+              },
+            ),
+          );
+        }
+
         return Scaffold(
           backgroundColor: colors.pageBg,
           body: SafeArea(
-            child: loading
-                ? const _LoadingBody()
-                : error || analysis == null
-                    ? _ErrorBody(
-                        message:
-                            session.inputError ?? DecisionCopy.analysisError,
-                        onStartOver: () {
-                          session.reset();
-                          context.go('/');
-                        },
-                      )
-                    : Column(
-                        children: [
-                          _TopBar(
-                            onBack: () {
-                              if (context.canPop()) {
-                                context.pop();
-                              } else {
-                                context.go('/');
-                              }
-                            },
-                          ),
-                          Expanded(
-                            child: ListView(
-                              padding: const EdgeInsets.only(bottom: 24),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    20,
-                                    12,
-                                    20,
-                                    0,
-                                  ),
-                                  child: Text(
-                                    isComparison
-                                        ? DecisionCopy.analysisTitleComparison
-                                        : DecisionCopy.analysisTitleSingle,
-                                    style: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w700,
-                                      color: colors.textPrimary,
-                                      height: 1.15,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(height: 12),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                  ),
-                                  child: isComparison
-                                      ? _ComparisonPills(analysis: analysis)
-                                      : _TargetPill(
-                                          label: DecisionCopy.analysisTargetLabel,
-                                          value: analysis.target ?? '',
-                                        ),
-                                ),
-                                const SizedBox(height: 20),
-                                _TabBar(
-                                  labels: isComparison
-                                      ? [
-                                          '${DecisionCopy.analysisOptionALabel}: ${analysis.optionA ?? ''}',
-                                          '${DecisionCopy.analysisOptionBLabel}: ${analysis.optionB ?? ''}',
-                                        ]
-                                      : [
-                                          DecisionCopy.analysisPros,
-                                          DecisionCopy.analysisCons,
-                                        ],
-                                  activeIndex: _pageIndex,
-                                  activeColor: isComparison
-                                      ? TwiffelTokens.primaryDefault
-                                      : (_pageIndex == 0
-                                          ? TwiffelTokens.semanticSuccess
-                                          : TwiffelTokens.semanticError),
-                                  inactiveColor: isComparison
-                                      ? colors.borderStrong
-                                      : (_pageIndex == 0
-                                          ? TwiffelTokens.semanticError
-                                              .withValues(alpha: 0.35)
-                                          : TwiffelTokens.semanticSuccess
-                                              .withValues(alpha: 0.35)),
-                                  onTap: (index) {
-                                    setState(() => _pageIndex = index);
-                                    _pageController.animateToPage(
-                                      index,
-                                      duration:
-                                          const Duration(milliseconds: 250),
-                                      curve: Curves.easeOut,
-                                    );
-                                  },
-                                ),
-                                SizedBox(
-                                  height: isComparison ? 420 : 340,
-                                  child: PageView(
-                                    controller: _pageController,
-                                    onPageChanged: (index) =>
-                                        setState(() => _pageIndex = index),
-                                    children: isComparison
-                                        ? [
-                                            _OptionPanel(
-                                              title:
-                                                  '${DecisionCopy.analysisOptionALabel}: ${analysis.optionA ?? ''}',
-                                              pros: analysis.optionAPros,
-                                              cons: analysis.optionACons,
-                                            ),
-                                            _OptionPanel(
-                                              title:
-                                                  '${DecisionCopy.analysisOptionBLabel}: ${analysis.optionB ?? ''}',
-                                              pros: analysis.optionBPros,
-                                              cons: analysis.optionBCons,
-                                            ),
-                                          ]
-                                        : [
-                                            _PointsPanel(
-                                              heading: DecisionCopy.analysisPros,
-                                              accent:
-                                                  TwiffelTokens.semanticSuccess,
-                                              icon: Icons.check,
-                                              points: analysis.pros,
-                                            ),
-                                            _PointsPanel(
-                                              heading: DecisionCopy.analysisCons,
-                                              accent:
-                                                  TwiffelTokens.semanticError,
-                                              icon: Icons.close,
-                                              points: analysis.cons,
-                                            ),
-                                          ],
-                                  ),
-                                ),
-                                const SizedBox(height: 8),
-                                _SwipeHint(
-                                  activeIndex: _pageIndex,
-                                  activeColor: isComparison
-                                      ? TwiffelTokens.primaryDefault
-                                      : (_pageIndex == 0
-                                          ? TwiffelTokens.semanticSuccess
-                                          : TwiffelTokens.semanticError),
-                                ),
-                                const SizedBox(height: 20),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                  ),
-                                  child: _VerdictBox(verdict: analysis.verdict),
-                                ),
-                                const SizedBox(height: 20),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: OutlinedButton(
-                                          onPressed: () {
-                                            session.reset();
-                                            context.go('/');
-                                          },
-                                          style: OutlinedButton.styleFrom(
-                                            foregroundColor:
-                                                colors.textSecondary,
-                                            side: BorderSide(
-                                              color: colors.borderDefault,
-                                            ),
-                                            minimumSize:
-                                                const Size.fromHeight(48),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(24),
-                                            ),
-                                          ),
-                                          child: const Text(
-                                            DecisionCopy.analysisStartOver,
-                                          ),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: FilledButton.icon(
-                                          onPressed: () => _share(analysis),
-                                          icon: const Icon(
-                                            Icons.ios_share,
-                                            size: 16,
-                                          ),
-                                          label: const Text(
-                                            DecisionCopy.analysisShare,
-                                          ),
-                                          style: FilledButton.styleFrom(
-                                            minimumSize:
-                                                const Size.fromHeight(48),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(24),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 320),
+              reverseDuration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeInOut,
+              switchOutCurve: Curves.easeInOut,
+              transitionBuilder: (child, animation) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              layoutBuilder: (currentChild, previousChildren) {
+                return Stack(
+                  fit: StackFit.expand,
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    ...previousChildren,
+                    if (currentChild != null) currentChild,
+                  ],
+                );
+              },
+              child: body,
+            ),
           ),
         );
       },
@@ -276,26 +129,239 @@ class _AnalysisPageState extends State<AnalysisPage> {
   }
 }
 
-class _LoadingBody extends StatelessWidget {
-  const _LoadingBody();
+class _ResultsBody extends StatelessWidget {
+  const _ResultsBody({
+    required this.analysis,
+    required this.isComparison,
+    required this.pageIndex,
+    required this.pageController,
+    required this.onPageChanged,
+    required this.onShare,
+    required this.onStartOver,
+    required this.onBack,
+  });
+
+  final DecisionAnalysis analysis;
+  final bool isComparison;
+  final int pageIndex;
+  final PageController pageController;
+  final ValueChanged<int> onPageChanged;
+  final VoidCallback onShare;
+  final VoidCallback onStartOver;
+  final VoidCallback onBack;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          CircularProgressIndicator(color: TwiffelTokens.primaryDefault),
-          SizedBox(height: 16),
-          Text(DecisionCopy.analysisLoading),
-        ],
+    final colors = TwiffelColors.of(context);
+
+    return Column(
+      children: [
+        _TopBar(onBack: onBack),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+                child: Text(
+                  isComparison
+                      ? DecisionCopy.analysisTitleComparison
+                      : DecisionCopy.analysisTitleSingle,
+                  style: TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    color: colors.textPrimary,
+                    height: 1.15,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: isComparison
+                    ? _ComparisonPills(analysis: analysis)
+                    : _TargetPill(
+                        label: DecisionCopy.analysisTargetLabel,
+                        value: analysis.target ?? '',
+                      ),
+              ),
+              const SizedBox(height: 20),
+              _TabBar(
+                labels: isComparison
+                    ? [
+                        '${DecisionCopy.analysisOptionALabel}: ${analysis.optionA ?? ''}',
+                        '${DecisionCopy.analysisOptionBLabel}: ${analysis.optionB ?? ''}',
+                      ]
+                    : [
+                        DecisionCopy.analysisPros,
+                        DecisionCopy.analysisCons,
+                      ],
+                activeIndex: pageIndex,
+                activeColor: isComparison
+                    ? TwiffelTokens.primaryDefault
+                    : (pageIndex == 0
+                        ? TwiffelTokens.semanticSuccess
+                        : TwiffelTokens.semanticError),
+                inactiveColor: isComparison
+                    ? colors.borderStrong
+                    : (pageIndex == 0
+                        ? TwiffelTokens.semanticError.withValues(alpha: 0.35)
+                        : TwiffelTokens.semanticSuccess
+                            .withValues(alpha: 0.35)),
+                onTap: (index) {
+                  onPageChanged(index);
+                  pageController.animateToPage(
+                    index,
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                  );
+                },
+              ),
+              SizedBox(
+                height: isComparison ? 420 : 340,
+                child: PageView(
+                  controller: pageController,
+                  onPageChanged: onPageChanged,
+                  children: isComparison
+                      ? [
+                          _OptionPanel(
+                            title:
+                                '${DecisionCopy.analysisOptionALabel}: ${analysis.optionA ?? ''}',
+                            pros: analysis.optionAPros,
+                            cons: analysis.optionACons,
+                          ),
+                          _OptionPanel(
+                            title:
+                                '${DecisionCopy.analysisOptionBLabel}: ${analysis.optionB ?? ''}',
+                            pros: analysis.optionBPros,
+                            cons: analysis.optionBCons,
+                          ),
+                        ]
+                      : [
+                          _PointsPanel(
+                            heading: DecisionCopy.analysisPros,
+                            accent: TwiffelTokens.semanticSuccess,
+                            icon: Icons.check,
+                            points: analysis.pros,
+                          ),
+                          _PointsPanel(
+                            heading: DecisionCopy.analysisCons,
+                            accent: TwiffelTokens.semanticError,
+                            icon: Icons.close,
+                            points: analysis.cons,
+                          ),
+                        ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              _SwipeHint(
+                activeIndex: pageIndex,
+                activeColor: isComparison
+                    ? TwiffelTokens.primaryDefault
+                    : (pageIndex == 0
+                        ? TwiffelTokens.semanticSuccess
+                        : TwiffelTokens.semanticError),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _VerdictBox(verdict: analysis.verdict),
+              ),
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: onStartOver,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: colors.textSecondary,
+                          side: BorderSide(color: colors.borderDefault),
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text(DecisionCopy.analysisStartOver),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: onShare,
+                        icon: const Icon(Icons.ios_share, size: 16),
+                        label: const Text(DecisionCopy.analysisShare),
+                        style: FilledButton.styleFrom(
+                          minimumSize: const Size.fromHeight(48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _LoadingBody extends StatefulWidget {
+  const _LoadingBody({super.key});
+
+  @override
+  State<_LoadingBody> createState() => _LoadingBodyState();
+}
+
+class _LoadingBodyState extends State<_LoadingBody> {
+  late final String _message;
+
+  @override
+  void initState() {
+    super.initState();
+    _message = LoadingResponseTexts.next();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const TwiffelLoadingAnimation(height: 96),
+            const SizedBox(height: 24),
+            Text(
+              _message,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textSecondary,
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+                height: 1.35,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 class _ErrorBody extends StatelessWidget {
-  const _ErrorBody({required this.message, required this.onStartOver});
+  const _ErrorBody({
+    super.key,
+    required this.message,
+    required this.onStartOver,
+  });
 
   final String message;
   final VoidCallback onStartOver;
