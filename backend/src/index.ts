@@ -1,4 +1,5 @@
 import { generateMessage, generateThreeSteps, type Env } from "./ai";
+import { generateDecisionAnalysis, validateDecisionRequest } from "./decision";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -14,6 +15,19 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
+}
+
+async function handleAnalyze(request: Request, env: Env): Promise<Response> {
+  try {
+    const payload = await request.json();
+    const decision = validateDecisionRequest(payload);
+    if (!decision) {
+      return json({ error: "Invalid decision payload" }, 400);
+    }
+    return json({ analysis: await generateDecisionAnalysis(decision, env) });
+  } catch {
+    return json({ error: "Invalid request" }, 400);
+  }
 }
 
 async function handleSteps(request: Request, env: Env): Promise<Response> {
@@ -70,6 +84,8 @@ export default {
     const { pathname } = new URL(request.url);
     if (request.method === "POST") {
       switch (pathname) {
+        case "/api/analyze":
+          return handleAnalyze(request, env);
         case "/api/steps":
           return handleSteps(request, env);
         case "/api/message":

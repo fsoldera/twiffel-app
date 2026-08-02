@@ -16,9 +16,11 @@ export interface Env {
   DOPPLER_CONFIG?: string;
   TWIFFEL_XAI_API_KEY?: string;
   TWIFFEL_XAI_MODEL?: string;
-  /** Direct override / legacy fallback (prefer Doppler + TWIFFEL_XAI_*). */
+  /** Direct override / legacy fallback (prefer Doppler). */
   XAI_API_KEY?: string;
   XAI_MODEL?: string;
+  /** Doppler secret name used in twiffel/prd. */
+  XAI?: string;
 }
 
 const DEFAULT_DOPPLER_API_BASE_URL = "https://api.doppler.com/v3";
@@ -104,30 +106,59 @@ async function fetchDopplerSecrets(env: Env): Promise<Record<string, string>> {
   return secrets;
 }
 
+function envLookup(env: Env, key: string): string | undefined {
+  switch (key) {
+    case "TWIFFEL_XAI_API_KEY":
+      return env.TWIFFEL_XAI_API_KEY;
+    case "XAI_API_KEY":
+      return env.XAI_API_KEY;
+    case "XAI":
+      return env.XAI;
+    case "TWIFFEL_XAI_MODEL":
+      return env.TWIFFEL_XAI_MODEL;
+    case "XAI_MODEL":
+      return env.XAI_MODEL;
+    default:
+      return undefined;
+  }
+}
+
+function pickSecret(
+  secrets: Record<string, string>,
+  env: Env,
+  keys: string[],
+): string | undefined {
+  for (const key of keys) {
+    const fromDoppler = secrets[key];
+    if (fromDoppler) return fromDoppler;
+    const fromEnv = envLookup(env, key);
+    if (fromEnv) return fromEnv;
+  }
+  return undefined;
+}
+
 async function resolveXaiConfig(env: Env): Promise<{ apiKey?: string; model: string }> {
   try {
     const secrets = await fetchDopplerSecrets(env);
-    const apiKey =
-      secrets.TWIFFEL_XAI_API_KEY ||
-      env.TWIFFEL_XAI_API_KEY ||
-      secrets.XAI_API_KEY ||
-      env.XAI_API_KEY;
+    // Prefer app-prefixed names; also accept Doppler key `XAI` used in twiffel/prd.
+    const apiKey = pickSecret(secrets, env, [
+      "TWIFFEL_XAI_API_KEY",
+      "XAI_API_KEY",
+      "XAI",
+    ]);
     const model =
-      secrets.TWIFFEL_XAI_MODEL ||
-      env.TWIFFEL_XAI_MODEL ||
-      secrets.XAI_MODEL ||
-      env.XAI_MODEL ||
-      "grok-3-mini";
+      pickSecret(secrets, env, ["TWIFFEL_XAI_MODEL", "XAI_MODEL"]) || "grok-3-mini";
     return { apiKey, model };
   } catch {
     return {
-      apiKey: env.TWIFFEL_XAI_API_KEY || env.XAI_API_KEY,
-      model: env.TWIFFEL_XAI_MODEL || env.XAI_MODEL || "grok-3-mini",
+      apiKey: pickSecret({}, env, ["TWIFFEL_XAI_API_KEY", "XAI_API_KEY", "XAI"]),
+      model:
+        pickSecret({}, env, ["TWIFFEL_XAI_MODEL", "XAI_MODEL"]) || "grok-3-mini",
     };
   }
 }
 
-async function callXaiChat(
+export async function callXaiChat(
   messages: Array<{ role: "system" | "user"; content: string }>,
   env: Env,
 ): Promise<string> {

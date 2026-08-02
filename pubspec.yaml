@@ -23,8 +23,30 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   shared_preferences: ^2.3.2
+  flutter_native_splash: ^2.4.6
 
 flutter:
   uses-material-design: true
   assets:
     - assets/logo.png
+    - assets/logos/
+    - assets/icons/
+    - assets/splash/
+
+# Native launch splash (Android + iOS). Regenerate with:
+#   dart run flutter_native_splash:create
+flutter_native_splash:
+  # Match stacked logo export plates (Figma gray-50 / gray-800) so no square fringe.
+  color: "#F9FAFB"
+  color_dark: "#1F2937"
+  image: assets/splash/splash_logo_light.png
+  image_dark: assets/splash/splash_logo.png
+  android: true
+  ios: true
+  android_12:
+    color: "#F9FAFB"
+    color_dark: "#1F2937"
+    image: assets/splash/splash_icon_light.png
+    image_dark: assets/splash/splash_icon.png
+    icon_background_color: "#F9FAFB"
+    icon_background_color_dark: "#1F2937"

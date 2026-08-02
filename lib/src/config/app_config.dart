@@ -78,12 +78,12 @@ final LicenseConfig appLicenseConfig = LicenseConfig(
   privacyPolicyUrl: kPrivacyPolicyUrl,
   termsOfUseUrl: _resolveTermsOfUseUrl(),
   theme: const PaywallTheme(
-    primary: Color(0xFF2563EB),
+    primary: Color(0xFFD97706),
     primaryGradient: LinearGradient(
-      colors: <Color>[Color(0xFF22D3EE), Color(0xFF2563EB)],
+      colors: <Color>[Color(0xFFFBBF24), Color(0xFFD97706)],
       begin: Alignment.topLeft,
       end: Alignment.bottomRight,
     ),
-    primaryShadowColor: Color(0xFF2563EB),
+    primaryShadowColor: Color(0xFFD97706),
   ),
 );

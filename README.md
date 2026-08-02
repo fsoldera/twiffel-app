@@ -23,29 +23,30 @@ flutter pub get
 flutter analyze
 flutter test
 
-# Optional: point at a deployed Worker
-flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.<subdomain>.workers.dev
+# Point at Worker (never put xAI keys in the Flutter app)
+flutter run --dart-define=TWIFFEL_API_BASE=http://10.0.2.2:8787   # Android emulator -> local Worker
+# flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.<subdomain>.workers.dev
 ```
 
-Without `TWIFFEL_API_BASE`, the app uses **local fallback** steps and honor-system licensing.
+Without `TWIFFEL_API_BASE`, the app uses **local fallback** analysis (no remote AI).
 
 ### 2. Backend
 
 ```bash
 cd backend
 npm install
-cp .dev.vars.example .dev.vars   # Doppler service token for config `dev`
+# Load xAI from Doppler into gitignored .dev.vars (secret name: XAI, config: prd)
+powershell -File scripts/write-dev-vars-from-doppler.ps1
 npm run dev
 
 # Deploy
 npm run deploy
-npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token
+npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token (prod Worker fetches Doppler)
 ```
 
-**Secrets SoT is Doppler** (project `twiffel`): xAI keys for the Worker, and later
-RevenueCat `goog_…` / `appl_…` for Codemagic builds. The Worker reads Doppler via
-`DOPPLER_SERVICE_TOKEN`. See `harness/infrastructure-setup.md` and
-`harness/store-launch-checklist.md`.
+**Secrets SoT is Doppler** (project `twiffel`): the Worker resolves `XAI` (or
+`TWIFFEL_XAI_API_KEY`) at runtime. Flutter only gets `TWIFFEL_API_BASE`. See
+`harness/infrastructure-setup.md` and `harness/store-launch-checklist.md`.
 
 ---
 

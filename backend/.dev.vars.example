@@ -1,7 +1,8 @@
 # Copy to `.dev.vars` for local `wrangler dev`. NEVER commit real secrets.
+# Preferred: Worker fetches xAI from Doppler at runtime (no key in Flutter).
 DOPPLER_SERVICE_TOKEN=
 DOPPLER_PROJECT=twiffel
-DOPPLER_CONFIG=dev
-# Optional direct override (skip Doppler):
-# TWIFFEL_XAI_API_KEY=
+DOPPLER_CONFIG=prd
+# Optional local override only (skip Doppler API). Prefer Doppler secret `XAI`.
+# XAI=
 # TWIFFEL_XAI_MODEL=grok-3-mini
