@@ -1,16 +1,14 @@
-# Harness Feedforward — u-things-app-template
+# Harness Feedforward — twiffel-app
 
-This is the **canonical harness** for new U-Things native apps. When you copy
-this template to create a new app, customize `harness/feedforward.md` with your
-product spec (see `tasks/task-000-bootstrap.md`).
+Product harness for **Twiffel** (bootstrapped from u-things-app-template).
 
 ---
 
 ## 1. Project Objective
 
 ```text
-Bootstrap a new U-Things app: native Flutter (Android + iOS), common_app_kit for
-cross-cutting concerns, Cloudflare Worker for server-side AI, Codemagic CI, and
+Ship Twiffel: native Flutter (Android + iOS), common_app_kit for cross-cutting
+concerns, Cloudflare Worker (twiffel-api) for server-side AI, Codemagic CI, and
 u-things-web pages for marketing + privacy.
 ```
 
@@ -49,11 +47,10 @@ u-things-web pages for marketing + privacy.
 
 ```text
 Dart-defines (injected at build time via Codemagic or flutter run).
-Rename APP_ to the app's own prefix (e.g. STIKKTELLER_) during bootstrap —
-one app = one set of secrets, nothing shared between apps:
-- <APP>_API_BASE       — Worker URL (empty = local fallback, analytics no-op)
-- <APP>_RC_KEY_IOS     — RevenueCat Apple public key (empty = honor-system nag only)
-- <APP>_RC_KEY_ANDROID — RevenueCat Google public key
+One app = one set of secrets, nothing shared between apps:
+- TWIFFEL_API_BASE       — Worker URL (empty = local fallback, analytics no-op)
+- TWIFFEL_RC_KEY_IOS     — RevenueCat Apple public key (empty = honor-system nag only)
+- TWIFFEL_RC_KEY_ANDROID — RevenueCat Google public key
 
 Customize in lib/src/config/app_config.dart:
 - kAppName, LicenseConfig, product IDs, nag copy, theme

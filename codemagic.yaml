@@ -1,33 +1,30 @@
-# Codemagic CI/CD — customize for your app before first build.
+# Codemagic CI/CD for twiffel-app.
 # Full setup walkthrough + gotchas: harness/infrastructure-setup.md (step 4).
 # Store / RC launch order: harness/store-launch-checklist.md
 #
 # Secrets SoT = Doppler. Prefer Codemagic holding only:
-#   <app>_ci       — DOPPLER_TOKEN (service token for config `ci` or `prd`)
-#   <app>_runtime  — <APP>_API_BASE
-# then wrap builds with: doppler run --project <app> --config ci -- <command>
+#   twiffel_ci       — DOPPLER_TOKEN (service token for config `ci` or `prd`)
+#   twiffel_runtime  — TWIFFEL_API_BASE
+# then wrap builds with: doppler run --project twiffel --config ci -- <command>
 #
 # Fallback (mirror from Doppler into Codemagic groups — do not invent a 2nd SoT):
-#   <app>_github  — <APP>_GITHUB_TOKEN
-#   <app>_runtime — <APP>_API_BASE
-#   <app>_secrets — <APP>_RC_KEY_*, <APP>_CM_KEYSTORE*
+#   twiffel_github  — TWIFFEL_GITHUB_TOKEN
+#   twiffel_runtime — TWIFFEL_API_BASE
+#   twiffel_secrets — TWIFFEL_RC_KEY_*, TWIFFEL_CM_KEYSTORE*
 #
-# TODO(template) — one app = one set of secrets, everything app-prefixed:
-# - Rename env groups / vars APP_* → <APP>_*
-# - Rename workflows, set bundle ID (com.uthings.<app>), ASC integration <app>_asc
-# - Groups are app-level (free plan has no team groups); names here must match
-#   the groups created on the app's Environment variables page exactly.
+# Bundle ID: com.uthings.twiffel
+# ASC integration name suggestion: twiffel_asc
+# Groups are app-level (free plan has no team groups); names here must match
+# the groups created on the app's Environment variables page exactly.
 
 definitions:
   scripts:
     - &configure_private_git
       name: Configure Git for private pub dependencies
       script: |
-        # Prefer APP_GITHUB_TOKEN (template) / <APP>_GITHUB_TOKEN after rename.
-        # When using Doppler, this var is injected by `doppler run` or exported below.
-        TOKEN="${APP_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
+        TOKEN="${TWIFFEL_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
         if [ -z "$TOKEN" ]; then
-          echo "APP_GITHUB_TOKEN (or GITHUB_TOKEN) is not set."
+          echo "TWIFFEL_GITHUB_TOKEN (or GITHUB_TOKEN) is not set."
           exit 1
         fi
         git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
@@ -41,7 +38,7 @@ definitions:
           exit 0
         fi
         if [ -z "${DOPPLER_PROJECT:-}" ]; then
-          echo "DOPPLER_TOKEN set but DOPPLER_PROJECT missing (e.g. my-app)."
+          echo "DOPPLER_TOKEN set but DOPPLER_PROJECT missing (e.g. twiffel)."
           exit 1
         fi
         DOPPLER_CONFIG="${DOPPLER_CONFIG:-ci}"
@@ -60,16 +57,16 @@ definitions:
 
 workflows:
   android:
-    name: Template Android
+    name: Twiffel Android
     max_build_duration: 60
     environment:
       flutter: stable
       groups:
-        # Preferred thin CI: app_ci (DOPPLER_TOKEN) + app_runtime
-        # Fallback: github_credentials + app_runtime + app_secrets
-        - github_credentials
-        - app_runtime
-        - app_secrets
+        # Preferred thin CI: twiffel_ci (DOPPLER_TOKEN) + twiffel_runtime
+        # Fallback: twiffel_github + twiffel_runtime + twiffel_secrets
+        - twiffel_github
+        - twiffel_runtime
+        - twiffel_secrets
     scripts:
       - *load_doppler_if_configured
       - *configure_private_git
@@ -82,13 +79,13 @@ workflows:
         script: |
           flutter build appbundle --release \
             --build-number="$BUILD_NUMBER" \
-            --dart-define=APP_API_BASE="$APP_API_BASE" \
-            --dart-define=APP_RC_KEY_ANDROID="$APP_RC_KEY_ANDROID"
+            --dart-define=TWIFFEL_API_BASE="$TWIFFEL_API_BASE" \
+            --dart-define=TWIFFEL_RC_KEY_ANDROID="$TWIFFEL_RC_KEY_ANDROID"
     artifacts:
       - build/app/outputs/**/*.aab
 
   ios-smoke:
-    name: Template iOS (smoke)
+    name: Twiffel iOS (smoke)
     instance_type: mac_mini_m2
     max_build_duration: 60
     environment:
@@ -96,9 +93,9 @@ workflows:
       xcode: latest
       cocoapods: default
       groups:
-        - github_credentials
-        - app_runtime
-        - app_secrets
+        - twiffel_github
+        - twiffel_runtime
+        - twiffel_secrets
     scripts:
       - *load_doppler_if_configured
       - *configure_private_git

@@ -1,9 +1,9 @@
-# my-app-api (Cloudflare Worker)
+# twiffel-api (Cloudflare Worker)
 
-Server-side AI proxy + anonymous analytics for U-Things apps.
+Server-side AI proxy + anonymous analytics for Twiffel.
 
-**Secrets SoT is Doppler.** The Worker reads `APP_XAI_API_KEY` (rename to `<APP>_XAI_*`
-during bootstrap) via a Doppler service token. Never put xAI keys in the mobile app.
+**Secrets SoT is Doppler.** The Worker reads `TWIFFEL_XAI_API_KEY` via a Doppler
+service token. Never put xAI keys in the mobile app.
 
 ## Endpoints
 
@@ -28,12 +28,12 @@ npm run deploy
 npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token
 ```
 
-`wrangler.toml` already sets `DOPPLER_PROJECT` / `DOPPLER_CONFIG` / `APP_XAI_MODEL`.
+`wrangler.toml` already sets `DOPPLER_PROJECT` / `DOPPLER_CONFIG` / `TWIFFEL_XAI_MODEL`.
 
 Point the Flutter app at the deployed URL:
 
 ```bash
-flutter run --dart-define=APP_API_BASE=https://my-app-api.<subdomain>.workers.dev
+flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.<subdomain>.workers.dev
 ```
 
 ## Safety

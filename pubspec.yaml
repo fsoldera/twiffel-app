@@ -1,7 +1,6 @@
-name: uthings_app_template
+name: twiffel_app
 description: >-
-  U-Things app template — Flutter + common_app_kit + Cloudflare Worker.
-  Copy this repo to start a new native iOS/Android app.
+  Twiffel — Flutter + common_app_kit + Cloudflare Worker.
 publish_to: "none"
 version: 0.1.0+1
 

@@ -3,18 +3,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// Display name shown in the app shell and licensing copy.
-/// TODO(template): replace with your app name.
-const String kAppName = 'My App';
+const String kAppName = 'Twiffel';
 
 /// Cloudflare Worker base URL (AI proxy + analytics).
-///   flutter run --dart-define=APP_API_BASE=https://my-app-api.YOUR_SUBDOMAIN.workers.dev
-const String kApiBase = String.fromEnvironment('APP_API_BASE', defaultValue: '');
+///   flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.YOUR_SUBDOMAIN.workers.dev
+const String kApiBase = String.fromEnvironment('TWIFFEL_API_BASE', defaultValue: '');
 
 /// Privacy Policy URL surfaced in the purchase flow. App Store Review guideline
 /// 3.1.2(c) requires a functional privacy policy link inside the app for apps
 /// offering auto-renewable subscriptions.
-/// TODO(template): point this at your app's published privacy policy page.
-const String kPrivacyPolicyUrl = 'https://u-things.com/privacy/my-app';
+const String kPrivacyPolicyUrl = 'https://u-things.com/privacy/twiffel';
 
 /// Apple standard EULA for iOS purchase flows (App Store 3.1.2(c)).
 /// Android omits a separate EULA link — Play already covers billing terms.
@@ -29,9 +27,9 @@ String _resolveTermsOfUseUrl() {
 }
 
 const String _kRevenueCatKeyIos =
-    String.fromEnvironment('APP_RC_KEY_IOS', defaultValue: '');
+    String.fromEnvironment('TWIFFEL_RC_KEY_IOS', defaultValue: '');
 const String _kRevenueCatKeyAndroid =
-    String.fromEnvironment('APP_RC_KEY_ANDROID', defaultValue: '');
+    String.fromEnvironment('TWIFFEL_RC_KEY_ANDROID', defaultValue: '');
 
 String _resolveRevenueCatKey() {
   switch (defaultTargetPlatform) {
@@ -46,23 +44,21 @@ String _resolveRevenueCatKey() {
 
 /// Play Store subscriptions are imported as `productId:basePlanId`.
 /// App Store / Test Store keep the bare product id.
-/// TODO(template): rename `my_app_*` to your product IDs.
 String _resolveMonthlyProductId() {
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
-      return 'my_app_monthly:monthly';
+      return 'twiffel_monthly:monthly';
     default:
-      return 'my_app_monthly';
+      return 'twiffel_monthly';
   }
 }
 
-/// TODO(template): customize product IDs, nag copy, and theme for your app.
 final LicenseConfig appLicenseConfig = LicenseConfig(
   appName: kAppName,
   revenueCatPublicKey: _resolveRevenueCatKey(),
-  entitlementId: 'my_app_pro',
+  entitlementId: 'twiffel_pro',
   products: LicenseProductIds(
-    oneTime: 'my_app_unlock',
+    oneTime: 'twiffel_unlock',
     monthly: _resolveMonthlyProductId(),
   ),
   trigger: NagTrigger.afterNUses,

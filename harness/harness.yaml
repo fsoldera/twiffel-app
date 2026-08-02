@@ -2,7 +2,7 @@
 # Adapt commands, hooks, and policies to your stack.
 
 project:
-  name: "u-things-app-template"
+  name: "twiffel-app"
   risk_default: "medium"
   agent_entrypoint: "AGENTS.md"
 

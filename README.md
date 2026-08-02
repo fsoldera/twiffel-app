@@ -1,28 +1,22 @@
-# u-things-app-template
+# twiffel-app
 
-**GitHub template** for new [U-Things](https://u-things.com) native apps.
+**Twiffel** — a [U-Things](https://u-things.com) native app.
 
-Copy this repo to start a new Flutter app with the standard U-Things stack:
+Stack:
 
 - **Flutter** (Android + iOS only — no web build)
 - **[common_app_kit](https://github.com/fsoldera/common-app-kit)** — licensing, nag, tone/safety, storage
-- **Cloudflare Worker** — server-side xAI proxy + anonymous analytics
+- **Cloudflare Worker** (`twiffel-api`) — server-side xAI proxy + anonymous analytics
 - **Harness Engineering** — agent feedforward, sensors, tasks
 - **Codemagic** — cloud builds (no Mac required)
 
-Reference implementation: [joppling-app](https://github.com/fsoldera/joppling-app).
+Bootstrapped from [u-things-app-template](https://github.com/fsoldera/u-things-app-template).
 
 ---
 
 ## Quick start
 
-### 1. Create from template
-
-GitHub → **Use this template** → create `<your-app>-app`.
-
-Follow **`tasks/task-000-bootstrap.md`** for the full checklist.
-
-### 2. Run locally
+### 1. Run locally
 
 ```bash
 flutter pub get
@@ -30,12 +24,12 @@ flutter analyze
 flutter test
 
 # Optional: point at a deployed Worker
-flutter run --dart-define=APP_API_BASE=https://my-app-api.<subdomain>.workers.dev
+flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.<subdomain>.workers.dev
 ```
 
-Without `APP_API_BASE`, the template uses **local fallback** steps and honor-system licensing.
+Without `TWIFFEL_API_BASE`, the app uses **local fallback** steps and honor-system licensing.
 
-### 3. Backend
+### 2. Backend
 
 ```bash
 cd backend
@@ -48,7 +42,7 @@ npm run deploy
 npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token
 ```
 
-**Secrets SoT is Doppler** (per-app project): xAI keys for the Worker, and later
+**Secrets SoT is Doppler** (project `twiffel`): xAI keys for the Worker, and later
 RevenueCat `goog_…` / `appl_…` for Codemagic builds. The Worker reads Doppler via
 `DOPPLER_SERVICE_TOKEN`. See `harness/infrastructure-setup.md` and
 `harness/store-launch-checklist.md`.
@@ -59,16 +53,13 @@ RevenueCat `goog_…` / `appl_…` for Codemagic builds. The Worker reads Dopple
 
 ```text
 lib/src/
-  config/app_config.dart    ← customize name, licensing, dart-defines
-  pages/                    ← replace home/shop with your UX
+  config/app_config.dart    ← name, licensing, dart-defines
+  pages/                    ← home/shop UX
   services/                 ← AiClient, Analytics
-  state/                    ← example SessionController
-backend/                    ← Cloudflare Worker (rename before deploy)
-harness/                    ← canonical agent harness
-  infrastructure-setup.md   ← xAI → Doppler → Worker → Codemagic → stores
-  store-launch-checklist.md ← Play / RC / ASC gotchas (Stikkteller lessons)
-tasks/task-000-bootstrap.md ← new-app checklist
-scripts/export-iap-review-screenshot.py ← ASC IAP review image sizes
+  state/                    ← SessionController
+backend/                    ← Cloudflare Worker (twiffel-api)
+harness/                    ← agent harness
+tasks/task-000-bootstrap.md ← original template checklist (reference)
 codemagic.yaml              ← CI (Doppler preferred; env groups as fallback)
 ```
 
@@ -78,9 +69,21 @@ codemagic.yaml              ← CI (Doppler preferred; env groups as fallback)
 
 | Define | Purpose |
 |---|---|
-| `APP_API_BASE` | Worker URL for AI + analytics |
-| `APP_RC_KEY_IOS` | RevenueCat Apple public key |
-| `APP_RC_KEY_ANDROID` | RevenueCat Google public key |
+| `TWIFFEL_API_BASE` | Worker URL for AI + analytics |
+| `TWIFFEL_RC_KEY_IOS` | RevenueCat Apple public key |
+| `TWIFFEL_RC_KEY_ANDROID` | RevenueCat Google public key |
+
+---
+
+## Identifiers
+
+| Kind | Value |
+|---|---|
+| Display name | Twiffel |
+| Dart package | `twiffel_app` |
+| Bundle / application ID | `com.uthings.twiffel` |
+| Worker | `twiffel-api` |
+| Doppler project | `twiffel` |
 
 ---
 
@@ -98,7 +101,7 @@ codemagic.yaml              ← CI (Doppler preferred; env groups as fallback)
 |---|---|
 | `common-app-kit` | Shared Flutter library |
 | `u-things-web` | Marketing + privacy pages |
-| `joppling-app` | First shipped app (reference, do not fork for new apps — use this template) |
+| `u-things-app-template` | Template this app was created from |
 
 ---
 

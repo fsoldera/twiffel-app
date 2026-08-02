@@ -14,10 +14,9 @@ export interface Env {
   DOPPLER_CACHE_TTL_MS?: string;
   DOPPLER_PROJECT?: string;
   DOPPLER_CONFIG?: string;
-  /** TODO(template): rename APP_ → <APP>_ during bootstrap. */
-  APP_XAI_API_KEY?: string;
-  APP_XAI_MODEL?: string;
-  /** Direct override / legacy fallback (prefer Doppler + APP_XAI_*). */
+  TWIFFEL_XAI_API_KEY?: string;
+  TWIFFEL_XAI_MODEL?: string;
+  /** Direct override / legacy fallback (prefer Doppler + TWIFFEL_XAI_*). */
   XAI_API_KEY?: string;
   XAI_MODEL?: string;
 }
@@ -109,21 +108,21 @@ async function resolveXaiConfig(env: Env): Promise<{ apiKey?: string; model: str
   try {
     const secrets = await fetchDopplerSecrets(env);
     const apiKey =
-      secrets.APP_XAI_API_KEY ||
-      env.APP_XAI_API_KEY ||
+      secrets.TWIFFEL_XAI_API_KEY ||
+      env.TWIFFEL_XAI_API_KEY ||
       secrets.XAI_API_KEY ||
       env.XAI_API_KEY;
     const model =
-      secrets.APP_XAI_MODEL ||
-      env.APP_XAI_MODEL ||
+      secrets.TWIFFEL_XAI_MODEL ||
+      env.TWIFFEL_XAI_MODEL ||
       secrets.XAI_MODEL ||
       env.XAI_MODEL ||
       "grok-3-mini";
     return { apiKey, model };
   } catch {
     return {
-      apiKey: env.APP_XAI_API_KEY || env.XAI_API_KEY,
-      model: env.APP_XAI_MODEL || env.XAI_MODEL || "grok-3-mini",
+      apiKey: env.TWIFFEL_XAI_API_KEY || env.XAI_API_KEY,
+      model: env.TWIFFEL_XAI_MODEL || env.XAI_MODEL || "grok-3-mini",
     };
   }
 }
@@ -135,7 +134,7 @@ async function callXaiChat(
   const { apiKey, model } = await resolveXaiConfig(env);
   if (!apiKey) {
     throw new Error(
-      "Missing xAI API key — set APP_XAI_API_KEY in Doppler (preferred) or as a Worker secret",
+      "Missing xAI API key, set TWIFFEL_XAI_API_KEY in Doppler (preferred) or as a Worker secret",
     );
   }
 

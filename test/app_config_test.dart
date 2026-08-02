@@ -1,12 +1,12 @@
 import 'package:common_app_kit/common_app_kit.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:uthings_app_template/src/config/app_config.dart';
+import 'package:twiffel_app/src/config/app_config.dart';
 
 void main() {
-  test('license config uses template app name', () {
+  test('license config uses Twiffel app name', () {
     expect(appLicenseConfig.appName, kAppName);
-    expect(kAppName, 'My App');
+    expect(kAppName, 'Twiffel');
   });
 
   test('validateTaskInput rejects self-harm', () {

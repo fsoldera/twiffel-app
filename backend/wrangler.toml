@@ -1,16 +1,13 @@
-name = "my-app-api"
+name = "twiffel-api"
 main = "src/index.ts"
 compatibility_date = "2024-09-23"
 
-# TODO(template): rename worker to <your-app>-api before deploy.
-
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
-dataset = "my_app_events"
+dataset = "twiffel_events"
 
 # Non-secret defaults. Worker secret DOPPLER_SERVICE_TOKEN via `wrangler secret put`.
-# TODO(template): set DOPPLER_PROJECT to your app name; rename APP_XAI_MODEL → <APP>_XAI_MODEL.
 [vars]
-DOPPLER_PROJECT = "my-app"
+DOPPLER_PROJECT = "twiffel"
 DOPPLER_CONFIG = "prd"
-APP_XAI_MODEL = "grok-3-mini"
+TWIFFEL_XAI_MODEL = "grok-3-mini"

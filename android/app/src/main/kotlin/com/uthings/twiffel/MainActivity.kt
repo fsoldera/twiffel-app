@@ -1,4 +1,4 @@
-package com.uthings.uthings_app_template
+package com.uthings.twiffel
 
 import io.flutter.embedding.android.FlutterActivity
 
