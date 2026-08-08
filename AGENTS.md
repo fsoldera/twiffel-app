@@ -16,8 +16,9 @@ Before making any change, read these files in order:
 4. `harness/correction-policy.md`
 5. `harness/risk-controls.md`
 6. `harness/final-response-contract.md`
-7. The relevant task file in `tasks/`
-8. Any files listed as required context in the task
+7. `harness/harness-maintenance.md` (when changing infra, secrets, CI, or store setup)
+8. The relevant task file in `tasks/`
+9. Any files listed as required context in the task
 
 Do not begin implementation before reading the relevant feedforward and task context.
 
@@ -257,8 +258,13 @@ The agent should prefer:
 - explicit assumptions over silent guesses,
 - tests for behavior over tests for implementation details,
 - clear escalation over risky autonomy,
-- improving the harness when gaps are discovered,
+- improving the harness when gaps are discovered (required for infra/setup lessons,
+  see `harness/harness-maintenance.md`),
 - commas instead of `--` / `—` in generated prose (see `harness/writing-style.md`).
+
+When a faster path or dead end is found during setup (Doppler, Worker, Codemagic,
+stores, naming), update the harness docs in the same task. Do not leave tribal
+knowledge only in chat.
 
 ---
 

@@ -40,17 +40,23 @@ Files to edit first:
 
 ## 3. Cloudflare Worker + secrets chain
 
-Follow **`harness/infrastructure-setup.md` steps 1–3** (xAI → Doppler → Worker).
-Key rule: **Doppler is the secrets SoT**; **one app = one Doppler project**, everything
-prefixed `<APP>_*`. Never put xAI keys in the Flutter app.
+Follow **`harness/infrastructure-setup.md` steps 1–3** (xAI → Doppler → Worker) and
+**`harness/harness-maintenance.md`** (naming + update harness when you find shortcuts).
 
-- [ ] xAI key named `<app>`; Doppler project `<app>` with `<APP>_XAI_API_KEY` / `<APP>_XAI_MODEL`
-- [ ] Create worker service tokens (`<app>-worker-dev` / `<app>-worker-prd`); optional
-      `<app>-codemagic-ci` for Codemagic
+Key rule: **Doppler is the secrets SoT**; **one app = one Doppler project**, everything
+prefixed `<APP>_*`. Never put xAI keys in the Flutter app. Never reuse another app’s
+xAI key. Canonical name is `<APP>_XAI_API_KEY` (not bare `XAI` / `VITE_XAI_*`).
+
+- [ ] New xAI key labeled `<app>`; Doppler project `<app>` with `<APP>_XAI_API_KEY` /
+      `<APP>_XAI_MODEL` in `dev` + `prd`
+- [ ] Create Doppler environment + config `ci` for Codemagic
+- [ ] Create worker service tokens (`<app>-worker-dev` / `<app>-api-prd`) and
+      `<app>-codemagic-ci`
 - [ ] Rename worker in `backend/wrangler.toml` (`name`, analytics dataset, `DOPPLER_PROJECT`)
 - [ ] Rename env keys in `backend/src/ai.ts` to `<APP>_XAI_*` (resolved via Doppler)
 - [ ] `cd backend && npm install && npm run deploy`
-- [ ] `npx wrangler secret put DOPPLER_SERVICE_TOKEN` (prd token)
+- [ ] Put `DOPPLER_SERVICE_TOKEN` (prd token; on Windows use `cmd /c "… | wrangler …"`)
+- [ ] Smoke with `Invoke-RestMethod` against `/api/steps` (not a wrong `kind`)
 - [ ] Note the deployed URL for `<APP>_API_BASE`
 
 ---

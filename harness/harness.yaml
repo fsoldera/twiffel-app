@@ -9,6 +9,9 @@ project:
 feedforward:
   project_spec: "harness/feedforward.md"
   task_template: "tasks/task-template.md"
+  infrastructure: "harness/infrastructure-setup.md"
+  store_launch: "harness/store-launch-checklist.md"
+  harness_maintenance: "harness/harness-maintenance.md"
 
 permissions:
   agent_may:

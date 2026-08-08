@@ -7,6 +7,10 @@ Use with `harness/infrastructure-setup.md`. Replace `<app>` / `<APP>` as usual.
 and the Worker **consume** Doppler — do not hand-paste the same RC keys into
 Codemagic on every app if they already exist in Doppler.
 
+**Naming:** use `<APP>_XAI_API_KEY` / `<APP>_RC_KEY_*` (never bare `XAI` or another
+app’s key). See `harness/harness-maintenance.md`. When you find a faster store path
+or a dead end, update this checklist in the same pass.
+
 ---
 
 ## 0. Reuse (do not recreate)

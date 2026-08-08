@@ -48,3 +48,17 @@ app.*.map.json
 backend/node_modules/
 backend/.wrangler/
 backend/.dev.vars
+
+# Secrets / signing (never commit)
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+*.p8
+*.p12
+*service-account*.json
+google-services.json
+**/GoogleService-Info.plist
+AuthKey_*.p8
+twiffel-upload.jks

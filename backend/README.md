@@ -2,8 +2,9 @@
 
 Server-side AI proxy + anonymous analytics for Twiffel.
 
-**Secrets SoT is Doppler.** The Worker reads `TWIFFEL_XAI_API_KEY` via a Doppler
-service token. Never put xAI keys in the mobile app.
+**Secrets SoT is Doppler.** Canonical secret name: `TWIFFEL_XAI_API_KEY` (legacy bare
+`XAI` still accepted). The Worker reads it via a Doppler service token. Never put
+xAI keys in the mobile app.
 
 ## Endpoints
 
@@ -25,7 +26,8 @@ npm run dev
 
 ```bash
 npm run deploy
-npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token
+# Windows-safe put:
+# cmd /c "doppler configs tokens create --name twiffel-api-prd --project twiffel --config prd --plain | npx wrangler secret put DOPPLER_SERVICE_TOKEN"
 ```
 
 `wrangler.toml` already sets `DOPPLER_PROJECT` / `DOPPLER_CONFIG` / `TWIFFEL_XAI_MODEL`.
@@ -33,7 +35,7 @@ npx wrangler secret put DOPPLER_SERVICE_TOKEN   # prd service token
 Point the Flutter app at the deployed URL:
 
 ```bash
-flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.<subdomain>.workers.dev
+flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.franco-soldera.workers.dev
 ```
 
 ## Safety

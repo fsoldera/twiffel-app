@@ -3,6 +3,7 @@
 DOPPLER_SERVICE_TOKEN=
 DOPPLER_PROJECT=twiffel
 DOPPLER_CONFIG=prd
-# Optional local override only (skip Doppler API). Prefer Doppler secret `XAI`.
-# XAI=
+# Optional local override only (skip Doppler API).
+# Canonical Doppler name: TWIFFEL_XAI_API_KEY (legacy alias XAI still accepted).
+# TWIFFEL_XAI_API_KEY=
 # TWIFFEL_XAI_MODEL=grok-3-mini

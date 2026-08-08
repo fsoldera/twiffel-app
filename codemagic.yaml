@@ -1,21 +1,21 @@
 # Codemagic CI/CD for twiffel-app.
 # Full setup walkthrough + gotchas: harness/infrastructure-setup.md (step 4).
 # Store / RC launch order: harness/store-launch-checklist.md
+# First-builds task: tasks/task-001-first-builds.md
 #
-# Secrets SoT = Doppler. Prefer Codemagic holding only:
-#   twiffel_ci       — DOPPLER_TOKEN (service token for config `ci` or `prd`)
+# Secrets SoT = Doppler. Codemagic holds only:
+#   twiffel_ci       — DOPPLER_TOKEN, DOPPLER_PROJECT=twiffel, DOPPLER_CONFIG=ci
 #   twiffel_runtime  — TWIFFEL_API_BASE
-# then wrap builds with: doppler run --project twiffel --config ci -- <command>
 #
-# Fallback (mirror from Doppler into Codemagic groups — do not invent a 2nd SoT):
-#   twiffel_github  — TWIFFEL_GITHUB_TOKEN
-#   twiffel_runtime — TWIFFEL_API_BASE
-#   twiffel_secrets — TWIFFEL_RC_KEY_*, TWIFFEL_CM_KEYSTORE*
+# Doppler `ci` (or `prd`) should contain:
+#   TWIFFEL_GITHUB_TOKEN, TWIFFEL_CM_KEYSTORE*, TWIFFEL_RC_KEY_* (RC optional at first)
+#
+# Fallback (mirror from Doppler — do not invent a 2nd SoT): add groups
+#   twiffel_github / twiffel_secrets and list them under `groups:` below.
 #
 # Bundle ID: com.uthings.twiffel
-# ASC integration name suggestion: twiffel_asc
-# Groups are app-level (free plan has no team groups); names here must match
-# the groups created on the app's Environment variables page exactly.
+# ASC integration name: twiffel_asc
+# Start builds from the codemagic.yaml tab (not Workflow Editor).
 
 definitions:
   scripts:
@@ -25,27 +25,23 @@ definitions:
         TOKEN="${TWIFFEL_GITHUB_TOKEN:-${GITHUB_TOKEN:-}}"
         if [ -z "$TOKEN" ]; then
           echo "TWIFFEL_GITHUB_TOKEN (or GITHUB_TOKEN) is not set."
+          echo "Put it in Doppler config ci, or set DOPPLER_TOKEN so secrets load."
           exit 1
         fi
         git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
     - &load_doppler_if_configured
-      name: Load secrets from Doppler (optional)
+      name: Load secrets from Doppler
       script: |
-        # If DOPPLER_TOKEN is set, install CLI and export secrets into the job env.
-        # Skip silently when using Codemagic env-group fallback.
         if [ -z "${DOPPLER_TOKEN:-}" ]; then
-          echo "DOPPLER_TOKEN unset — using Codemagic env groups."
+          echo "DOPPLER_TOKEN unset — expecting secrets already in Codemagic env groups."
           exit 0
         fi
         if [ -z "${DOPPLER_PROJECT:-}" ]; then
-          echo "DOPPLER_TOKEN set but DOPPLER_PROJECT missing (e.g. twiffel)."
+          echo "DOPPLER_TOKEN set but DOPPLER_PROJECT missing (expected: twiffel)."
           exit 1
         fi
         DOPPLER_CONFIG="${DOPPLER_CONFIG:-ci}"
         curl -Ls https://cli.doppler.com/install.sh | sh -s -- --no-install-pkgs
-        # Export KEY=value pairs for subsequent scripts in this job.
-        # (Codemagic does not keep shell exports across script steps unless written
-        #  to CM_ENV / a file — use doppler run on the build step instead if needed.)
         doppler secrets download \
           --project "$DOPPLER_PROJECT" \
           --config "$DOPPLER_CONFIG" \
@@ -54,6 +50,28 @@ definitions:
     - &pub_get
       name: Resolve dependencies
       script: flutter pub get
+    - &setup_android_keystore
+      name: Decode Android upload keystore
+      script: |
+        if [ -z "${TWIFFEL_CM_KEYSTORE:-}" ]; then
+          echo "TWIFFEL_CM_KEYSTORE is not set. Add base64 keystore to Doppler ci."
+          exit 1
+        fi
+        if [ -z "${TWIFFEL_CM_KEYSTORE_PASSWORD:-}" ] || \
+           [ -z "${TWIFFEL_CM_KEY_ALIAS:-}" ] || \
+           [ -z "${TWIFFEL_CM_KEY_PASSWORD:-}" ]; then
+          echo "Need TWIFFEL_CM_KEYSTORE_PASSWORD, TWIFFEL_CM_KEY_ALIAS, TWIFFEL_CM_KEY_PASSWORD."
+          exit 1
+        fi
+        KEYSTORE_PATH="$CM_BUILD_DIR/twiffel-upload.jks"
+        echo "$TWIFFEL_CM_KEYSTORE" | base64 --decode > "$KEYSTORE_PATH"
+        printf '%s\n' \
+          "storePassword=$TWIFFEL_CM_KEYSTORE_PASSWORD" \
+          "keyPassword=$TWIFFEL_CM_KEY_PASSWORD" \
+          "keyAlias=$TWIFFEL_CM_KEY_ALIAS" \
+          "storeFile=$KEYSTORE_PATH" \
+          > "$CM_BUILD_DIR/android/key.properties"
+        echo "Wrote android/key.properties (storeFile=$KEYSTORE_PATH)."
 
 workflows:
   android:
@@ -62,11 +80,8 @@ workflows:
     environment:
       flutter: stable
       groups:
-        # Preferred thin CI: twiffel_ci (DOPPLER_TOKEN) + twiffel_runtime
-        # Fallback: twiffel_github + twiffel_runtime + twiffel_secrets
-        - twiffel_github
+        - twiffel_ci
         - twiffel_runtime
-        - twiffel_secrets
     scripts:
       - *load_doppler_if_configured
       - *configure_private_git
@@ -75,12 +90,13 @@ workflows:
         script: flutter analyze
       - name: Test
         script: flutter test
+      - *setup_android_keystore
       - name: Build App Bundle
         script: |
           flutter build appbundle --release \
             --build-number="$BUILD_NUMBER" \
-            --dart-define=TWIFFEL_API_BASE="$TWIFFEL_API_BASE" \
-            --dart-define=TWIFFEL_RC_KEY_ANDROID="$TWIFFEL_RC_KEY_ANDROID"
+            --dart-define=TWIFFEL_API_BASE="${TWIFFEL_API_BASE:-}" \
+            --dart-define=TWIFFEL_RC_KEY_ANDROID="${TWIFFEL_RC_KEY_ANDROID:-}"
     artifacts:
       - build/app/outputs/**/*.aab
 
@@ -93,9 +109,8 @@ workflows:
       xcode: latest
       cocoapods: default
       groups:
-        - twiffel_github
+        - twiffel_ci
         - twiffel_runtime
-        - twiffel_secrets
     scripts:
       - *load_doppler_if_configured
       - *configure_private_git
@@ -106,3 +121,47 @@ workflows:
         script: flutter build ios --release --no-codesign --build-number="$BUILD_NUMBER"
     artifacts:
       - build/ios/iphoneos/Runner.app
+
+  ios-signed:
+    name: Twiffel iOS (signed)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: twiffel_asc
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.uthings.twiffel
+      groups:
+        - twiffel_ci
+        - twiffel_runtime
+      vars:
+        XCODE_WORKSPACE: ios/Runner.xcworkspace
+        XCODE_SCHEME: Runner
+    scripts:
+      - *load_doppler_if_configured
+      - *configure_private_git
+      - *pub_get
+      - name: Install CocoaPods dependencies
+        script: cd ios && pod install
+      - name: Set up code signing
+        script: xcode-project use-profiles
+      - name: Build IPA
+        script: |
+          flutter build ipa --release \
+            --build-number="$BUILD_NUMBER" \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=TWIFFEL_API_BASE="${TWIFFEL_API_BASE:-}" \
+            --dart-define=TWIFFEL_RC_KEY_IOS="${TWIFFEL_RC_KEY_IOS:-}"
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - flutter_drive.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+        # Internal Testing works even if external betaAppReviewSubmissions returns 422.

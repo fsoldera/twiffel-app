@@ -1,16 +1,32 @@
 # Infrastructure Setup Runbook — new U-Things app
 
-Step-by-step guide to wire a new app into all external tools. Written after doing it
-the hard way for Stikkteller — follow the order and the gotchas and it should take
-under an hour for infra, plus the store catalog pass in
-`harness/store-launch-checklist.md`.
+Step-by-step guide to wire a new app into all external tools. Hard-won lessons from
+Stikkteller + Twiffel — follow the order and the gotchas. Infra should take under an
+hour, plus the store catalog pass in `harness/store-launch-checklist.md`.
 
-Replace `<APP>` with the uppercase app name (e.g. `STIKKTELLER`) and `<app>` with the
-lowercase name (e.g. `stikkteller`) everywhere below.
+When you find a faster path or a dead end, update this file (see
+`harness/harness-maintenance.md`).
+
+Replace `<APP>` with the uppercase app name (e.g. `TWIFFEL`) and `<app>` with the
+lowercase name (e.g. `twiffel`) everywhere below.
 
 **Golden rule: one app = one set of secrets.** Never share app keys between apps
 (they outlive each other and rotating one must not break another). Every secret and
 variable is prefixed with the app name: `<APP>_*`.
+
+**Canonical secret names (new apps):**
+
+| Secret | Required in |
+|---|---|
+| `<APP>_XAI_API_KEY` | Doppler `dev` + `prd` |
+| `<APP>_XAI_MODEL` | Doppler `dev` + `prd` (e.g. `grok-3-mini`) |
+| `<APP>_GITHUB_TOKEN` | Doppler `ci` |
+| `<APP>_CM_KEYSTORE` (+ password / alias / key password) | Doppler `ci` |
+| `<APP>_RC_KEY_ANDROID` / `<APP>_RC_KEY_IOS` | Doppler `ci` (+ `prd` if you like) after RC |
+
+Do **not** create bare `XAI`, `VITE_XAI_*`, or copy another app’s key. Older apps may
+still have legacy names; Workers may accept them as fallback only. Bootstrap the next
+app with the table above.
 
 **Secret source of truth = Doppler.** Put immutable secrets in Doppler first. The
 Worker and Codemagic **consume** Doppler. Do not hand-duplicate RC keys into
@@ -46,12 +62,15 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 ## Step 1 — xAI (console.x.ai)
 
 1. Create a **new API key** named after the app (`<app>`). Do not reuse another
-   app's key.
+   app's key. Never paste Joppling / Stikkteller / Twiffel keys into a new project.
 2. Note the model (default: `grok-3-mini`).
 3. Keep both in a password manager until step 2.
 
 > **Never** put the xAI key in the Flutter app, Codemagic dart-defines, or git.
 > Only Doppler → Worker.
+
+> **Gotcha — isolation:** after Doppler step 2, optionally hash-compare the new
+> `<APP>_XAI_API_KEY` against other apps’ keys (print hashes only). If equal, rotate.
 
 ---
 
@@ -59,23 +78,23 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 
 1. **Create a project named after the app** (`<app>`) — do not add configs to
    another app's project.
-2. Use the default `dev` and `prd` configs. Optionally add a `ci` config that
-   mirrors the secrets Codemagic needs (RC keys, keystore, GitHub PAT).
-3. Add to **`dev` and `prd`** (and `ci` if you use it):
+2. Use `dev` and `prd`. **Also create environment + config `ci`** for Codemagic
+   (CLI: `doppler environments create ci ci --project <app>`). Do not skip `ci` and
+   then discover empty secrets mid-build.
+3. Add secrets:
 
-   | Secret | Value | When |
+   | Secret | Configs | When |
    |---|---|---|
-   | `<APP>_XAI_API_KEY` | key from step 1 | now |
-   | `<APP>_XAI_MODEL` | `grok-3-mini` | now |
-   | `<APP>_RC_KEY_ANDROID` | `goog_…` | after step 7 |
-   | `<APP>_RC_KEY_IOS` | `appl_…` | after step 8 |
-   | Optional: `<APP>_GITHUB_TOKEN` | GitHub PAT | if Codemagic pulls from Doppler |
-   | Optional: `<APP>_CM_KEYSTORE*` | signing | if Codemagic pulls from Doppler |
+   | `<APP>_XAI_API_KEY` | `dev`, `prd` | now |
+   | `<APP>_XAI_MODEL` | `dev`, `prd` | now (`grok-3-mini`) |
+   | `<APP>_GITHUB_TOKEN` | `ci` | before first Codemagic build |
+   | `<APP>_CM_KEYSTORE*` | `ci` | after step 5 |
+   | `<APP>_RC_KEY_ANDROID` / `_IOS` | `ci` | after steps 7–8 (ok empty for first binary) |
 
-4. Create **service tokens**:
+4. Create **service tokens** (shown once — copy immediately):
    - `<app>-worker-dev` (config `dev`) — local Worker / `.dev.vars`
-   - `<app>-worker-prd` (config `prd`) — deployed Worker
-   - `<app>-codemagic-ci` (config `ci` or `prd`) — Codemagic only
+   - `<app>-worker-prd` or `<app>-api-prd` (config `prd`) — deployed Worker
+   - `<app>-codemagic-ci` (config `ci`) — Codemagic `DOPPLER_TOKEN` only
 
 > **Gotcha — where are service tokens?** Not on the Secrets page. Left sidebar →
 > **Tokens**, or open a config → **Access** tab. Tokens start with `dp.st.`.
@@ -83,6 +102,10 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 > **Gotcha — Cloudflare tokens in Doppler:** not needed. `CLOUDFLARE_API_TOKEN` /
 > `CLOUDFLARE_ACCOUNT_ID` are deploy-time credentials, only useful if CI deploys the
 > Worker. Local `wrangler login` covers manual deploys.
+
+> **Gotcha — Windows secret pipe:** PowerShell piping into `wrangler secret put` is
+> fragile. Prefer:
+> `cmd /c "doppler configs tokens create --name <app>-api-prd --project <app> --config prd --plain | npx wrangler secret put DOPPLER_SERVICE_TOKEN"`
 
 ---
 
@@ -102,21 +125,30 @@ cd backend
 npm install
 npx wrangler login
 npm run deploy
-npx wrangler secret put DOPPLER_SERVICE_TOKEN   # paste the *prd* token
+# Put prd service token (Windows-safe):
+cmd /c "doppler configs tokens create --name <app>-api-prd --project <app> --config prd --plain | npx wrangler secret put DOPPLER_SERVICE_TOKEN"
 ```
 
 Save the printed URL — it becomes `<APP>_API_BASE`
-(e.g. `https://<app>-api.<subdomain>.workers.dev`).
+(e.g. `https://<app>-api.franco-soldera.workers.dev`).
 
-Smoke test (note: **PowerShell's `curl` alias breaks JSON quoting** — use `curl.exe`
-with backslash-escaped quotes, or `Invoke-RestMethod`):
+Smoke test — prefer **`Invoke-RestMethod`** on Windows (PowerShell’s `curl` alias
+breaks JSON). Prefer **`/api/steps`** first: it proves Doppler → xAI end-to-end.
+`/api/message` can return a static fallback when tone policy rejects the model
+output even if Doppler is wired.
 
 ```powershell
-curl.exe -X POST "https://<app>-api.<subdomain>.workers.dev/api/message" -H "Content-Type: application/json" -d "{\"task\":\"\",\"kind\":\"day_complete\"}"
+Invoke-RestMethod -Method Post `
+  -Uri "https://<app>-api.franco-soldera.workers.dev/api/steps" `
+  -ContentType "application/json" `
+  -Body '{"task":"water the plants"}'
 ```
 
-Expect a JSON `message`. `{"error":"Invalid request"}` means the JSON body didn't
-parse (quoting problem), not a server failure.
+Expect a JSON `steps` array with concrete actions. For `/api/message`, kinds are
+app-specific (Twiffel: `completion` / `bailout`, not a generic `day_complete`).
+
+`{"error":"Invalid request"}` usually means the JSON body did not parse (quoting),
+not a server failure. `{"error":"Invalid kind"}` means the wrong `kind` string.
 
 Local dev: copy `backend/.dev.vars.example` → `.dev.vars`, use the **dev** token.
 
@@ -124,16 +156,18 @@ Local dev: copy `backend/.dev.vars.example` → `.dev.vars`, use the **dev** tok
 
 ## Step 4 — Codemagic (free personal plan)
 
-**Preferred:** Doppler holds secrets; Codemagic holds only a thin set:
+**Preferred (Twiffel path):** Doppler holds secrets; Codemagic holds only a thin set:
 
 | Group | Variable | Secret? | Value |
 |---|---|---|---|
 | `<app>_ci` | `DOPPLER_TOKEN` | yes | service token `<app>-codemagic-ci` |
+| `<app>_ci` | `DOPPLER_PROJECT` | no | `<app>` |
+| `<app>_ci` | `DOPPLER_CONFIG` | no | `ci` |
 | `<app>_runtime` | `<APP>_API_BASE` | no | Worker URL from step 3 |
 
-Then the YAML install Doppler CLI and `doppler run --project <app> --config ci -- …`
-so builds see `<APP>_RC_KEY_*`, `<APP>_GITHUB_TOKEN`, keystore vars from Doppler.
-See comments in `codemagic.yaml`.
+YAML loads Doppler into `CM_ENV` so builds see `<APP>_RC_KEY_*`, `<APP>_GITHUB_TOKEN`,
+keystore vars. Group names in Codemagic must match `codemagic.yaml` **exactly**.
+List only the groups you actually create (unknown groups fail the build).
 
 **Fallback (Stikkteller-style mirror):** if you prefer not to wire Doppler into CI yet,
 put the same values in Codemagic groups (still **copy from Doppler**, do not invent a
@@ -192,8 +226,14 @@ keytool -genkeypair -v `
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("<app>-upload.jks")) | Set-Clipboard
 ```
 
-Paste the base64 + passwords into Doppler (preferred) and/or the `<app>_secrets`
-group (step 4 fallback). Back up the `.jks` and passwords in a password manager.
+Paste the base64 + passwords into Doppler `ci` as `<APP>_CM_KEYSTORE*` (preferred)
+and/or the `<app>_secrets` group (step 4 fallback). Back up the `.jks` and passwords
+in a password manager. Ensure root `.gitignore` covers `*.jks` / `*.keystore` at
+repo root (not only under `android/`).
+
+Codemagic Android workflow should decode the keystore and write `android/key.properties`;
+`android/app/build.gradle.kts` must use that file for release (debug fallback when
+absent, so local `flutter run --release` still works).
 
 > **Gotcha — regeneration:** free to regenerate with new passwords **until the first
 > `.aab` is uploaded to Play**. After that the upload key is pinned (reset requires a
@@ -300,7 +340,9 @@ shows raw store titles (`… (com.uthings.…)`).
 > key was baked in. Put the `goog_…` key in `<APP>_RC_KEY_ANDROID`, rebuild,
 > upload a new `.aab`.
 
-Until keys are set, the app runs in honor/nag-only mode — fine for early testing.
+Until keys are set, the app runs in honor/nag-only mode — **fine for first Play /
+TestFlight binaries**. Do not block signed CI on RevenueCat. Add `goog_` / `appl_`,
+then rebuild.
 
 ---
 

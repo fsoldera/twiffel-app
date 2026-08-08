@@ -24,9 +24,13 @@ u-things-web pages for marketing + privacy.
 - Secrets SoT: Doppler (per-app project). Worker + Codemagic consume Doppler.
   Never put xAI keys in the mobile app. RC goog_/appl_ are public SDK keys but
   still live in Doppler and are injected at build time as dart-defines.
+- Naming: every app secret is `<APP>_`-prefixed (`TWIFFEL_XAI_API_KEY`, not bare
+  `XAI` for new apps). One app = one Doppler project = one xAI console key.
+  See harness/harness-maintenance.md.
 - Marketing + privacy: u-things-web repo (separate).
 - CI: Codemagic (cloud iOS + Android builds).
 - Store launch: harness/store-launch-checklist.md + infrastructure-setup.md.
+- When setup lessons appear, update the harness immediately (harness-maintenance.md).
 ```
 
 ---

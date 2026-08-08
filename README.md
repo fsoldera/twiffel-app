@@ -25,7 +25,7 @@ flutter test
 
 # Point at Worker (never put xAI keys in the Flutter app)
 flutter run --dart-define=TWIFFEL_API_BASE=http://10.0.2.2:8787   # Android emulator -> local Worker
-# flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.<subdomain>.workers.dev
+# flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.franco-soldera.workers.dev
 ```
 
 Without `TWIFFEL_API_BASE`, the app uses **local fallback** analysis (no remote AI).
