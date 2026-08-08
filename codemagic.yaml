@@ -32,21 +32,51 @@ definitions:
     - &load_doppler_if_configured
       name: Load secrets from Doppler
       script: |
+        # Doppler-first: these workflows require twiffel_ci (DOPPLER_TOKEN + project + config).
+        # Do not soft-skip — a silent skip looks green and fails later on missing GitHub PAT.
         if [ -z "${DOPPLER_TOKEN:-}" ]; then
-          echo "DOPPLER_TOKEN unset — expecting secrets already in Codemagic env groups."
-          exit 0
+          echo "DOPPLER_TOKEN is not set in Codemagic group twiffel_ci."
+          echo "Create: doppler configs tokens create --name twiffel-codemagic-ci --project twiffel --config ci --plain"
+          exit 1
         fi
         if [ -z "${DOPPLER_PROJECT:-}" ]; then
-          echo "DOPPLER_TOKEN set but DOPPLER_PROJECT missing (expected: twiffel)."
+          echo "DOPPLER_PROJECT missing (expected: twiffel) in group twiffel_ci."
           exit 1
         fi
         DOPPLER_CONFIG="${DOPPLER_CONFIG:-ci}"
         curl -Ls https://cli.doppler.com/install.sh | sh -s -- --no-install-pkgs
-        doppler secrets download \
-          --project "$DOPPLER_PROJECT" \
-          --config "$DOPPLER_CONFIG" \
-          --no-file --format env >> "$CM_ENV"
-        echo "Doppler secrets loaded into CM_ENV (project=$DOPPLER_PROJECT config=$DOPPLER_CONFIG)."
+        # Append each app secret as KEY=value. Avoid `doppler … --format env` quotes /
+        # multiline breakage from large keystore values that can drop later keys in CM_ENV.
+        count=0
+        for key in \
+          TWIFFEL_GITHUB_TOKEN \
+          TWIFFEL_CM_KEYSTORE \
+          TWIFFEL_CM_KEYSTORE_PASSWORD \
+          TWIFFEL_CM_KEY_ALIAS \
+          TWIFFEL_CM_KEY_PASSWORD \
+          TWIFFEL_RC_KEY_ANDROID \
+          TWIFFEL_RC_KEY_IOS \
+          TWIFFEL_XAI_MODEL
+        do
+          if ! doppler secrets get "$key" \
+              --project "$DOPPLER_PROJECT" \
+              --config "$DOPPLER_CONFIG" \
+              --plain > /tmp/cm_doppler_val 2>/dev/null; then
+            echo "skip missing Doppler secret: $key"
+            continue
+          fi
+          printf '%s=' "$key" >> "$CM_ENV"
+          cat /tmp/cm_doppler_val >> "$CM_ENV"
+          printf '\n' >> "$CM_ENV"
+          count=$((count + 1))
+          echo "loaded $key"
+        done
+        rm -f /tmp/cm_doppler_val
+        if ! grep -q "^TWIFFEL_GITHUB_TOKEN=" "$CM_ENV"; then
+          echo "Doppler ci did not provide TWIFFEL_GITHUB_TOKEN (check Doppler config ci)."
+          exit 1
+        fi
+        echo "Doppler secrets loaded into CM_ENV ($count keys, project=$DOPPLER_PROJECT config=$DOPPLER_CONFIG)."
     - &pub_get
       name: Resolve dependencies
       script: flutter pub get

@@ -204,6 +204,13 @@ creates groups on first use.
 > "Start new build" button may offer only "Default Workflow" (Workflow Editor) —
 > that is not your YAML.
 
+> **Gotcha — Doppler step &lt;1s then GitHub PAT missing:** the old soft-skip treated
+> unset `DOPPLER_TOKEN` as success. Open the “Load secrets from Doppler” log: it must
+> say secrets were written to `CM_ENV` and install the Doppler CLI (usually &gt;1s).
+> Confirm group `<app>_ci` is listed under the workflow and `DOPPLER_TOKEN` is the
+> **current** `<app>-codemagic-ci` service token (tokens are shown once; recreate if
+> unsure). Doppler `ci` must contain `<APP>_GITHUB_TOKEN`.
+
 > **Gotcha — missing Podfile:** if `pod install` fails with *"No `Podfile` found"*,
 > the repo lacks `ios/Podfile` — copy the standard Flutter one from this template.
 
