@@ -4,6 +4,11 @@ import { callXaiChat, type Env } from "./ai";
 
 export type DecisionMode = "single" | "comparison";
 
+/** How many pros/cons (or per-option points) we ask the model for and keep. */
+export const ANALYSIS_POINTS_TARGET = 7;
+/** Soft minimum before we discard a model response and use local fallback. */
+export const ANALYSIS_POINTS_MIN = 5;
+
 export interface DecisionRequest {
   mode: DecisionMode;
   /** Path A: the action being considered. */
@@ -44,44 +49,48 @@ function cleanPoint(raw: unknown): AnalysisPoint | null {
   return { title, detail };
 }
 
-function cleanPoints(raw: unknown, min = 3): AnalysisPoint[] {
+function cleanPoints(raw: unknown, max = ANALYSIS_POINTS_TARGET): AnalysisPoint[] {
   if (!Array.isArray(raw)) return [];
   const points = raw.map(cleanPoint).filter((p): p is AnalysisPoint => p != null);
-  return points.slice(0, Math.max(min, 3));
+  return points.slice(0, max);
+}
+
+function point(title: string, detail: string): AnalysisPoint {
+  return { title, detail };
 }
 
 function fallbackSingle(req: DecisionRequest): DecisionAnalysis {
   const target = (req.target || "this decision").trim();
+  const timing = req.timing.toLowerCase();
   return {
     mode: "single",
     target,
     pros: [
-      {
-        title: "1. Clearer direction",
-        detail: `Naming "${target}" makes the choice concrete enough to evaluate honestly.`,
-      },
-      {
-        title: "2. Timeline awareness",
-        detail: `Wanting this ${req.timing.toLowerCase()} helps you weigh urgency against waiting costs.`,
-      },
-      {
-        title: "3. Obstacle is named",
-        detail: `Focusing on "${req.obstacle}" keeps the analysis practical instead of vague worry.`,
-      },
+      point("1. Clearer direction", `Naming "${target}" makes the choice concrete enough to evaluate honestly.`),
+      point(
+        "2. Timeline awareness",
+        `Wanting this ${timing} helps you weigh urgency against waiting costs.`,
+      ),
+      point(
+        "3. Obstacle is named",
+        `Focusing on "${req.obstacle}" keeps the analysis practical instead of vague worry.`,
+      ),
+      point("4. Values come into view", `Working through "${target}" surfaces what you care about protecting most.`),
+      point("5. Decision becomes testable", "You can define a small next check instead of staying in mental loops."),
+      point("6. Trade-offs get specific", "Pros and cons stop being abstract once the action and timing are named."),
+      point("7. Agency stays with you", "The analysis supports your judgment rather than replacing it."),
     ],
     cons: [
-      {
-        title: "1. Real trade-offs remain",
-        detail: `Moving ahead on "${target}" still means accepting costs, effort, or uncertainty.`,
-      },
-      {
-        title: "2. Waiting has a cost too",
-        detail: "Delaying can feel safer, but it may quietly spend time, energy, or opportunity.",
-      },
-      {
-        title: "3. Ambiguity can return",
-        detail: "Without a next checkpoint, the same doubts are likely to resurface.",
-      },
+      point(
+        "1. Real trade-offs remain",
+        `Moving ahead on "${target}" still means accepting costs, effort, or uncertainty.`,
+      ),
+      point("2. Waiting has a cost too", "Delaying can feel safer, but it may quietly spend time, energy, or opportunity."),
+      point("3. Ambiguity can return", "Without a next checkpoint, the same doubts are likely to resurface."),
+      point("4. Obstacle may intensify", `If "${req.obstacle}" is ignored, pressure can grow even while you wait.`),
+      point("5. Perfect certainty is unlikely", "You may never feel 100% ready, so waiting for that signal can stall you."),
+      point("6. Emotional load", "Replaying the choice can drain focus that could go to a small experiment."),
+      point("7. Status quo drift", "Doing nothing is still a choice, and it may quietly lock in by default."),
     ],
     optionAPros: [],
     optionACons: [],
@@ -103,60 +112,43 @@ function fallbackComparison(req: DecisionRequest): DecisionAnalysis {
     pros: [],
     cons: [],
     optionAPros: [
-      {
-        title: "1. Forward movement",
-        detail: `"${optionA}" is the more change-oriented path if you want momentum.`,
-      },
-      {
-        title: "2. Matches stated desire",
-        detail: "It may better reflect what you already feel drawn toward.",
-      },
-      {
-        title: "3. Forces clarity",
-        detail: "Choosing it creates a concrete plan you can test against reality.",
-      },
+      point("1. Forward movement", `"${optionA}" is the more change-oriented path if you want momentum.`),
+      point("2. Matches stated desire", "It may better reflect what you already feel drawn toward."),
+      point("3. Forces clarity", "Choosing it creates a concrete plan you can test against reality."),
+      point("4. Learning speed", "You get faster feedback on whether this path fits your real constraints."),
+      point("5. Motivational lift", "Acting on the option you lean toward can reduce rumination."),
+      point("6. Aligns with timing", `If you need to decide ${req.timing.toLowerCase()}, this path can create movement.`),
+      point("7. Identity signal", "It can express the kind of person or life you are trying to grow into."),
     ],
     optionACons: [
-      {
-        title: "1. Higher friction",
-        detail: `Obstacle "${req.obstacle}" may hit this option harder at first.`,
-      },
-      {
-        title: "2. Commitment pressure",
-        detail: "It can feel harder to reverse if the early weeks are rocky.",
-      },
-      {
-        title: "3. Upfront cost",
-        detail: "Time, money, or effort may spike before benefits appear.",
-      },
+      point("1. Higher friction", `Obstacle "${req.obstacle}" may hit this option harder at first.`),
+      point("2. Commitment pressure", "It can feel harder to reverse if the early weeks are rocky."),
+      point("3. Upfront cost", "Time, money, or effort may spike before benefits appear."),
+      point("4. Transition stress", "Changing lanes often adds temporary chaos even when the destination is good."),
+      point("5. Over-optimism risk", "Excitement can underweight practical blockers you already named."),
+      point("6. Social ripple", "People around you may need time to adjust to the change."),
+      point("7. Recovery cost if wrong", "If it misfits, unwinding the choice may take extra energy."),
     ],
     optionBPros: [
-      {
-        title: "1. Continuity",
-        detail: `"${optionB}" preserves stability while you gather more information.`,
-      },
-      {
-        title: "2. Lower immediate stress",
-        detail: "It may reduce short-term pressure around your main obstacle.",
-      },
-      {
-        title: "3. Room to prepare",
-        detail: "You can strengthen finances, timing, or confidence before a bigger move.",
-      },
+      point("1. Continuity", `"${optionB}" preserves stability while you gather more information.`),
+      point("2. Lower immediate stress", "It may reduce short-term pressure around your main obstacle."),
+      point("3. Room to prepare", "You can strengthen finances, timing, or confidence before a bigger move."),
+      point("4. Familiar systems", "Existing routines and tools already support this path."),
+      point("5. Reversible by default", "Staying closer to the status quo usually keeps more exit options open."),
+      point("6. Cognitive ease", "Less novelty means more bandwidth for other parts of life."),
+      point("7. Steady baseline", "It can be a sane holding pattern while you watch for a clearer signal."),
     ],
     optionBCons: [
-      {
-        title: "1. Delayed progress",
-        detail: "Staying put can quietly extend the indecision window.",
-      },
-      {
-        title: "2. Opportunity cost",
-        detail: `If timing is "${req.timing}", waiting may conflict with your preferred window.`,
-      },
-      {
-        title: "3. Habit lock-in",
-        detail: "The status quo can become harder to leave the longer it continues.",
-      },
+      point("1. Delayed progress", "Staying put can quietly extend the indecision window."),
+      point(
+        "2. Opportunity cost",
+        `If timing is "${req.timing}", waiting may conflict with your preferred window.`,
+      ),
+      point("3. Habit lock-in", "The status quo can become harder to leave the longer it continues."),
+      point("4. Quiet regret risk", "You may later wish you had tested the other path sooner."),
+      point("5. Obstacle persists", `Avoiding change does not dissolve "${req.obstacle}" by itself.`),
+      point("6. Motivation fade", "Without a new experiment, energy for the decision can drain away."),
+      point("7. False calm", "Short-term relief can mask a mismatch that keeps resurfacing."),
     ],
     verdict:
       `Given obstacle "${req.obstacle}" and timing "${req.timing}", compare whether ` +
@@ -174,12 +166,12 @@ function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnaly
     if (req.mode === "single") {
       const pros = cleanPoints(parsed.pros);
       const cons = cleanPoints(parsed.cons);
-      if (pros.length < 3 || cons.length < 3) return null;
+      if (pros.length < ANALYSIS_POINTS_MIN || cons.length < ANALYSIS_POINTS_MIN) return null;
       return {
         mode: "single",
         target: req.target?.trim(),
-        pros: pros.slice(0, 3),
-        cons: cons.slice(0, 3),
+        pros,
+        cons,
         optionAPros: [],
         optionACons: [],
         optionBPros: [],
@@ -193,10 +185,10 @@ function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnaly
     const optionBPros = cleanPoints(parsed.optionBPros);
     const optionBCons = cleanPoints(parsed.optionBCons);
     if (
-      optionAPros.length < 3 ||
-      optionACons.length < 3 ||
-      optionBPros.length < 3 ||
-      optionBCons.length < 3
+      optionAPros.length < ANALYSIS_POINTS_MIN ||
+      optionACons.length < ANALYSIS_POINTS_MIN ||
+      optionBPros.length < ANALYSIS_POINTS_MIN ||
+      optionBCons.length < ANALYSIS_POINTS_MIN
     ) {
       return null;
     }
@@ -206,10 +198,10 @@ function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnaly
       optionB: req.optionB?.trim(),
       pros: [],
       cons: [],
-      optionAPros: optionAPros.slice(0, 3),
-      optionACons: optionACons.slice(0, 3),
-      optionBPros: optionBPros.slice(0, 3),
-      optionBCons: optionBCons.slice(0, 3),
+      optionAPros,
+      optionACons,
+      optionBPros,
+      optionBCons,
       verdict,
     };
   } catch {
@@ -218,14 +210,15 @@ function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnaly
 }
 
 function buildUserPrompt(req: DecisionRequest): string {
+  const n = ANALYSIS_POINTS_TARGET;
   if (req.mode === "single") {
     return [
       `Mode: single (do or buy)`,
       `Decision target: "${req.target?.trim()}"`,
       `Main obstacle: "${req.obstacle.trim()}"`,
       `Preferred timing: "${req.timing.trim()}"`,
-      "Return JSON with keys: pros (array of 3 {title, detail}), cons (array of 3 {title, detail}), verdict (string).",
-      "Titles should be short numbered labels like \"1. Safety upgrade\".",
+      `Return JSON with keys: pros (array of exactly ${n} {title, detail}), cons (array of exactly ${n} {title, detail}), verdict (string).`,
+      'Titles should be short numbered labels like "1. Safety upgrade".',
       "Details must reference this specific decision, obstacle, and timing.",
       "Verdict: 1-3 calm sentences with a lean (positive / cautious / wait), no shame.",
     ].join("\n");
@@ -236,8 +229,8 @@ function buildUserPrompt(req: DecisionRequest): string {
     `Option B: "${req.optionB?.trim()}"`,
     `Main obstacle: "${req.obstacle.trim()}"`,
     `Preferred timing: "${req.timing.trim()}"`,
-    "Return JSON with keys: optionAPros, optionACons, optionBPros, optionBCons (each an array of 3 {title, detail}), verdict (string).",
-    "Titles should be short numbered labels like \"1. Lower maintenance\".",
+    `Return JSON with keys: optionAPros, optionACons, optionBPros, optionBCons (each an array of exactly ${n} {title, detail}), verdict (string).`,
+    'Titles should be short numbered labels like "1. Lower maintenance".',
     "Details must reference these specific options, obstacle, and timing.",
     "Verdict: 1-3 calm sentences saying which option has a slight edge and why, or when waiting is wiser.",
   ].join("\n");

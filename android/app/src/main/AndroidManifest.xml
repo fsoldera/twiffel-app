@@ -47,5 +47,15 @@
             <action android:name="android.intent.action.VIEW"/>
             <data android:scheme="https"/>
         </intent>
+        <!-- Lets Printing.sharePdf resolve apps that accept PDF / generic shares
+             on Android 11+ (package visibility). -->
+        <intent>
+            <action android:name="android.intent.action.SEND"/>
+            <data android:mimeType="application/pdf"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SEND"/>
+            <data android:mimeType="*/*"/>
+        </intent>
     </queries>
 </manifest>

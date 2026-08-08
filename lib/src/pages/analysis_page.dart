@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 
 import '../copy/loading_response_texts.dart';
 import '../models/decision_models.dart';
+import '../services/report_pdf_builder.dart';
 import '../state/session_controller.dart';
 import '../theme/tokens.dart';
 import '../widgets/loading_animation.dart';
@@ -34,19 +35,67 @@ class _AnalysisPageState extends State<AnalysisPage> {
   }
 
   Future<void> _share(DecisionAnalysis analysis) async {
-    final buffer = StringBuffer()
-      ..writeln(
-        analysis.mode == DecisionMode.single
-            ? DecisionCopy.analysisTitleSingle
-            : DecisionCopy.analysisTitleComparison,
-      )
-      ..writeln()
-      ..writeln(analysis.verdict);
-    await Clipboard.setData(ClipboardData(text: buffer.toString()));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text(DecisionCopy.analysisShareCopied)),
+    var dialogOpen = true;
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(strokeWidth: 2.5),
+              ),
+            ),
+          ),
+        );
+      },
     );
+
+    void closeDialog() {
+      if (!dialogOpen || !mounted) return;
+      dialogOpen = false;
+      Navigator.of(context, rootNavigator: true).pop();
+    }
+
+    try {
+      // Device locale drives footer date and the share filename.
+      final locale = View.of(context).platformDispatcher.locale;
+      final bytes = await ReportPdfBuilder.build(
+        analysis,
+        locale: locale,
+      );
+      final filename = await ReportPdfBuilder.filenameFor(locale: locale);
+      if (!mounted) return;
+      closeDialog();
+      final shared = await Printing.sharePdf(
+        bytes: bytes,
+        filename: filename,
+      );
+      if (!shared && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text(DecisionCopy.analysisShareFailed)),
+        );
+      }
+    } catch (error, stack) {
+      debugPrint('PDF share failed: $error\n$stack');
+      if (!mounted) return;
+      closeDialog();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text(DecisionCopy.analysisShareFailed)),
+      );
+    }
+  }
+
+  void _startOver() {
+    widget.session.reset();
+    final router = GoRouter.maybeOf(context);
+    if (router != null) {
+      router.go('/');
+    }
   }
 
   @override
@@ -69,10 +118,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
           body = _ErrorBody(
             key: const ValueKey<String>('error'),
             message: session.inputError ?? DecisionCopy.analysisError,
-            onStartOver: () {
-              session.reset();
-              context.go('/');
-            },
+            onStartOver: _startOver,
           );
         } else {
           body = KeyedSubtree(
@@ -84,43 +130,42 @@ class _AnalysisPageState extends State<AnalysisPage> {
               pageController: _pageController,
               onPageChanged: (index) => setState(() => _pageIndex = index),
               onShare: () => _share(analysis),
-              onStartOver: () {
-                session.reset();
-                context.go('/');
-              },
-              onBack: () {
-                if (context.canPop()) {
-                  context.pop();
-                } else {
-                  context.go('/');
-                }
-              },
+              onStartOver: _startOver,
             ),
           );
         }
 
-        return Scaffold(
-          backgroundColor: colors.pageBg,
-          body: SafeArea(
-            child: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 320),
-              reverseDuration: const Duration(milliseconds: 260),
-              switchInCurve: Curves.easeInOut,
-              switchOutCurve: Curves.easeInOut,
-              transitionBuilder: (child, animation) {
-                return FadeTransition(opacity: animation, child: child);
-              },
-              layoutBuilder: (currentChild, previousChildren) {
-                return Stack(
-                  fit: StackFit.expand,
-                  alignment: Alignment.center,
-                  children: <Widget>[
-                    ...previousChildren,
-                    if (currentChild != null) currentChild,
-                  ],
-                );
-              },
-              child: body,
+        // Results (and the wait/error states on this route) are terminal: no
+        // app/OS back to the form, only Share or Start over.
+        return PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _startOver();
+          },
+          child: Scaffold(
+            backgroundColor: colors.pageBg,
+            body: SafeArea(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 320),
+                reverseDuration: const Duration(milliseconds: 260),
+                switchInCurve: Curves.easeInOut,
+                switchOutCurve: Curves.easeInOut,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(opacity: animation, child: child);
+                },
+                layoutBuilder: (currentChild, previousChildren) {
+                  return Stack(
+                    fit: StackFit.expand,
+                    alignment: Alignment.center,
+                    children: <Widget>[
+                      ...previousChildren,
+                      if (currentChild != null) currentChild,
+                    ],
+                  );
+                },
+                child: body,
+              ),
             ),
           ),
         );
@@ -129,7 +174,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
   }
 }
 
-class _ResultsBody extends StatelessWidget {
+class _ResultsBody extends StatefulWidget {
   const _ResultsBody({
     required this.analysis,
     required this.isComparison,
@@ -138,7 +183,6 @@ class _ResultsBody extends StatelessWidget {
     required this.onPageChanged,
     required this.onShare,
     required this.onStartOver,
-    required this.onBack,
   });
 
   final DecisionAnalysis analysis;
@@ -148,165 +192,227 @@ class _ResultsBody extends StatelessWidget {
   final ValueChanged<int> onPageChanged;
   final VoidCallback onShare;
   final VoidCallback onStartOver;
-  final VoidCallback onBack;
+
+  @override
+  State<_ResultsBody> createState() => _ResultsBodyState();
+}
+
+class _ResultsBodyState extends State<_ResultsBody> {
+  bool _verdictExpanded = false;
+  int _optionIndex = 0;
+
+  void _setVerdictExpanded(bool expanded) {
+    if (_verdictExpanded == expanded) return;
+    setState(() => _verdictExpanded = expanded);
+  }
+
+  void _selectAspect(int index) {
+    widget.onPageChanged(index);
+    widget.pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
+    final analysis = widget.analysis;
+    final isComparison = widget.isComparison;
+    final pageIndex = widget.pageIndex;
+
+    final List<AnalysisPoint> pros;
+    final List<AnalysisPoint> cons;
+    if (isComparison) {
+      pros = _optionIndex == 0 ? analysis.optionAPros : analysis.optionBPros;
+      cons = _optionIndex == 0 ? analysis.optionACons : analysis.optionBCons;
+    } else {
+      pros = analysis.pros;
+      cons = analysis.cons;
+    }
 
     return Column(
       children: [
-        _TopBar(onBack: onBack),
+        const _TopBar(),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+          child: Text(
+            isComparison
+                ? DecisionCopy.analysisTitleComparison
+                : DecisionCopy.analysisTitleSingle,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: colors.textPrimary,
+              height: 1.15,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: isComparison
+              ? _ComparisonPills(analysis: analysis)
+              : _TargetPill(
+                  label: DecisionCopy.analysisQuestionLabel,
+                  value: analysis.target ?? '',
+                ),
+        ),
+        const SizedBox(height: 20),
+        if (isComparison) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _OptionSlider(
+              optionA: analysis.optionA?.trim().isNotEmpty == true
+                  ? analysis.optionA!
+                  : DecisionCopy.analysisOptionALabel,
+              optionB: analysis.optionB?.trim().isNotEmpty == true
+                  ? analysis.optionB!
+                  : DecisionCopy.analysisOptionBLabel,
+              activeIndex: _optionIndex,
+              onChanged: (index) => setState(() => _optionIndex = index),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _TabBar(
+            labels: [
+              '${DecisionCopy.analysisPros} (${pros.length})',
+              '${DecisionCopy.analysisCons} (${cons.length})',
+            ],
+            activeIndex: pageIndex,
+            onTap: _selectAspect,
+          ),
+        ),
         Expanded(
-          child: ListView(
-            padding: const EdgeInsets.only(bottom: 24),
+          child: Stack(
             children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-                child: Text(
-                  isComparison
-                      ? DecisionCopy.analysisTitleComparison
-                      : DecisionCopy.analysisTitleSingle,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: colors.textPrimary,
-                    height: 1.15,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: isComparison
-                    ? _ComparisonPills(analysis: analysis)
-                    : _TargetPill(
-                        label: DecisionCopy.analysisTargetLabel,
-                        value: analysis.target ?? '',
-                      ),
-              ),
-              const SizedBox(height: 20),
-              _TabBar(
-                labels: isComparison
-                    ? [
-                        '${DecisionCopy.analysisOptionALabel}: ${analysis.optionA ?? ''}',
-                        '${DecisionCopy.analysisOptionBLabel}: ${analysis.optionB ?? ''}',
-                      ]
-                    : [
-                        DecisionCopy.analysisPros,
-                        DecisionCopy.analysisCons,
+              Column(
+                children: [
+                  Expanded(
+                    child: PageView(
+                      controller: widget.pageController,
+                      onPageChanged: widget.onPageChanged,
+                      children: [
+                        _PointsPanel(
+                          key: ValueKey<String>('pros-$_optionIndex'),
+                          heading: DecisionCopy.analysisPros,
+                          accent: TwiffelTokens.semanticSuccess,
+                          icon: Icons.check,
+                          points: pros,
+                          showOverflowCue: pageIndex == 0,
+                        ),
+                        _PointsPanel(
+                          key: ValueKey<String>('cons-$_optionIndex'),
+                          heading: DecisionCopy.analysisCons,
+                          accent: TwiffelTokens.semanticError,
+                          icon: Icons.close,
+                          points: cons,
+                          showOverflowCue: pageIndex == 1,
+                        ),
                       ],
-                activeIndex: pageIndex,
-                activeColor: isComparison
-                    ? TwiffelTokens.primaryDefault
-                    : (pageIndex == 0
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  _SwipeHint(
+                    activeIndex: pageIndex,
+                    activeColor: pageIndex == 0
                         ? TwiffelTokens.semanticSuccess
-                        : TwiffelTokens.semanticError),
-                inactiveColor: isComparison
-                    ? colors.borderStrong
-                    : (pageIndex == 0
-                        ? TwiffelTokens.semanticError.withValues(alpha: 0.35)
-                        : TwiffelTokens.semanticSuccess
-                            .withValues(alpha: 0.35)),
-                onTap: (index) {
-                  onPageChanged(index);
-                  pageController.animateToPage(
-                    index,
-                    duration: const Duration(milliseconds: 250),
+                        : TwiffelTokens.semanticError,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+              ),
+              Positioned.fill(
+                child: IgnorePointer(
+                  ignoring: !_verdictExpanded,
+                  child: AnimatedOpacity(
+                    opacity: _verdictExpanded ? 1 : 0,
+                    duration: const Duration(milliseconds: 200),
                     curve: Curves.easeOut,
-                  );
-                },
-              ),
-              SizedBox(
-                height: isComparison ? 420 : 340,
-                child: PageView(
-                  controller: pageController,
-                  onPageChanged: onPageChanged,
-                  children: isComparison
-                      ? [
-                          _OptionPanel(
-                            title:
-                                '${DecisionCopy.analysisOptionALabel}: ${analysis.optionA ?? ''}',
-                            pros: analysis.optionAPros,
-                            cons: analysis.optionACons,
-                          ),
-                          _OptionPanel(
-                            title:
-                                '${DecisionCopy.analysisOptionBLabel}: ${analysis.optionB ?? ''}',
-                            pros: analysis.optionBPros,
-                            cons: analysis.optionBCons,
-                          ),
-                        ]
-                      : [
-                          _PointsPanel(
-                            heading: DecisionCopy.analysisPros,
-                            accent: TwiffelTokens.semanticSuccess,
-                            icon: Icons.check,
-                            points: analysis.pros,
-                          ),
-                          _PointsPanel(
-                            heading: DecisionCopy.analysisCons,
-                            accent: TwiffelTokens.semanticError,
-                            icon: Icons.close,
-                            points: analysis.cons,
-                          ),
-                        ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              _SwipeHint(
-                activeIndex: pageIndex,
-                activeColor: isComparison
-                    ? TwiffelTokens.primaryDefault
-                    : (pageIndex == 0
-                        ? TwiffelTokens.semanticSuccess
-                        : TwiffelTokens.semanticError),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _VerdictBox(verdict: analysis.verdict),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: onStartOver,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: colors.textSecondary,
-                          side: BorderSide(color: colors.borderDefault),
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                        child: const Text(DecisionCopy.analysisStartOver),
-                      ),
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => _setVerdictExpanded(false),
+                      child: const ColoredBox(color: Color(0x66000000)),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton.icon(
-                        onPressed: onShare,
-                        icon: const Icon(Icons.ios_share, size: 16),
-                        label: const Text(DecisionCopy.analysisShare),
-                        style: FilledButton.styleFrom(
-                          minimumSize: const Size.fromHeight(48),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _VerdictBar(
+            verdict: analysis.verdict,
+            expanded: _verdictExpanded,
+            onExpandedChanged: _setVerdictExpanded,
+          ),
+        ),
+        _StickyResultsActions(
+          onStartOver: widget.onStartOver,
+          onShare: widget.onShare,
+        ),
       ],
+    );
+  }
+}
+
+class _StickyResultsActions extends StatelessWidget {
+  const _StickyResultsActions({
+    required this.onStartOver,
+    required this.onShare,
+  });
+
+  final VoidCallback onStartOver;
+  final VoidCallback onShare;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+
+    return Material(
+      color: colors.pageBg,
+      elevation: 0,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton(
+                onPressed: onStartOver,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: colors.textSecondary,
+                  side: BorderSide(color: colors.borderDefault),
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+                child: const Text(DecisionCopy.analysisStartOver),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilledButton.icon(
+                onPressed: onShare,
+                icon: const Icon(Icons.ios_share, size: 16),
+                label: const Text(DecisionCopy.analysisShare),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size.fromHeight(48),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -337,6 +443,8 @@ class _LoadingBodyState extends State<_LoadingBody> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            const _ShimmerThinkingLabel(),
+            const SizedBox(height: 16),
             const TwiffelLoadingAnimation(height: 96),
             const SizedBox(height: 24),
             Text(
@@ -350,6 +458,73 @@ class _LoadingBodyState extends State<_LoadingBody> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Soft sweeping highlight over "Thinking...", similar to Cursor's Waiting...
+class _ShimmerThinkingLabel extends StatefulWidget {
+  const _ShimmerThinkingLabel();
+
+  @override
+  State<_ShimmerThinkingLabel> createState() => _ShimmerThinkingLabelState();
+}
+
+class _ShimmerThinkingLabelState extends State<_ShimmerThinkingLabel>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1800),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    final base = colors.textTertiary;
+    final highlight = colors.isDark
+        ? TwiffelTokens.gray100
+        : TwiffelTokens.gray700;
+
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final t = _controller.value;
+        return ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment(-1.8 + 3.6 * t, 0),
+              end: Alignment(-0.6 + 3.6 * t, 0),
+              colors: <Color>[base, base, highlight, base, base],
+              stops: const <double>[0.0, 0.35, 0.5, 0.65, 1.0],
+            ).createShader(bounds);
+          },
+          child: child,
+        );
+      },
+      child: const Text(
+        DecisionCopy.analysisThinking,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+          letterSpacing: 0.2,
+          height: 1.2,
         ),
       ),
     );
@@ -390,31 +565,15 @@ class _ErrorBody extends StatelessWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onBack});
-
-  final VoidCallback onBack;
+  const _TopBar();
 
   @override
   Widget build(BuildContext context) {
-    final colors = TwiffelColors.of(context);
-
-    return SizedBox(
+    return const SizedBox(
       height: 56,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Row(
-          children: [
-            IconButton(
-              onPressed: onBack,
-              icon: const Icon(Icons.chevron_left),
-              color: colors.textSecondary,
-            ),
-            const Expanded(
-              child: Center(child: TwiffelLogo(height: 28)),
-            ),
-            const SizedBox(width: 48),
-          ],
-        ),
+        padding: EdgeInsets.symmetric(horizontal: 20),
+        child: Center(child: TwiffelLogo(height: 28)),
       ),
     );
   }
@@ -430,39 +589,39 @@ class _TargetPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
 
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        decoration: BoxDecoration(
-          color: colors.softFill,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: colors.borderDefault),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label.toUpperCase(),
-              style: const TextStyle(
-                color: TwiffelTokens.primaryDefault,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: colors.softFill,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Row(
+        children: [
+          Text(
+            label.toUpperCase(),
+            style: const TextStyle(
+              color: TwiffelTokens.primaryDefault,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                value,
-                style: TextStyle(
-                  color: colors.textPrimary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -475,28 +634,134 @@ class _ComparisonPills extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _TargetPill(
-          label: DecisionCopy.analysisOptionALabel,
-          value: analysis.optionA ?? '',
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
-          child: Text(
-            'vs',
-            style: TextStyle(
-              color: TwiffelColors.of(context).textSecondary,
-              fontWeight: FontWeight.w600,
+    final optionA = analysis.optionA ?? '';
+    final optionB = analysis.optionB ?? '';
+
+    return _TargetPill(
+      label: '${DecisionCopy.analysisOptionALabel} vs ${DecisionCopy.analysisOptionBLabel}',
+      value: '$optionA  vs  $optionB',
+    );
+  }
+}
+
+/// Squared segmented slider for Option A / Option B (distinct from Pros/Cons pills).
+class _OptionSlider extends StatelessWidget {
+  const _OptionSlider({
+    required this.optionA,
+    required this.optionB,
+    required this.activeIndex,
+    required this.onChanged,
+  });
+
+  final String optionA;
+  final String optionB;
+  final int activeIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    const radius = 12.0;
+    const inset = 4.0;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: colors.softFill,
+        borderRadius: BorderRadius.circular(radius),
+        border: Border.all(color: colors.borderStrong, width: 1.5),
+      ),
+      padding: const EdgeInsets.all(inset),
+      // Measure after border + padding so the thumb never overruns the track.
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final segmentWidth = constraints.maxWidth / 2;
+
+          return SizedBox(
+            height: 48,
+            width: constraints.maxWidth,
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                AnimatedPositioned(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  left: activeIndex * segmentWidth,
+                  top: 0,
+                  bottom: 0,
+                  width: segmentWidth,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colors.pageBg,
+                      borderRadius: BorderRadius.circular(radius - 4),
+                      border: Border.all(
+                        color: TwiffelTokens.primaryDefault,
+                        width: 1.5,
+                      ),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x1AD97706),
+                          blurRadius: 6,
+                          offset: Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                Row(
+                  children: [
+                    for (var i = 0; i < 2; i++)
+                      Expanded(
+                        child: InkWell(
+                          onTap: () => onChanged(i),
+                          borderRadius: BorderRadius.circular(radius - 4),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  i == 0
+                                      ? DecisionCopy.analysisOptionALabel
+                                          .toUpperCase()
+                                      : DecisionCopy.analysisOptionBLabel
+                                          .toUpperCase(),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 0.4,
+                                    color: activeIndex == i
+                                        ? TwiffelTokens.primaryDefault
+                                        : colors.textTertiary,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  i == 0 ? optionA : optionB,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: activeIndex == i
+                                        ? colors.textPrimary
+                                        : colors.textSecondary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
-          ),
-        ),
-        _TargetPill(
-          label: DecisionCopy.analysisOptionBLabel,
-          value: analysis.optionB ?? '',
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 }
@@ -505,65 +770,65 @@ class _TabBar extends StatelessWidget {
   const _TabBar({
     required this.labels,
     required this.activeIndex,
-    required this.activeColor,
-    required this.inactiveColor,
     required this.onTap,
   });
 
   final List<String> labels;
   final int activeIndex;
-  final Color activeColor;
-  final Color inactiveColor;
   final ValueChanged<int> onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
 
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: colors.borderDefault),
-        ),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: [
-          for (var i = 0; i < labels.length; i++)
-            Expanded(
+    return Row(
+      children: [
+        for (var i = 0; i < labels.length; i++) ...[
+          if (i > 0) const SizedBox(width: 10),
+          Expanded(
+            child: Material(
+              color: Colors.transparent,
               child: InkWell(
                 onTap: () => onTap(i),
-                child: Column(
-                  children: [
-                    Text(
-                      labels[i],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight:
-                            activeIndex == i ? FontWeight.w700 : FontWeight.w600,
-                        color: activeIndex == i
-                            ? colors.textPrimary
-                            : colors.textTertiary,
-                      ),
+                borderRadius: BorderRadius.circular(999),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 160),
+                  alignment: Alignment.center,
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: activeIndex == i
+                        ? TwiffelTokens.primary400
+                        : colors.softFill,
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(
+                      color: activeIndex == i
+                          ? TwiffelTokens.primary400
+                          : colors.borderDefault,
+                      width: 1.5,
                     ),
-                    const SizedBox(height: 10),
-                    Container(
-                      height: 3,
-                      width: 44,
-                      decoration: BoxDecoration(
-                        color: activeIndex == i ? activeColor : inactiveColor,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+                  ),
+                  child: Text(
+                    labels[i],
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: activeIndex == i
+                          ? TwiffelTokens.gray900
+                          : colors.textPrimary,
                     ),
-                  ],
+                  ),
                 ),
               ),
             ),
+          ),
         ],
-      ),
+      ],
     );
   }
 }
@@ -606,217 +871,370 @@ class _SwipeHint extends StatelessWidget {
   }
 }
 
-class _VerdictBox extends StatelessWidget {
-  const _VerdictBox({required this.verdict});
+class _VerdictBar extends StatelessWidget {
+  const _VerdictBar({
+    required this.verdict,
+    required this.expanded,
+    required this.onExpandedChanged,
+  });
 
   final String verdict;
+  final bool expanded;
+  final ValueChanged<bool> onExpandedChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    final maxBodyHeight = MediaQuery.sizeOf(context).height * 0.4;
+
+    return AnimatedPhysicalModel(
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOut,
+      shape: BoxShape.rectangle,
+      elevation: expanded ? 8 : 0,
+      color: colors.softFill,
+      shadowColor: const Color(0x33000000),
+      borderRadius: BorderRadius.circular(16),
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: colors.borderDefault),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: () => onExpandedChanged(!expanded),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 16, 10, 16),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.auto_awesome,
+                          size: 18,
+                          color: TwiffelTokens.primaryDefault,
+                        ),
+                        const Expanded(
+                          child: Text(
+                            DecisionCopy.analysisVerdictLabel,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: TwiffelTokens.primaryDefault,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                        Icon(
+                          expanded
+                              ? Icons.expand_more
+                              : Icons.keyboard_arrow_up,
+                          color: colors.textSecondary,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: child,
+                  );
+                },
+                child: expanded
+                    ? ConstrainedBox(
+                        key: const ValueKey('verdict-body'),
+                        constraints: BoxConstraints(maxHeight: maxBodyHeight),
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                          child: Text(
+                            verdict,
+                            style: TextStyle(
+                              color: colors.textPrimary,
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                          ),
+                        ),
+                      )
+                    : const SizedBox(
+                        key: ValueKey('verdict-empty'),
+                        width: double.infinity,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _InsightsHeading extends StatelessWidget {
+  const _InsightsHeading({required this.label});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: colors.softFill,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: colors.borderDefault),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Row(
-            children: [
-              Icon(
-                Icons.auto_awesome,
-                size: 16,
-                color: TwiffelTokens.primaryDefault,
-              ),
-              SizedBox(width: 6),
-              Text(
-                DecisionCopy.analysisVerdictLabel,
-                style: TextStyle(
-                  color: TwiffelTokens.primaryDefault,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
+    return Row(
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(
+            color: TwiffelTokens.primary400,
+            borderRadius: BorderRadius.circular(2),
           ),
-          const SizedBox(height: 8),
-          Text(
-            verdict,
-            style: TextStyle(
-              color: colors.textPrimary,
-              fontSize: 14,
-              height: 1.5,
-            ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label.toUpperCase(),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.6,
+            color: colors.textSecondary,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
 class _PointsPanel extends StatelessWidget {
   const _PointsPanel({
+    super.key,
     required this.heading,
     required this.accent,
     required this.icon,
     required this.points,
+    required this.showOverflowCue,
   });
 
   final String heading;
   final Color accent;
   final IconData icon;
   final List<AnalysisPoint> points;
+  final bool showOverflowCue;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+    return _OverflowScrollView(
+      showOverflowCue: showOverflowCue,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       children: [
-        Row(
-          children: [
-            Container(
-              width: 24,
-              height: 24,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, size: 14, color: accent),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              heading,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: TwiffelColors.of(context).textPrimary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        for (final point in points) ...[
-          _PointCard(point: point, accent: accent),
-          const SizedBox(height: 10),
-        ],
+        _InsightsHeading(label: heading),
+        const SizedBox(height: 4),
+        for (var i = 0; i < points.length; i++)
+          _PointRow(
+            point: points[i],
+            accent: accent,
+            icon: icon,
+            showDivider: i < points.length - 1,
+          ),
       ],
     );
   }
 }
 
-class _OptionPanel extends StatelessWidget {
-  const _OptionPanel({
-    required this.title,
-    required this.pros,
-    required this.cons,
+/// List that fades the bottom edge and shows a chevron while more content
+/// remains below, so overflow is obvious even when a row ends at the clip.
+class _OverflowScrollView extends StatefulWidget {
+  const _OverflowScrollView({
+    required this.children,
+    required this.padding,
+    required this.showOverflowCue,
   });
 
-  final String title;
-  final List<AnalysisPoint> pros;
-  final List<AnalysisPoint> cons;
+  final List<Widget> children;
+  final EdgeInsets padding;
+  final bool showOverflowCue;
+
+  @override
+  State<_OverflowScrollView> createState() => _OverflowScrollViewState();
+}
+
+class _OverflowScrollViewState extends State<_OverflowScrollView> {
+  final _controller = ScrollController();
+  bool _canScrollDown = false;
+  bool _updateScheduled = false;
+
+  static const cueKey = ValueKey<String>('list-overflow-cue');
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_updateOverflow);
+    _scheduleOverflowUpdate();
+  }
+
+  @override
+  void didUpdateWidget(covariant _OverflowScrollView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _scheduleOverflowUpdate();
+  }
+
+  @override
+  void dispose() {
+    _controller
+      ..removeListener(_updateOverflow)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _scheduleOverflowUpdate() {
+    if (_updateScheduled) return;
+    _updateScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _updateScheduled = false;
+      _updateOverflow();
+    });
+  }
+
+  void _updateOverflow() {
+    if (!mounted) return;
+    if (!_controller.hasClients) {
+      _scheduleOverflowUpdate();
+      return;
+    }
+    final position = _controller.position;
+    final canScrollDown = position.extentAfter > 1;
+    if (canScrollDown != _canScrollDown) {
+      setState(() => _canScrollDown = canScrollDown);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w700,
-            color: colors.textPrimary,
+    return NotificationListener<ScrollNotification>(
+      onNotification: (_) {
+        _updateOverflow();
+        return false;
+      },
+      child: Stack(
+        children: [
+          ListView(
+            controller: _controller,
+            padding: widget.padding.copyWith(
+              bottom: widget.padding.bottom + 28,
+            ),
+            children: widget.children,
           ),
-        ),
-        const SizedBox(height: 16),
-        const _SectionLabel(
-          icon: Icons.check,
-          label: DecisionCopy.analysisPros,
-          color: TwiffelTokens.semanticSuccess,
-        ),
-        const SizedBox(height: 8),
-        for (final point in pros) ...[
-          _PointCard(point: point, accent: TwiffelTokens.semanticSuccess),
-          const SizedBox(height: 10),
+          if (widget.showOverflowCue && _canScrollDown)
+            Positioned(
+              key: cueKey,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: IgnorePointer(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      height: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            colors.pageBg.withValues(alpha: 0),
+                            colors.pageBg.withValues(alpha: 0.85),
+                            colors.pageBg,
+                          ],
+                        ),
+                      ),
+                    ),
+                    ColoredBox(
+                      color: colors.pageBg,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 6),
+                        child: Center(
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: colors.softFill,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: TwiffelTokens.primaryDefault,
+                                width: 1.5,
+                              ),
+                            ),
+                            child: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              size: 28,
+                              color: TwiffelTokens.primaryDefault,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
-        const SizedBox(height: 12),
-        const _SectionLabel(
-          icon: Icons.close,
-          label: DecisionCopy.analysisCons,
-          color: TwiffelTokens.semanticError,
-        ),
-        const SizedBox(height: 8),
-        for (final point in cons) ...[
-          _PointCard(point: point, accent: TwiffelTokens.semanticError),
-          const SizedBox(height: 10),
-        ],
-      ],
+      ),
     );
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({
+class _PointRow extends StatelessWidget {
+  const _PointRow({
+    required this.point,
+    required this.accent,
     required this.icon,
-    required this.label,
-    required this.color,
+    required this.showDivider,
   });
-
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 14, color: color),
-        const SizedBox(width: 6),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: color,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PointCard extends StatelessWidget {
-  const _PointCard({required this.point, required this.accent});
 
   final AnalysisPoint point;
   final Color accent;
+  final IconData icon;
+  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
 
-    return Container(
-      decoration: BoxDecoration(
-        color: colors.cardSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.borderDefault),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: IntrinsicHeight(
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(width: 4, color: accent),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 22,
+                height: 22,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 13, color: accent),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -825,25 +1243,32 @@ class _PointCard extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
+                        height: 1.25,
                         color: colors.textPrimary,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 2),
                     Text(
                       point.detail,
                       style: TextStyle(
-                        fontSize: 13,
-                        height: 1.4,
+                        fontSize: 12.5,
+                        height: 1.35,
                         color: colors.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
+        if (showDivider)
+          Divider(
+            height: 1,
+            thickness: 1,
+            color: colors.borderDefault,
+          ),
+      ],
     );
   }
 }
