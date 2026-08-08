@@ -211,6 +211,11 @@ creates groups on first use.
 > **current** `<app>-codemagic-ci` service token (tokens are shown once; recreate if
 > unsure). Doppler `ci` must contain `<APP>_GITHUB_TOKEN`.
 
+> **Gotcha — `Unable to find gpg binary` on Codemagic:** Doppler’s `install.sh`
+> requires GnuPG. On Mac builders, install via Homebrew (`brew install gnupg` then
+> `brew install dopplerhq/cli/doppler`). If install fails, every `doppler secrets get`
+> looks like a “missing” secret even when Doppler `ci` is populated.
+
 > **Gotcha — missing Podfile:** if `pod install` fails with *"No `Podfile` found"*,
 > the repo lacks `ios/Podfile` — copy the standard Flutter one from this template.
 

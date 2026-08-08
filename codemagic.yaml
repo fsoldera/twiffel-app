@@ -44,7 +44,20 @@ definitions:
           exit 1
         fi
         DOPPLER_CONFIG="${DOPPLER_CONFIG:-ci}"
-        curl -Ls https://cli.doppler.com/install.sh | sh -s -- --no-install-pkgs
+        # install.sh requires GnuPG for signature verification. Codemagic Mac images
+        # often lack gpg; `--no-install-pkgs` then fails and every secret looks "missing".
+        if command -v brew >/dev/null 2>&1; then
+          brew list gnupg >/dev/null 2>&1 || brew install gnupg
+          brew list doppler >/dev/null 2>&1 || brew install dopplerhq/cli/doppler
+        elif command -v apt-get >/dev/null 2>&1; then
+          sudo apt-get update -y
+          sudo apt-get install -y gnupg
+          curl -Ls --tlsv1.2 --proto "=https" --retry 3 https://cli.doppler.com/install.sh | sh
+        else
+          curl -Ls --tlsv1.2 --proto "=https" --retry 3 https://cli.doppler.com/install.sh | sh
+        fi
+        command -v doppler >/dev/null 2>&1 || { echo "doppler CLI failed to install"; exit 1; }
+        doppler --version
         # Append each app secret as KEY=value. Avoid `doppler … --format env` quotes /
         # multiline breakage from large keystore values that can drop later keys in CM_ENV.
         count=0
@@ -61,8 +74,18 @@ definitions:
           if ! doppler secrets get "$key" \
               --project "$DOPPLER_PROJECT" \
               --config "$DOPPLER_CONFIG" \
-              --plain > /tmp/cm_doppler_val 2>/dev/null; then
-            echo "skip missing Doppler secret: $key"
+              --plain > /tmp/cm_doppler_val 2>/tmp/cm_doppler_err; then
+            # RC keys are optional for first binaries; everything else should exist in ci.
+            case "$key" in
+              TWIFFEL_RC_KEY_*)
+                echo "skip optional missing Doppler secret: $key"
+                ;;
+              *)
+                echo "failed to read required Doppler secret: $key"
+                cat /tmp/cm_doppler_err >&2 || true
+                exit 1
+                ;;
+            esac
             continue
           fi
           printf '%s=' "$key" >> "$CM_ENV"
@@ -71,7 +94,7 @@ definitions:
           count=$((count + 1))
           echo "loaded $key"
         done
-        rm -f /tmp/cm_doppler_val
+        rm -f /tmp/cm_doppler_val /tmp/cm_doppler_err
         if ! grep -q "^TWIFFEL_GITHUB_TOKEN=" "$CM_ENV"; then
           echo "Doppler ci did not provide TWIFFEL_GITHUB_TOKEN (check Doppler config ci)."
           exit 1
