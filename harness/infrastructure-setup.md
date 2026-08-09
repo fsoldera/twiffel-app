@@ -406,8 +406,14 @@ then rebuild.
 > its private key. Generate a PEM once, store in Doppler `ci` as
 > `IOS_DISTRIBUTION_CERT_KEY` (team-wide, allowed shared secret), and pass
 > `--certificate-key` to `fetch-signing-files --create`:
-> `openssl genrsa -out ios_distribution.key 2048` then paste the PEM into Doppler.
-> Reuse the same key for every U-Things app so you do not burn Distribution cert slots.
+> `openssl genrsa -out ios_distribution.key 2048` then set via Doppler CLI so
+> newlines are preserved. Reuse the same key for every U-Things app so you do not
+> burn Distribution cert slots.
+>
+> **Gotcha — `--certificate-key: Provided value "@/tmp/..." is not valid`:**
+> Codemagic CLI wants `@file:/path`, not `@/path`. Example:
+> `--certificate-key="@file:$CERT_KEY_FILE"`. OpenSSL reporting "RSA key ok" means
+> the PEM is fine; only the flag syntax was wrong.
 
 > **Gotcha — seller “personal name”:** Individual Apple Developer account shows your
 > legal name as seller. Brand name needs Organization + D-U-N-S.
