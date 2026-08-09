@@ -242,15 +242,30 @@ workflows:
           if ! doppler secrets get IOS_DISTRIBUTION_CERT_KEY \
               --project "$DOPPLER_PROJECT" \
               --config "$DOPPLER_CONFIG" \
-              --plain > "$CERT_KEY_FILE" 2>/tmp/cert_key_err; then
+              --plain > "$CERT_KEY_FILE.raw" 2>/tmp/cert_key_err; then
             echo "Missing Doppler ci secret IOS_DISTRIBUTION_CERT_KEY (PEM)."
-            echo "Generate once and store in Doppler (reuse across apps):"
+            echo "Generate once and store in Doppler via CLI (preserves newlines):"
             echo "  openssl genrsa -out ios_distribution.key 2048"
+            echo "  Get-Content ios_distribution.key -Raw | doppler secrets set IOS_DISTRIBUTION_CERT_KEY --project twiffel --config ci"
             cat /tmp/cert_key_err >&2 || true
             exit 1
           fi
-          # Ensures PEM ends with a newline (OpenSSL / ASC tooling can be picky).
+          # Normalize Doppler UI paste issues: literal \n, CRLF.
+          tr -d '\r' < "$CERT_KEY_FILE.raw" | sed 's/\\n/\n/g' > "$CERT_KEY_FILE"
           printf '\n' >> "$CERT_KEY_FILE"
+          echo "PEM markers:"
+          grep -E 'BEGIN|END' "$CERT_KEY_FILE" || true
+          if ! grep -q 'BEGIN .*PRIVATE KEY' "$CERT_KEY_FILE"; then
+            echo "IOS_DISTRIBUTION_CERT_KEY does not look like a PEM private key."
+            echo "Re-set with Doppler CLI from the .key file (UI paste often breaks newlines)."
+            exit 1
+          fi
+          if ! openssl rsa -in "$CERT_KEY_FILE" -check -noout 2>/tmp/openssl_check.err \
+             && ! openssl pkey -in "$CERT_KEY_FILE" -check -noout 2>/tmp/openssl_check.err; then
+            echo "IOS_DISTRIBUTION_CERT_KEY failed openssl check. Re-set via CLI from a .key file."
+            cat /tmp/openssl_check.err >&2 || true
+            exit 1
+          fi
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create \
