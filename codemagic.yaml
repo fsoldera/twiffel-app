@@ -223,11 +223,38 @@ workflows:
         script: keychain initialize
       - name: Fetch or create App Store signing files
         script: |
-          # Creates Distribution cert + App Store profile in Apple Developer if missing.
-          # Requires ASC API key (twiffel_asc) with Admin or App Manager access.
+          # Apple may already have a Distribution cert from Stikkteller/Joppling.
+          # Without the matching private key, fetch-signing-files fails with:
+          #   "Cannot save Signing Certificates without certificate private key"
+          # Store a PEM private key in Doppler ci as IOS_DISTRIBUTION_CERT_KEY
+          # (team-wide, reuse for all U-Things apps). Generate once:
+          #   openssl genrsa -out ios_distribution.key 2048
+          #   Get-Content ios_distribution.key -Raw | doppler secrets set IOS_DISTRIBUTION_CERT_KEY --project twiffel --config ci
+          CERT_KEY_FILE=/tmp/ios_distribution.key
+          if [ -z "${DOPPLER_TOKEN:-}" ] || [ -z "${DOPPLER_PROJECT:-}" ]; then
+            echo "DOPPLER_TOKEN / DOPPLER_PROJECT required to load IOS_DISTRIBUTION_CERT_KEY."
+            exit 1
+          fi
+          DOPPLER_CONFIG="${DOPPLER_CONFIG:-ci}"
+          if ! command -v doppler >/dev/null 2>&1; then
+            brew list doppler >/dev/null 2>&1 || brew install dopplerhq/cli/doppler
+          fi
+          if ! doppler secrets get IOS_DISTRIBUTION_CERT_KEY \
+              --project "$DOPPLER_PROJECT" \
+              --config "$DOPPLER_CONFIG" \
+              --plain > "$CERT_KEY_FILE" 2>/tmp/cert_key_err; then
+            echo "Missing Doppler ci secret IOS_DISTRIBUTION_CERT_KEY (PEM)."
+            echo "Generate once and store in Doppler (reuse across apps):"
+            echo "  openssl genrsa -out ios_distribution.key 2048"
+            cat /tmp/cert_key_err >&2 || true
+            exit 1
+          fi
+          # Ensures PEM ends with a newline (OpenSSL / ASC tooling can be picky).
+          printf '\n' >> "$CERT_KEY_FILE"
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
-            --create
+            --create \
+            --certificate-key=@"$CERT_KEY_FILE"
       - name: Add certificates to keychain
         script: keychain add-certificates
       - name: Set up code signing settings

@@ -37,6 +37,8 @@ The only allowed **shared** pieces (not per-app secrets) are:
 - Google Cloud service account `revenuecat-play@…` (invite per new Play app)
 - ASC **In-App Purchase** `.p8` + Issuer ID + Key ID (account-wide, reuse in RC)
 - ASC **App Store Connect API** key (Codemagic integration; name `<app>_asc` OK)
+- iOS **Distribution certificate private key** PEM (`IOS_DISTRIBUTION_CERT_KEY` in
+  Doppler `ci`) — Codemagic uses it for `fetch-signing-files --create`
 - Personal logins / dashboard access
 
 ---
@@ -398,6 +400,14 @@ then rebuild.
 > Codemagic. For a new app, use `app-store-connect fetch-signing-files <bundle> --type
 > IOS_APP_STORE --create` (ASC API key must be Admin / App Manager). Register the
 > Bundle ID in Apple Developer before the first signed build.
+
+> **Gotcha — `Cannot save Signing Certificates without certificate private key`:**
+> Apple already has a Distribution cert (often from an older app) but Codemagic lacks
+> its private key. Generate a PEM once, store in Doppler `ci` as
+> `IOS_DISTRIBUTION_CERT_KEY` (team-wide, allowed shared secret), and pass
+> `--certificate-key` to `fetch-signing-files --create`:
+> `openssl genrsa -out ios_distribution.key 2048` then paste the PEM into Doppler.
+> Reuse the same key for every U-Things app so you do not burn Distribution cert slots.
 
 > **Gotcha — seller “personal name”:** Individual Apple Developer account shows your
 > legal name as seller. Brand name needs Organization + D-U-N-S.
