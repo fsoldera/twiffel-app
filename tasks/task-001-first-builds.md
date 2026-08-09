@@ -97,11 +97,12 @@ Put that URL in Codemagic group `twiffel_runtime` as `TWIFFEL_API_BASE`.
 Never commit the `.jks`. Generate at repo root (gitignored):
 
 ```powershell
+# PKCS12: use the SAME password for store and key (-keypass is ignored if different).
 keytool -genkeypair -v `
   -keystore twiffel-upload.jks `
   -alias twiffel-upload `
   -keyalg RSA -keysize 2048 -validity 10000 `
-  -storepass <STORE_PW> -keypass <KEY_PW> `
+  -storepass <SAME_PW> -keypass <SAME_PW> `
   -dname "CN=Twiffel, OU=U-Things, O=Franco Soldera, C=DK"
 
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("twiffel-upload.jks")) | Set-Clipboard

@@ -228,11 +228,16 @@ Verify: run **iOS (smoke)** — it proves the PAT, pub get, and CocoaPods work.
 One keystore **per app**, generated locally, never committed:
 
 ```powershell
+# Use THE SAME password for -storepass and -keypass.
+# Recent keytool defaults to PKCS12, which ignores a different -keypass
+# ("Different store and key passwords not supported for PKCS12 KeyStores").
+# If Doppler has a different KEY password, Gradle fails with
+# "Given final block not properly padded".
 keytool -genkeypair -v `
   -keystore <app>-upload.jks `
   -alias <app>-upload `
   -keyalg RSA -keysize 2048 -validity 10000 `
-  -storepass <STORE_PW> -keypass <KEY_PW> `
+  -storepass <SAME_PW> -keypass <SAME_PW> `
   -dname "CN=<App>, OU=U-Things, O=Franco Soldera, C=DK"
 
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("<app>-upload.jks")) | Set-Clipboard
@@ -252,9 +257,10 @@ absent, so local `flutter run --release` still works).
 > slow Google support flow).
 
 > **Gotcha — Gradle `final block not properly padded`:** wrong store/key password, or
-> corrupted base64 in Doppler (line wraps / spaces). Re-encode as one line, verify
-> locally with `keytool -list`, then rebuild. Codemagic should `keytool -list` right
-> after decode so this fails before `:app:signReleaseBundle`.
+> corrupted base64 in Doppler (line wraps / spaces). Most common: PKCS12 keystore
+> where `-keypass` was ignored, so Doppler `*_KEY_PASSWORD` ≠ store password. Set
+> both Doppler passwords to the **same** value. Re-encode as one line, verify with
+> `keytool -list`, then rebuild. Codemagic should `keytool -list` right after decode.
 
 ---
 
