@@ -266,10 +266,11 @@ workflows:
             cat /tmp/openssl_check.err >&2 || true
             exit 1
           fi
+          # Codemagic CLI requires @file:<path> (not @/path).
           app-store-connect fetch-signing-files "$BUNDLE_ID" \
             --type IOS_APP_STORE \
             --create \
-            --certificate-key=@"$CERT_KEY_FILE"
+            --certificate-key="@file:$CERT_KEY_FILE"
       - name: Add certificates to keychain
         script: keychain add-certificates
       - name: Set up code signing settings
