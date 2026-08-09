@@ -204,22 +204,33 @@ workflows:
       flutter: stable
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.uthings.twiffel
+      # Do not use ios_signing.distribution_type here — that only matches profiles
+      # already uploaded in Codemagic UI. New apps need ASC fetch/create below.
       groups:
         - twiffel_ci
         - twiffel_runtime
       vars:
         XCODE_WORKSPACE: ios/Runner.xcworkspace
         XCODE_SCHEME: Runner
+        BUNDLE_ID: com.uthings.twiffel
     scripts:
       - *load_doppler_if_configured
       - *configure_private_git
       - *pub_get
       - name: Install CocoaPods dependencies
         script: cd ios && pod install
-      - name: Set up code signing
+      - name: Set up keychain
+        script: keychain initialize
+      - name: Fetch or create App Store signing files
+        script: |
+          # Creates Distribution cert + App Store profile in Apple Developer if missing.
+          # Requires ASC API key (twiffel_asc) with Admin or App Manager access.
+          app-store-connect fetch-signing-files "$BUNDLE_ID" \
+            --type IOS_APP_STORE \
+            --create
+      - name: Add certificates to keychain
+        script: keychain add-certificates
+      - name: Set up code signing settings
         script: xcode-project use-profiles
       - name: Build IPA
         script: |

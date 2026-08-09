@@ -393,6 +393,12 @@ then rebuild.
 > **Gotcha — Codemagic 422 on `betaAppReviewSubmissions`:** IPA + publishing can
 > still succeed; external beta metadata is the failure. **Internal Testing** works.
 
+> **Gotcha — `No matching profiles found` for a new bundle ID:** YAML
+> `ios_signing.distribution_type` only finds profiles **already uploaded** in
+> Codemagic. For a new app, use `app-store-connect fetch-signing-files <bundle> --type
+> IOS_APP_STORE --create` (ASC API key must be Admin / App Manager). Register the
+> Bundle ID in Apple Developer before the first signed build.
+
 > **Gotcha — seller “personal name”:** Individual Apple Developer account shows your
 > legal name as seller. Brand name needs Organization + D-U-N-S.
 
