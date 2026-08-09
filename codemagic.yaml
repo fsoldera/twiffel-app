@@ -116,12 +116,31 @@ definitions:
           echo "Need TWIFFEL_CM_KEYSTORE_PASSWORD, TWIFFEL_CM_KEY_ALIAS, TWIFFEL_CM_KEY_PASSWORD."
           exit 1
         fi
+        # Trim whitespace/newlines that Doppler or CM_ENV can introduce.
+        STORE_PW="$(printf '%s' "$TWIFFEL_CM_KEYSTORE_PASSWORD" | tr -d '\r\n')"
+        KEY_PW="$(printf '%s' "$TWIFFEL_CM_KEY_PASSWORD" | tr -d '\r\n')"
+        KEY_ALIAS="$(printf '%s' "$TWIFFEL_CM_KEY_ALIAS" | tr -d '\r\n')"
+        # Strip whitespace/newlines from base64 (clipboard paste often wraps lines).
+        B64="$(printf '%s' "$TWIFFEL_CM_KEYSTORE" | tr -d '[:space:]')"
         KEYSTORE_PATH="$CM_BUILD_DIR/twiffel-upload.jks"
-        echo "$TWIFFEL_CM_KEYSTORE" | base64 --decode > "$KEYSTORE_PATH"
+        # openssl -A = single-line input; portable on Mac + Linux Codemagic images.
+        printf '%s' "$B64" | openssl base64 -d -A -out "$KEYSTORE_PATH"
+        ls -la "$KEYSTORE_PATH"
+        # Fail here with a clear error instead of Gradle "final block not properly padded".
+        if ! keytool -list \
+            -keystore "$KEYSTORE_PATH" \
+            -alias "$KEY_ALIAS" \
+            -storepass "$STORE_PW" \
+            -keypass "$KEY_PW" >/tmp/keytool_list.out 2>/tmp/keytool_list.err; then
+          echo "Keystore open failed. Check Doppler TWIFFEL_CM_KEYSTORE (base64) and passwords."
+          cat /tmp/keytool_list.err >&2 || true
+          exit 1
+        fi
+        cat /tmp/keytool_list.out
         printf '%s\n' \
-          "storePassword=$TWIFFEL_CM_KEYSTORE_PASSWORD" \
-          "keyPassword=$TWIFFEL_CM_KEY_PASSWORD" \
-          "keyAlias=$TWIFFEL_CM_KEY_ALIAS" \
+          "storePassword=$STORE_PW" \
+          "keyPassword=$KEY_PW" \
+          "keyAlias=$KEY_ALIAS" \
           "storeFile=$KEYSTORE_PATH" \
           > "$CM_BUILD_DIR/android/key.properties"
         echo "Wrote android/key.properties (storeFile=$KEYSTORE_PATH)."

@@ -251,6 +251,11 @@ absent, so local `flutter run --release` still works).
 > `.aab` is uploaded to Play**. After that the upload key is pinned (reset requires a
 > slow Google support flow).
 
+> **Gotcha — Gradle `final block not properly padded`:** wrong store/key password, or
+> corrupted base64 in Doppler (line wraps / spaces). Re-encode as one line, verify
+> locally with `keytool -list`, then rebuild. Codemagic should `keytool -list` right
+> after decode so this fails before `:app:signReleaseBundle`.
+
 ---
 
 ## Step 6 — Google Play Console
