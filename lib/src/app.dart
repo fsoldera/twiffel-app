@@ -10,7 +10,12 @@ import 'services/analytics.dart';
 import 'state/app_settings_controller.dart';
 import 'state/session_controller.dart';
 import 'theme/app_theme.dart';
-import 'widgets/app_splash_overlay.dart';
+
+/// Minimum time the native launch splash stays up.
+const Duration kMinSplashDuration = Duration(milliseconds: 1500);
+
+/// Moment [main] began (overwritten at process start before async work).
+DateTime appLaunchAt = DateTime.now();
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -26,10 +31,6 @@ class _MyAppState extends State<MyApp> {
   late final AiClient _ai;
   late final AppSettingsController _settings;
   late final GoRouter _router;
-
-  /// Flutter splash plate on top of the app (native splash cannot fade).
-  bool _splashVisible = true;
-  bool _splashMounted = true;
 
   @override
   void initState() {
@@ -61,15 +62,7 @@ class _MyAppState extends State<MyApp> {
       await Future<void>.delayed(remaining);
     }
     if (!mounted) return;
-
-    // Native plate has no cross-fade API; hand off to the matching Flutter plate.
     FlutterNativeSplash.remove();
-    setState(() => _splashVisible = false);
-  }
-
-  void _onSplashFadeEnd() {
-    if (_splashVisible || !_splashMounted) return;
-    setState(() => _splashMounted = false);
   }
 
   @override
@@ -94,26 +87,15 @@ class _MyAppState extends State<MyApp> {
           themeMode: _settings.themeMode,
           routerConfig: _router,
           builder: (context, child) {
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                AnimatedOpacity(
-                  opacity: _splashVisible ? 0 : 1,
-                  duration: kSplashFadeDuration,
-                  curve: Curves.easeOut,
-                  child: child ?? const SizedBox.shrink(),
+            final media = MediaQuery.of(context);
+            final systemFactor = media.textScaler.scale(14) / 14;
+            return MediaQuery(
+              data: media.copyWith(
+                textScaler: TextScaler.linear(
+                  systemFactor * _settings.textSize.scale,
                 ),
-                if (_splashMounted)
-                  IgnorePointer(
-                    child: AnimatedOpacity(
-                      opacity: _splashVisible ? 1 : 0,
-                      duration: kSplashFadeDuration,
-                      curve: Curves.easeOut,
-                      onEnd: _onSplashFadeEnd,
-                      child: const AppSplashOverlay(),
-                    ),
-                  ),
-              ],
+              ),
+              child: child ?? const SizedBox.shrink(),
             );
           },
         );

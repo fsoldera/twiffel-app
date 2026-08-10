@@ -232,66 +232,69 @@ class _ResultsBodyState extends State<_ResultsBody> {
       cons = analysis.cons;
     }
 
-    return Column(
+    // Sticky action row height (padding 12+8 + button 48).
+    const stickyHeight = 68.0;
+
+    return Stack(
       children: [
-        const _TopBar(),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-          child: Text(
-            isComparison
-                ? DecisionCopy.analysisTitleComparison
-                : DecisionCopy.analysisTitleSingle,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: colors.textPrimary,
-              height: 1.15,
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: isComparison
-              ? _ComparisonPills(analysis: analysis)
-              : _TargetPill(
-                  label: DecisionCopy.analysisQuestionLabel,
-                  value: analysis.target ?? '',
+        Column(
+          children: [
+            const _TopBar(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
+              child: Text(
+                isComparison
+                    ? DecisionCopy.analysisTitleComparison
+                    : DecisionCopy.analysisTitleSingle,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: colors.textPrimary,
+                  height: 1.15,
                 ),
-        ),
-        const SizedBox(height: 20),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _TabBar(
-            labels: [
-              '${DecisionCopy.analysisPros} (${pros.length})',
-              '${DecisionCopy.analysisCons} (${cons.length})',
-            ],
-            activeIndex: pageIndex,
-            onTap: _selectAspect,
-          ),
-        ),
-        if (isComparison) ...[
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _OptionSlider(
-              optionA: analysis.optionA?.trim().isNotEmpty == true
-                  ? analysis.optionA!
-                  : DecisionCopy.analysisOptionALabel,
-              optionB: analysis.optionB?.trim().isNotEmpty == true
-                  ? analysis.optionB!
-                  : DecisionCopy.analysisOptionBLabel,
-              activeIndex: _optionIndex,
-              onChanged: (index) => setState(() => _optionIndex = index),
+              ),
             ),
-          ),
-        ],
-        Expanded(
-          child: Stack(
-            children: [
-              Column(
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: isComparison
+                  ? _ComparisonPills(analysis: analysis)
+                  : _TargetPill(
+                      label: DecisionCopy.analysisQuestionLabel,
+                      value: analysis.target ?? '',
+                    ),
+            ),
+            const SizedBox(height: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _TabBar(
+                labels: [
+                  '${DecisionCopy.analysisPros} (${pros.length})',
+                  '${DecisionCopy.analysisCons} (${cons.length})',
+                ],
+                activeIndex: pageIndex,
+                onTap: _selectAspect,
+              ),
+            ),
+            if (isComparison) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _OptionSlider(
+                  optionA: analysis.optionA?.trim().isNotEmpty == true
+                      ? analysis.optionA!
+                      : DecisionCopy.analysisOptionALabel,
+                  optionB: analysis.optionB?.trim().isNotEmpty == true
+                      ? analysis.optionB!
+                      : DecisionCopy.analysisOptionBLabel,
+                  activeIndex: _optionIndex,
+                  onChanged: (index) => setState(() => _optionIndex = index),
+                ),
+              ),
+            ],
+            Expanded(
+              child: Column(
                 children: [
                   Expanded(
                     child: PageView(
@@ -328,49 +331,71 @@ class _ResultsBodyState extends State<_ResultsBody> {
                   const SizedBox(height: 68),
                 ],
               ),
-              Positioned.fill(
-                child: IgnorePointer(
-                  ignoring: !_verdictExpanded,
-                  child: AnimatedOpacity(
-                    opacity: _verdictExpanded ? 1 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    curve: Curves.easeOut,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => _setVerdictExpanded(false),
-                      child: const ColoredBox(color: Color(0x66000000)),
-                    ),
-                  ),
-                ),
-              ),
-              AnimatedAlign(
-                duration: const Duration(milliseconds: 280),
-                curve: Curves.easeOutCubic,
-                alignment: _verdictExpanded
-                    ? Alignment.center
-                    : Alignment.bottomCenter,
-                child: AnimatedPadding(
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeOutCubic,
-                  padding: EdgeInsets.fromLTRB(
-                    20,
-                    12,
-                    20,
-                    _verdictExpanded ? 48 : 12,
-                  ),
-                  child: _VerdictBar(
-                    verdictPoints: analysis.verdictPoints,
-                    expanded: _verdictExpanded,
-                    onExpandedChanged: _setVerdictExpanded,
-                  ),
-                ),
-              ),
-            ],
+            ),
+            // Layout spacer matching the sticky bar (drawn in the Stack).
+            const SizedBox(height: stickyHeight),
+          ],
+        ),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: stickyHeight,
+          child: _StickyResultsActions(
+            onStartOver: widget.onStartOver,
+            onShare: widget.onShare,
           ),
         ),
-        _StickyResultsActions(
-          onStartOver: widget.onStartOver,
-          onShare: widget.onShare,
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          bottom: stickyHeight,
+          child: IgnorePointer(
+            ignoring: !_verdictExpanded,
+            child: AnimatedOpacity(
+              opacity: _verdictExpanded ? 1 : 0,
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeOut,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () => _setVerdictExpanded(false),
+                child: const ColoredBox(color: Color(0x66000000)),
+              ),
+            ),
+          ),
+        ),
+        Positioned(
+          left: 20,
+          right: 20,
+          // Expanded: occupy the band above the sticky bar, then center the
+          // card vertically (shrink-wrap when short, max-height when tall).
+          // Collapsed: sit just above the sticky bar.
+          top: _verdictExpanded ? 12 : null,
+          bottom: stickyHeight + 12,
+          child: _verdictExpanded
+              ? LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Align(
+                      alignment: Alignment.center,
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: constraints.maxHeight,
+                        ),
+                        child: _VerdictBar(
+                          verdictPoints: analysis.verdictPoints,
+                          expanded: true,
+                          onExpandedChanged: _setVerdictExpanded,
+                        ),
+                      ),
+                    );
+                  },
+                )
+              : _VerdictBar(
+                  verdictPoints: analysis.verdictPoints,
+                  expanded: false,
+                  onExpandedChanged: _setVerdictExpanded,
+                ),
         ),
       ],
     );
@@ -886,47 +911,43 @@ class _SwipeHint extends StatelessWidget {
   }
 }
 
-class _VerdictBody extends StatelessWidget {
-  const _VerdictBody({
-    required this.verdictPoints,
+class _VerdictBullet extends StatelessWidget {
+  const _VerdictBullet({
+    required this.text,
     required this.colors,
   });
 
-  final List<String> verdictPoints;
+  final String text;
   final TwiffelColors colors;
 
   @override
   Widget build(BuildContext context) {
-    final style = TextStyle(
-      color: colors.textPrimary,
-      fontSize: 14,
-      height: 1.45,
-    );
-    if (verdictPoints.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (var i = 0; i < verdictPoints.length; i++) ...[
-          if (i > 0) const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 7),
-                child: Icon(
-                  Icons.circle,
-                  size: 6,
-                  color: TwiffelTokens.primaryDefault,
-                ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.only(top: 7),
+            child: Icon(
+              Icons.circle,
+              size: 6,
+              color: TwiffelTokens.primaryDefault,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: TextStyle(
+                color: colors.textPrimary,
+                fontSize: 14,
+                height: 1.45,
               ),
-              const SizedBox(width: 10),
-              Expanded(child: Text(verdictPoints[i], style: style)),
-            ],
+            ),
           ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -945,96 +966,75 @@ class _VerdictBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
-    final maxBodyHeight = MediaQuery.sizeOf(context).height * 0.62;
 
-    return AnimatedPhysicalModel(
-      duration: const Duration(milliseconds: 200),
-      curve: Curves.easeOut,
-      shape: BoxShape.rectangle,
-      elevation: expanded ? 12 : 0,
-      color: colors.softFill,
-      shadowColor: const Color(0x33000000),
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedSize(
-        duration: const Duration(milliseconds: 280),
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          width: double.infinity,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: colors.borderDefault),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    final headerRow = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => onExpandedChanged(!expanded),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 16, 10, 16),
+          child: Row(
             children: [
-              Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  onTap: () => onExpandedChanged(!expanded),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 16, 10, 16),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.auto_awesome,
-                          size: 18,
-                          color: TwiffelTokens.primaryDefault,
-                        ),
-                        const Expanded(
-                          child: Text(
-                            DecisionCopy.analysisVerdictLabel,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              color: TwiffelTokens.primaryDefault,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ),
-                        Icon(
-                          expanded
-                              ? Icons.expand_more
-                              : Icons.keyboard_arrow_up,
-                          color: colors.textSecondary,
-                        ),
-                      ],
-                    ),
+              const Icon(
+                Icons.auto_awesome,
+                size: 18,
+                color: TwiffelTokens.primaryDefault,
+              ),
+              const Expanded(
+                child: Text(
+                  DecisionCopy.analysisVerdictLabel,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: TwiffelTokens.primaryDefault,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
-              AnimatedSwitcher(
-                duration: const Duration(milliseconds: 200),
-                switchInCurve: Curves.easeOut,
-                switchOutCurve: Curves.easeIn,
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: child,
-                  );
-                },
-                child: expanded
-                    ? ConstrainedBox(
-                        key: const ValueKey('verdict-body'),
-                        constraints: BoxConstraints(maxHeight: maxBodyHeight),
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                          child: _VerdictBody(
-                            verdictPoints: verdictPoints,
-                            colors: colors,
-                          ),
-                        ),
-                      )
-                    : const SizedBox(
-                        key: ValueKey('verdict-empty'),
-                        width: double.infinity,
-                      ),
+              Icon(
+                expanded ? Icons.expand_more : Icons.keyboard_arrow_up,
+                color: colors.textSecondary,
               ),
             ],
           ),
         ),
+      ),
+    );
+
+    return Material(
+      color: colors.softFill,
+      elevation: expanded ? 8 : 0,
+      shadowColor: const Color(0x33000000),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: double.infinity,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: colors.borderDefault),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: expanded
+            ? Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  headerRow,
+                  Flexible(
+                    child: _OverflowScrollView(
+                      key: const ValueKey('verdict-body'),
+                      showOverflowCue: true,
+                      shrinkWrap: true,
+                      fadeColor: colors.softFill,
+                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+                      children: [
+                        for (final point in verdictPoints)
+                          _VerdictBullet(text: point, colors: colors),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : headerRow,
       ),
     );
   }
@@ -1114,14 +1114,20 @@ class _PointsPanel extends StatelessWidget {
 /// remains below, so overflow is obvious even when a row ends at the clip.
 class _OverflowScrollView extends StatefulWidget {
   const _OverflowScrollView({
+    super.key,
     required this.children,
     required this.padding,
     required this.showOverflowCue,
+    this.shrinkWrap = false,
+    this.fadeColor,
   });
 
   final List<Widget> children;
   final EdgeInsets padding;
   final bool showOverflowCue;
+  final bool shrinkWrap;
+  /// Gradient/cue background; defaults to page background.
+  final Color? fadeColor;
 
   @override
   State<_OverflowScrollView> createState() => _OverflowScrollViewState();
@@ -1180,6 +1186,7 @@ class _OverflowScrollViewState extends State<_OverflowScrollView> {
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
+    final fade = widget.fadeColor ?? colors.pageBg;
 
     return NotificationListener<ScrollNotification>(
       onNotification: (_) {
@@ -1190,6 +1197,10 @@ class _OverflowScrollViewState extends State<_OverflowScrollView> {
         children: [
           ListView(
             controller: _controller,
+            shrinkWrap: widget.shrinkWrap,
+            physics: widget.shrinkWrap
+                ? const ClampingScrollPhysics()
+                : null,
             padding: widget.padding.copyWith(
               bottom: widget.padding.bottom + 28,
             ),
@@ -1212,15 +1223,15 @@ class _OverflowScrollViewState extends State<_OverflowScrollView> {
                           begin: Alignment.topCenter,
                           end: Alignment.bottomCenter,
                           colors: [
-                            colors.pageBg.withValues(alpha: 0),
-                            colors.pageBg.withValues(alpha: 0.85),
-                            colors.pageBg,
+                            fade.withValues(alpha: 0),
+                            fade.withValues(alpha: 0.85),
+                            fade,
                           ],
                         ),
                       ),
                     ),
                     ColoredBox(
-                      color: colors.pageBg,
+                      color: fade,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 6),
                         child: Center(

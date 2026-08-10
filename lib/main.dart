@@ -3,7 +3,6 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 
 import 'src/app.dart';
 import 'src/copy/loading_response_texts.dart';
-import 'src/widgets/app_splash_overlay.dart';
 
 Future<void> main() async {
   appLaunchAt = DateTime.now();

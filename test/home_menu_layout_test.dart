@@ -45,7 +45,8 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('menu exposes Sound, Vibration, Appearance, and Buy a license',
+  testWidgets(
+      'menu exposes Sound, Vibration, Appearance, Text size, and Buy a license',
       (tester) async {
     await pumpMenu(tester);
     expect(find.text('Sound'), findsOneWidget);
@@ -54,6 +55,10 @@ void main() {
     expect(find.text('Light'), findsOneWidget);
     expect(find.text('Dark'), findsOneWidget);
     expect(find.text('Auto'), findsOneWidget);
+    expect(find.text('Text size'), findsOneWidget);
+    expect(find.text('Small'), findsOneWidget);
+    expect(find.text('Default'), findsOneWidget);
+    expect(find.text('Large'), findsOneWidget);
     expect(find.text(appLicenseConfig.unlockButtonText), findsOneWidget);
   });
 
@@ -81,5 +86,82 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(settings.themeMode, ThemeMode.system);
+  });
+
+  testWidgets('text size Small selection updates settings', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final settings = AppSettingsController();
+    await settings.init();
+    expect(settings.textSize, AppTextSize.medium);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: HomeMenuButton(settings: settings),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Small'));
+    await tester.pumpAndSettle();
+
+    expect(settings.textSize, AppTextSize.small);
+  });
+
+  testWidgets('menu panel matches app theme', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final settings = AppSettingsController();
+    await settings.init();
+    await settings.setThemeMode(ThemeMode.light);
+
+    await tester.pumpWidget(
+      ListenableBuilder(
+        listenable: settings,
+        builder: (context, _) {
+          return MaterialApp(
+            theme: AppTheme.light(),
+            darkTheme: AppTheme.dark(),
+            themeMode: settings.themeMode,
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: HomeMenuButton(settings: settings),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.menu));
+    await tester.pumpAndSettle();
+
+    // Light app → light menu panel.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Material && widget.color == const Color(0xFFF7F7F9),
+      ),
+      findsWidgets,
+    );
+
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+
+    // Dark app → dark menu panel.
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Material && widget.color == const Color(0xFF1E1E28),
+      ),
+      findsWidgets,
+    );
+    expect(settings.themeMode, ThemeMode.dark);
   });
 }

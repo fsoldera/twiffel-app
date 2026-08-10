@@ -7,10 +7,9 @@ import 'package:twiffel_app/src/pages/decision_copy.dart';
 
 Future<void> _pumpApp(WidgetTester tester) async {
   await tester.pumpWidget(const MyApp());
-  // Min splash hold (1.5s) + fade-out (0.3s).
+  // Min splash hold (1.5s) before FlutterNativeSplash.remove().
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 1500));
-  await tester.pump(const Duration(milliseconds: 300));
   await tester.pumpAndSettle();
 }
 
