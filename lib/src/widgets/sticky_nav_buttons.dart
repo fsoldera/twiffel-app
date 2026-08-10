@@ -23,6 +23,9 @@ class StickyNavButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
     final nextEnabled = onNext != null && !nextLoading;
+    final buttonHeight = MediaQuery.textScalerOf(context).scale(52);
+    final radius = buttonHeight / 2;
+    final spinnerSize = MediaQuery.textScalerOf(context).scale(22);
 
     return Material(
       color: colors.pageBg,
@@ -33,31 +36,33 @@ class StickyNavButtons extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
           child: Row(
             children: [
-              Expanded(
-                flex: 1,
-                child: OutlinedButton(
-                  onPressed: onPrevious,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size.fromHeight(52),
-                    foregroundColor: colors.textPrimary,
-                    side: BorderSide(color: colors.borderDefault),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(26),
+              if (onPrevious != null) ...[
+                Expanded(
+                  flex: 1,
+                  child: OutlinedButton(
+                    onPressed: onPrevious,
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size.fromHeight(buttonHeight),
+                      foregroundColor: colors.textPrimary,
+                      side: BorderSide(color: colors.borderDefault),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(radius),
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    child: Text(previousLabel),
                   ),
-                  child: Text(previousLabel),
                 ),
-              ),
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
+              ],
               Expanded(
                 flex: 2,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(26),
+                    borderRadius: BorderRadius.circular(radius),
                     boxShadow: nextEnabled
                         ? const [
                             BoxShadow(
@@ -70,11 +75,17 @@ class StickyNavButtons extends StatelessWidget {
                   ),
                   child: FilledButton(
                     onPressed: nextEnabled ? onNext : null,
+                    style: FilledButton.styleFrom(
+                      minimumSize: Size.fromHeight(buttonHeight),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(radius),
+                      ),
+                    ),
                     child: nextLoading
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
+                        ? SizedBox(
+                            width: spinnerSize,
+                            height: spinnerSize,
+                            child: const CircularProgressIndicator(
                               strokeWidth: 2.5,
                               color: TwiffelTokens.textOnPrimary,
                             ),

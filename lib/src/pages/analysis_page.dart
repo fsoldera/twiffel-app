@@ -232,8 +232,9 @@ class _ResultsBodyState extends State<_ResultsBody> {
       cons = analysis.cons;
     }
 
-    // Sticky action row height (padding 12+8 + button 48).
-    const stickyHeight = 68.0;
+    // Sticky action row: padding 12+8 + button height (scales with text size).
+    final buttonHeight = MediaQuery.textScalerOf(context).scale(48);
+    final stickyHeight = 20 + buttonHeight;
 
     return Stack(
       children: [
@@ -333,7 +334,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
               ),
             ),
             // Layout spacer matching the sticky bar (drawn in the Stack).
-            const SizedBox(height: stickyHeight),
+            SizedBox(height: stickyHeight),
           ],
         ),
         Positioned(
@@ -414,6 +415,9 @@ class _StickyResultsActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
+    final buttonHeight = MediaQuery.textScalerOf(context).scale(48);
+    final iconSize = MediaQuery.textScalerOf(context).scale(16);
+    final radius = buttonHeight / 2;
 
     return Material(
       color: colors.pageBg,
@@ -423,14 +427,15 @@ class _StickyResultsActions extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
+              flex: 1,
               child: OutlinedButton(
                 onPressed: onStartOver,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: colors.textSecondary,
                   side: BorderSide(color: colors.borderDefault),
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: Size.fromHeight(buttonHeight),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(radius),
                   ),
                 ),
                 child: const Text(DecisionCopy.analysisStartOver),
@@ -438,14 +443,15 @@ class _StickyResultsActions extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Expanded(
+              flex: 2,
               child: FilledButton.icon(
                 onPressed: onShare,
-                icon: const Icon(Icons.ios_share, size: 16),
+                icon: Icon(Icons.ios_share, size: iconSize),
                 label: const Text(DecisionCopy.analysisShare),
                 style: FilledButton.styleFrom(
-                  minimumSize: const Size.fromHeight(48),
+                  minimumSize: Size.fromHeight(buttonHeight),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(radius),
                   ),
                 ),
               ),

@@ -24,7 +24,7 @@ void main() {
     expect(find.text(DecisionCopy.pathBOptionALabel), findsOneWidget);
     expect(find.text(DecisionCopy.pathBOptionBLabel), findsOneWidget);
     expect(find.text(DecisionCopy.nextLabel), findsOneWidget);
-    expect(find.text(DecisionCopy.previousLabel), findsOneWidget);
+    expect(find.text(DecisionCopy.previousLabel), findsNothing);
     expect(find.text(DecisionCopy.timingMonths), findsNothing);
     expect(find.text(DecisionCopy.routingTitle), findsNothing);
   });
