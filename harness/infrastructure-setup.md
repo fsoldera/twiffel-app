@@ -135,22 +135,20 @@ Save the printed URL — it becomes `<APP>_API_BASE`
 (e.g. `https://<app>-api.franco-soldera.workers.dev`).
 
 Smoke test — prefer **`Invoke-RestMethod`** on Windows (PowerShell’s `curl` alias
-breaks JSON). Prefer **`/api/steps`** first: it proves Doppler → xAI end-to-end.
-`/api/message` can return a static fallback when tone policy rejects the model
-output even if Doppler is wired.
+breaks JSON). For Twiffel use **`/api/analyze`** (proves Doppler → xAI end-to-end).
+Micro-task template apps still use `/api/steps`.
 
 ```powershell
 Invoke-RestMethod -Method Post `
-  -Uri "https://<app>-api.franco-soldera.workers.dev/api/steps" `
+  -Uri "https://twiffel-api.franco-soldera.workers.dev/api/analyze" `
   -ContentType "application/json" `
-  -Body '{"task":"water the plants"}'
+  -Body '{"mode":"comparison","optionA":"keep the bike","optionB":"buy a car","obstacle":"Cost / money","timing":"In the next few months"}'
 ```
 
-Expect a JSON `steps` array with concrete actions. For `/api/message`, kinds are
-app-specific (Twiffel: `completion` / `bailout`, not a generic `day_complete`).
+Expect JSON with an `analysis` object (option pros/cons + `verdict`).
 
-`{"error":"Invalid request"}` usually means the JSON body did not parse (quoting),
-not a server failure. `{"error":"Invalid kind"}` means the wrong `kind` string.
+`{"error":"Invalid request"}` / `{"error":"Invalid decision payload"}` usually means
+the JSON body did not parse or required fields are missing.
 
 Local dev: copy `backend/.dev.vars.example` → `.dev.vars`, use the **dev** token.
 

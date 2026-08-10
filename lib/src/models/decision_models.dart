@@ -104,7 +104,36 @@ class DecisionAnalysis {
       optionACons: points('optionACons'),
       optionBPros: points('optionBPros'),
       optionBCons: points('optionBCons'),
-      verdict: (json['verdict'] ?? '').toString(),
+      verdict: _verdictFromJson(json['verdict']),
     );
   }
+}
+
+String _verdictFromJson(Object? raw) {
+  if (raw is List) {
+    return raw
+        .whereType<String>()
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .join('\n\n');
+  }
+  return (raw ?? '').toString().trim();
+}
+
+/// Splits a verdict into sentence-sized points for bullet display.
+List<String> verdictParagraphs(String verdict) {
+  final trimmed = verdict.trim();
+  if (trimmed.isEmpty) return const <String>[];
+  if (trimmed.contains('\n')) {
+    return trimmed
+        .split(RegExp(r'\n+'))
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .toList(growable: false);
+  }
+  return trimmed
+      .split(RegExp(r'(?<=[.!?])\s+'))
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
 }

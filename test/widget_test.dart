@@ -12,45 +12,47 @@ Future<void> _pumpApp(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('routing screen shows decision path cards', (tester) async {
+  testWidgets('home opens options step with Previous/Next nav', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _pumpApp(tester);
 
     expect(find.text('Twiffel'), findsWidgets);
     expect(find.byIcon(Icons.menu), findsOneWidget);
-    expect(find.text(DecisionCopy.routingTitle), findsOneWidget);
-    expect(find.text(DecisionCopy.pathATitle), findsOneWidget);
-    expect(find.text(DecisionCopy.pathBTitle), findsOneWidget);
-    expect(find.text(DecisionCopy.continueLabel), findsOneWidget);
-  });
-
-  testWidgets('Continue on Path A opens do-or-buy form', (tester) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    await _pumpApp(tester);
-
-    await tester.tap(find.text(DecisionCopy.pathATitle));
-    await tester.pump();
-    await tester.tap(find.text(DecisionCopy.continueLabel));
-    await tester.pumpAndSettle();
-
-    expect(find.text(DecisionCopy.pathAFormTitle), findsOneWidget);
-    expect(find.text(DecisionCopy.pathAField1Label), findsOneWidget);
-    expect(find.text(DecisionCopy.timingMonths), findsOneWidget);
-    expect(find.text(DecisionCopy.generateAnalysis), findsOneWidget);
-  });
-
-  testWidgets('Continue on Path B opens Option A/B fields', (tester) async {
-    SharedPreferences.setMockInitialValues(<String, Object>{});
-    await _pumpApp(tester);
-
-    await tester.tap(find.text(DecisionCopy.pathBTitle));
-    await tester.pump();
-    await tester.tap(find.text(DecisionCopy.continueLabel));
-    await tester.pumpAndSettle();
-
-    expect(find.text(DecisionCopy.pathBFormTitle), findsOneWidget);
+    expect(find.text(DecisionCopy.optionsStepTitle), findsOneWidget);
     expect(find.text(DecisionCopy.pathBOptionALabel), findsOneWidget);
     expect(find.text(DecisionCopy.pathBOptionBLabel), findsOneWidget);
-    expect(find.text(DecisionCopy.timingLater), findsOneWidget);
+    expect(find.text(DecisionCopy.nextLabel), findsOneWidget);
+    expect(find.text(DecisionCopy.previousLabel), findsOneWidget);
+    expect(find.text(DecisionCopy.timingMonths), findsNothing);
+    expect(find.text(DecisionCopy.routingTitle), findsNothing);
+  });
+
+  testWidgets('Next advances through consideration then timing', (tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    await _pumpApp(tester);
+
+    await tester.enterText(
+      find.widgetWithText(TextField, DecisionCopy.pathBOptionAPlaceholder),
+      'Keep the bike',
+    );
+    await tester.enterText(
+      find.widgetWithText(TextField, DecisionCopy.pathBOptionBPlaceholder),
+      'Buy a car',
+    );
+    await tester.pump();
+    await tester.tap(find.text(DecisionCopy.nextLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.text(DecisionCopy.considerationStepTitle), findsOneWidget);
+    expect(find.text(DecisionCopy.pathBObstacleCost), findsOneWidget);
+
+    await tester.tap(find.text(DecisionCopy.pathBObstacleCost));
+    await tester.pump();
+    await tester.tap(find.text(DecisionCopy.nextLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.text(DecisionCopy.timingStepTitle), findsOneWidget);
+    expect(find.text(DecisionCopy.timingMonths), findsOneWidget);
+    expect(find.text(DecisionCopy.generateAnalysis), findsOneWidget);
   });
 }

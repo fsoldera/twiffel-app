@@ -10,8 +10,7 @@ xAI keys in the mobile app.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/steps` | `{ "task": string }` | `{ "steps": string[3] }` |
-| POST | `/api/message` | `{ "task": string, "kind": "completion" \| "bailout" }` | `{ "message": string }` |
+| POST | `/api/analyze` | decision payload (`mode`, options/target, `obstacle`, `timing`) | `{ "analysis": … }` |
 | POST | `/api/track` | `{ "event": string, "platform": "android"\|"ios"\|"other" }` | `204` |
 
 ## Local development
@@ -40,6 +39,7 @@ flutter run --dart-define=TWIFFEL_API_BASE=https://twiffel-api.franco-soldera.wo
 
 ## Safety
 
-- Input validation: `common_app_kit` `validateTaskInput()` on the client (canonical).
-- Output validation: kit validators on client + `backend/src/tone.ts` on server.
-- When you change `tone_policy.dart`, mirror critical patterns in `tone.ts`.
+- Input validation (required): `validateTaskInput` on the Flutter client **and** again
+  on the Worker before any xAI call (`validateDecisionInputs`). Client alone is not enough.
+- Verdict output: content-safety only via Worker `isSafeContent` (not compassionate-tone checks).
+- When you change `tone_policy.dart` content-safety patterns, mirror them in `tone.ts`.

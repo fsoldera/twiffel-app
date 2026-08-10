@@ -261,7 +261,19 @@ class _ResultsBodyState extends State<_ResultsBody> {
                 ),
         ),
         const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: _TabBar(
+            labels: [
+              '${DecisionCopy.analysisPros} (${pros.length})',
+              '${DecisionCopy.analysisCons} (${cons.length})',
+            ],
+            activeIndex: pageIndex,
+            onTap: _selectAspect,
+          ),
+        ),
         if (isComparison) ...[
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: _OptionSlider(
@@ -275,19 +287,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
               onChanged: (index) => setState(() => _optionIndex = index),
             ),
           ),
-          const SizedBox(height: 12),
         ],
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _TabBar(
-            labels: [
-              '${DecisionCopy.analysisPros} (${pros.length})',
-              '${DecisionCopy.analysisCons} (${cons.length})',
-            ],
-            activeIndex: pageIndex,
-            onTap: _selectAspect,
-          ),
-        ),
         Expanded(
           child: Stack(
             children: [
@@ -324,7 +324,8 @@ class _ResultsBodyState extends State<_ResultsBody> {
                         ? TwiffelTokens.semanticSuccess
                         : TwiffelTokens.semanticError,
                   ),
-                  const SizedBox(height: 12),
+                  // Reserve collapsed verdict height so list content does not jump.
+                  const SizedBox(height: 68),
                 ],
               ),
               Positioned.fill(
@@ -342,15 +343,29 @@ class _ResultsBodyState extends State<_ResultsBody> {
                   ),
                 ),
               ),
+              AnimatedAlign(
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
+                alignment: _verdictExpanded
+                    ? Alignment.center
+                    : Alignment.bottomCenter,
+                child: AnimatedPadding(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    12,
+                    20,
+                    _verdictExpanded ? 48 : 12,
+                  ),
+                  child: _VerdictBar(
+                    verdict: analysis.verdict,
+                    expanded: _verdictExpanded,
+                    onExpandedChanged: _setVerdictExpanded,
+                  ),
+                ),
+              ),
             ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: _VerdictBar(
-            verdict: analysis.verdict,
-            expanded: _verdictExpanded,
-            onExpandedChanged: _setVerdictExpanded,
           ),
         ),
         _StickyResultsActions(
@@ -871,6 +886,52 @@ class _SwipeHint extends StatelessWidget {
   }
 }
 
+class _VerdictBody extends StatelessWidget {
+  const _VerdictBody({
+    required this.verdict,
+    required this.colors,
+  });
+
+  final String verdict;
+  final TwiffelColors colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final points = verdictParagraphs(verdict);
+    final style = TextStyle(
+      color: colors.textPrimary,
+      fontSize: 14,
+      height: 1.5,
+    );
+    if (points.isEmpty) {
+      return Text(verdict, style: style);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < points.length; i++) ...[
+          if (i > 0) const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 7),
+                child: Icon(
+                  Icons.circle,
+                  size: 6,
+                  color: TwiffelTokens.primaryDefault,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(points[i], style: style)),
+            ],
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _VerdictBar extends StatelessWidget {
   const _VerdictBar({
     required this.verdict,
@@ -885,18 +946,18 @@ class _VerdictBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
-    final maxBodyHeight = MediaQuery.sizeOf(context).height * 0.4;
+    final maxBodyHeight = MediaQuery.sizeOf(context).height * 0.5;
 
     return AnimatedPhysicalModel(
       duration: const Duration(milliseconds: 200),
       curve: Curves.easeOut,
       shape: BoxShape.rectangle,
-      elevation: expanded ? 8 : 0,
+      elevation: expanded ? 12 : 0,
       color: colors.softFill,
       shadowColor: const Color(0x33000000),
       borderRadius: BorderRadius.circular(16),
       child: AnimatedSize(
-        duration: const Duration(milliseconds: 220),
+        duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
         alignment: Alignment.bottomCenter,
         child: Container(
@@ -961,14 +1022,7 @@ class _VerdictBar extends StatelessWidget {
                         constraints: BoxConstraints(maxHeight: maxBodyHeight),
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                          child: Text(
-                            verdict,
-                            style: TextStyle(
-                              color: colors.textPrimary,
-                              fontSize: 14,
-                              height: 1.5,
-                            ),
-                          ),
+                          child: _VerdictBody(verdict: verdict, colors: colors),
                         ),
                       )
                     : const SizedBox(

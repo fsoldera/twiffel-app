@@ -38,9 +38,11 @@ u-things-web pages for marketing + privacy.
 ## 3. Safety (non-negotiable)
 
 ```text
-- Input: validateTaskInput() from common_app_kit BEFORE any AI call (client).
-- Output: isSafePracticalStep / isSafeCompassionateMessage on client; tone.ts mirror on Worker.
-- Any change to tone_policy.dart → update tests + consider mirroring in backend/src/tone.ts.
+- Input: validateTaskInput() from common_app_kit BEFORE any AI call (client), and again on
+  the Worker (validateDecisionInputs) so the API cannot be bypassed.
+- Verdict output: content-safety only (Worker isSafeContent). Twiffel does not require
+  compassionate-tone checks on the verdict.
+- Any change to tone_policy.dart content-safety patterns → mirror in backend/src/tone.ts.
 - AI prompts are app-specific (backend/src/prompts.ts) but must stay compassionate and safe.
 - Anonymous analytics only: event name + coarse platform. No task text, no PII.
 ```

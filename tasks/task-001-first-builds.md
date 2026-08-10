@@ -79,13 +79,13 @@ Live URL: `https://twiffel-api.franco-soldera.workers.dev`
 
 Status: Worker deployed; `DOPPLER_SERVICE_TOKEN` set; Doppler `prd` has `XAI`.
 
-Smoke (PowerShell — prefer `Invoke-RestMethod`; Twiffel kinds are `completion` / `bailout`):
+Smoke (PowerShell — prefer `Invoke-RestMethod`):
 
 ```powershell
 Invoke-RestMethod -Method Post `
-  -Uri "https://twiffel-api.franco-soldera.workers.dev/api/steps" `
+  -Uri "https://twiffel-api.franco-soldera.workers.dev/api/analyze" `
   -ContentType "application/json" `
-  -Body '{"task":"water the plants"}'
+  -Body '{"mode":"comparison","optionA":"keep the bike","optionB":"buy a car","obstacle":"Cost / money","timing":"In the next few months"}'
 ```
 
 Put that URL in Codemagic group `twiffel_runtime` as `TWIFFEL_API_BASE`.
@@ -178,7 +178,7 @@ Codemagic workflows are the build sensors for signed artifacts.
 
 ## Done when
 
-- [x] `twiffel-api` live; `/api/steps` returns AI steps (Doppler `XAI` wired)
+- [x] `twiffel-api` live; `/api/analyze` returns decision analysis (Doppler `XAI` wired)
 - [ ] Codemagic Android produces a signed `.aab`
 - [ ] Codemagic iOS signed lands Internal TestFlight
 - [ ] Doppler `ci` holds GitHub PAT + keystore (+ later RC keys); Codemagic is thin

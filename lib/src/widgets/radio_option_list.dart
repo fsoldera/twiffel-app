@@ -37,11 +37,13 @@ class RadioOptionList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.labelLarge,
-        ),
-        const SizedBox(height: 12),
+        if (label.isNotEmpty) ...[
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: 12),
+        ],
         for (var i = 0; i < options.length; i++) ...[
           if (i > 0) const SizedBox(height: 12),
           _RadioRow(

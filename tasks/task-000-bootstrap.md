@@ -56,7 +56,7 @@ xAI key. Canonical name is `<APP>_XAI_API_KEY` (not bare `XAI` / `VITE_XAI_*`).
 - [ ] Rename env keys in `backend/src/ai.ts` to `<APP>_XAI_*` (resolved via Doppler)
 - [ ] `cd backend && npm install && npm run deploy`
 - [ ] Put `DOPPLER_SERVICE_TOKEN` (prd token; on Windows use `cmd /c "… | wrangler …"`)
-- [ ] Smoke with `Invoke-RestMethod` against `/api/steps` (not a wrong `kind`)
+- [ ] Smoke with `Invoke-RestMethod` against `/api/analyze`
 - [ ] Note the deployed URL for `<APP>_API_BASE`
 
 ---

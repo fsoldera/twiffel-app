@@ -62,7 +62,8 @@ abstract final class TwiffelTokens {
   static const Color primaryDefault = Color(0xFFD97706);
   static const Color primaryHover = Color(0xFFB45309);
   static const Color primaryPressed = Color(0xFF92400E);
-  static const Color primaryDisabled = Color(0x80FDE68A);
+  /// Disabled primary fill (solid; avoid translucent amber + white text).
+  static const Color primaryDisabled = Color(0xFFE5E7EB);
   static const Color secondaryDefault = Color(0xFFFBBF24);
 }
 

@@ -10,7 +10,7 @@ if (-not $xai) { throw "Doppler secret XAI was empty for twiffel/prd" }
   "DOPPLER_PROJECT=twiffel"
   "DOPPLER_CONFIG=prd"
   "XAI=$xai"
-  "TWIFFEL_XAI_MODEL=grok-3-mini"
+  "TWIFFEL_XAI_MODEL=grok-latest"
 ) | Set-Content -Path $out -Encoding utf8
 
 Write-Host "Wrote $out (gitignored). Worker will use Doppler-sourced XAI locally."

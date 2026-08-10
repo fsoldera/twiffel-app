@@ -16,13 +16,20 @@ abstract final class DecisionCopy {
 
   // Shared
   static const String generateAnalysis = 'Generate analysis';
+  static const String nextLabel = 'Next';
+  static const String previousLabel = 'Previous';
   static const String otherLabel = 'Other: ___';
-  static const String obstacleHelper = 'Choose the biggest obstacle.';
+  static const String obstacleHelper =
+      'Pick the single most important point to weigh.';
   static const String timingAsap = 'As soon as possible';
   static const String timingMonths = 'In 1–3 months';
   static const String timingLater = 'Later / Flexible';
   static const String timingHelper =
       'This helps us calculate the cost of waiting.';
+  static const String optionsStepTitle = 'Tell us about your options';
+  static const String considerationStepTitle =
+      'What is the most important point to consider?';
+  static const String timingStepTitle = 'When do you need to decide?';
 
   // Path A – Do or Buy
   static const String pathAFormTitle = 'Tell us about your decision';
@@ -52,7 +59,7 @@ abstract final class DecisionCopy {
   static const String pathBOptionBPlaceholder = 'e.g. Keep the old one';
   static const String pathBOptionBHelper = 'Describe the alternative option.';
   static const String pathBObstacleLabel =
-      'What is the main thing holding you back from deciding right now?';
+      'What is the most important point to consider?';
   static const String pathBObstacleCost = 'Cost / money';
   static const String pathBObstacleTime = 'Time & practical effort';
   static const String pathBObstacleUncertainty =

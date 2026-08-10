@@ -1,5 +1,9 @@
-import { generateMessage, generateThreeSteps, type Env } from "./ai";
-import { generateDecisionAnalysis, validateDecisionRequest } from "./decision";
+import { type Env } from "./ai";
+import {
+  generateDecisionAnalysis,
+  validateDecisionInputs,
+  validateDecisionRequest,
+} from "./decision";
 
 const CORS_HEADERS: Record<string, string> = {
   "Access-Control-Allow-Origin": "*",
@@ -24,31 +28,18 @@ async function handleAnalyze(request: Request, env: Env): Promise<Response> {
     if (!decision) {
       return json({ error: "Invalid decision payload" }, 400);
     }
-    return json({ analysis: await generateDecisionAnalysis(decision, env) });
-  } catch {
-    return json({ error: "Invalid request" }, 400);
-  }
-}
-
-async function handleSteps(request: Request, env: Env): Promise<Response> {
-  try {
-    const payload = (await request.json()) as { task?: string };
-    const task = typeof payload.task === "string" ? payload.task : "";
-    return json({ steps: await generateThreeSteps(task, env) });
-  } catch {
-    return json({ error: "Invalid request" }, 400);
-  }
-}
-
-async function handleMessage(request: Request, env: Env): Promise<Response> {
-  try {
-    const payload = (await request.json()) as { kind?: "completion" | "bailout"; task?: string };
-    const { kind } = payload;
-    const task = typeof payload.task === "string" ? payload.task : "";
-    if (kind !== "completion" && kind !== "bailout") {
-      return json({ error: "Invalid kind" }, 400);
+    // Never call the model on unsafe input (client can be bypassed).
+    const inputSafety = validateDecisionInputs(decision);
+    if (!inputSafety.isValid) {
+      return json(
+        {
+          error: inputSafety.message ?? "Unsafe input",
+          reason: inputSafety.reason,
+        },
+        400,
+      );
     }
-    return json({ message: await generateMessage(kind, task, env) });
+    return json({ analysis: await generateDecisionAnalysis(decision, env) });
   } catch {
     return json({ error: "Invalid request" }, 400);
   }
@@ -86,10 +77,6 @@ export default {
       switch (pathname) {
         case "/api/analyze":
           return handleAnalyze(request, env);
-        case "/api/steps":
-          return handleSteps(request, env);
-        case "/api/message":
-          return handleMessage(request, env);
         case "/api/track":
           return handleTrack(request, env);
       }

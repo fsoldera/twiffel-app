@@ -826,6 +826,9 @@ class ReportPdfBuilder {
     required String verdict,
     required pw.Widget? sparkles,
   }) {
+    final points = verdictParagraphs(verdict);
+    final items = points.isEmpty ? <String>[verdict] : points;
+
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.all(16),
@@ -854,14 +857,36 @@ class ReportPdfBuilder {
             ],
           ),
           pw.SizedBox(height: 10),
-          pw.Text(
-            verdict,
-            style: const pw.TextStyle(
-              color: _textSecondary,
-              fontSize: 10.5,
-              lineSpacing: 3,
+          for (final point in items)
+            pw.Padding(
+              padding: const pw.EdgeInsets.only(bottom: 6),
+              child: pw.Row(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.only(top: 4, right: 8),
+                    child: pw.Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const pw.BoxDecoration(
+                        color: _primary,
+                        shape: pw.BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                  pw.Expanded(
+                    child: pw.Text(
+                      point,
+                      style: const pw.TextStyle(
+                        color: _textSecondary,
+                        fontSize: 10.5,
+                        lineSpacing: 3,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );

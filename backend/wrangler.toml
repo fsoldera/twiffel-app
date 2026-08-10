@@ -10,4 +10,4 @@ dataset = "twiffel_events"
 [vars]
 DOPPLER_PROJECT = "twiffel"
 DOPPLER_CONFIG = "prd"
-TWIFFEL_XAI_MODEL = "grok-3-mini"
+TWIFFEL_XAI_MODEL = "grok-latest"

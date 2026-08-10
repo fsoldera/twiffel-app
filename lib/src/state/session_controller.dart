@@ -32,13 +32,26 @@ class SessionController extends ChangeNotifier {
   String? get inputError => _inputError;
 
   Future<void> submitDecision(DecisionRequest request) async {
-    final validation = validateTaskInput(request.validationText);
-    if (!validation.isValid) {
-      _inputError = validation.message;
-      _phase = SessionPhase.error;
-      _analysis = null;
-      notifyListeners();
-      return;
+    // Content-safety on every free-text field before any AI call.
+    final texts = <String>[
+      if (request.target != null && request.target!.trim().isNotEmpty)
+        request.target!.trim(),
+      if (request.optionA != null && request.optionA!.trim().isNotEmpty)
+        request.optionA!.trim(),
+      if (request.optionB != null && request.optionB!.trim().isNotEmpty)
+        request.optionB!.trim(),
+      request.obstacle.trim(),
+      request.timing.trim(),
+    ];
+    for (final text in texts) {
+      final validation = validateTaskInput(text);
+      if (!validation.isValid) {
+        _inputError = validation.message;
+        _phase = SessionPhase.error;
+        _analysis = null;
+        notifyListeners();
+        return;
+      }
     }
 
     _inputError = null;
@@ -112,16 +125,6 @@ class SessionController extends ChangeNotifier {
             detail:
                 'You can define a small next check instead of staying in mental loops.',
           ),
-          AnalysisPoint(
-            title: '6. Trade-offs get specific',
-            detail:
-                'Pros and cons stop being abstract once the action and timing are named.',
-          ),
-          AnalysisPoint(
-            title: '7. Agency stays with you',
-            detail:
-                'The analysis supports your judgment rather than replacing it.',
-          ),
         ],
         cons: [
           AnalysisPoint(
@@ -148,16 +151,6 @@ class SessionController extends ChangeNotifier {
             title: '5. Perfect certainty is unlikely',
             detail:
                 'You may never feel 100% ready, so waiting for that signal can stall you.',
-          ),
-          AnalysisPoint(
-            title: '6. Emotional load',
-            detail:
-                'Replaying the choice can drain focus that could go to a small experiment.',
-          ),
-          AnalysisPoint(
-            title: '7. Status quo drift',
-            detail:
-                'Doing nothing is still a choice, and it may quietly lock in by default.',
           ),
         ],
         verdict:
@@ -197,16 +190,6 @@ class SessionController extends ChangeNotifier {
           detail:
               'Acting on the option you lean toward can reduce rumination.',
         ),
-        AnalysisPoint(
-          title: '6. Aligns with timing',
-          detail:
-              'If you need to decide ${request.timing.toLowerCase()}, this path can create movement.',
-        ),
-        AnalysisPoint(
-          title: '7. Identity signal',
-          detail:
-              'It can express the kind of person or life you are trying to grow into.',
-        ),
       ],
       optionACons: [
         AnalysisPoint(
@@ -231,16 +214,6 @@ class SessionController extends ChangeNotifier {
           title: '5. Over-optimism risk',
           detail:
               'Excitement can underweight practical blockers you already named.',
-        ),
-        AnalysisPoint(
-          title: '6. Social ripple',
-          detail:
-              'People around you may need time to adjust to the change.',
-        ),
-        AnalysisPoint(
-          title: '7. Recovery cost if wrong',
-          detail:
-              'If it misfits, unwinding the choice may take extra energy.',
         ),
       ],
       optionBPros: [
@@ -268,16 +241,6 @@ class SessionController extends ChangeNotifier {
           detail:
               'Staying closer to the status quo usually keeps more exit options open.',
         ),
-        AnalysisPoint(
-          title: '6. Cognitive ease',
-          detail:
-              'Less novelty means more bandwidth for other parts of life.',
-        ),
-        AnalysisPoint(
-          title: '7. Steady baseline',
-          detail:
-              'It can be a sane holding pattern while you watch for a clearer signal.',
-        ),
       ],
       optionBCons: [
         AnalysisPoint(
@@ -303,16 +266,6 @@ class SessionController extends ChangeNotifier {
           title: '5. Obstacle persists',
           detail:
               'Avoiding change does not dissolve "${request.obstacle}" by itself.',
-        ),
-        AnalysisPoint(
-          title: '6. Motivation fade',
-          detail:
-              'Without a new experiment, energy for the decision can drain away.',
-        ),
-        AnalysisPoint(
-          title: '7. False calm',
-          detail:
-              'Short-term relief can mask a mismatch that keeps resurfacing.',
         ),
       ],
       verdict:

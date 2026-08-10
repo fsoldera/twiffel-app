@@ -32,6 +32,7 @@ class AppTheme {
     required Color border,
     required Color hint,
   }) {
+    final isLight = brightness == Brightness.light;
     final colorScheme = ColorScheme.fromSeed(
       seedColor: TwiffelTokens.primary600,
       brightness: brightness,
@@ -82,10 +83,12 @@ class AppTheme {
         style: FilledButton.styleFrom(
           backgroundColor: TwiffelTokens.primaryDefault,
           foregroundColor: TwiffelTokens.textOnPrimary,
+          // Light: pale amber + white text failed contrast. Use solid muted
+          // neutrals so the label stays readable when disabled.
           disabledBackgroundColor:
-              TwiffelTokens.primary200.withValues(alpha: 0.5),
+              isLight ? TwiffelTokens.gray200 : TwiffelTokens.gray700,
           disabledForegroundColor:
-              TwiffelTokens.textOnPrimary.withValues(alpha: 0.7),
+              isLight ? TwiffelTokens.gray600 : TwiffelTokens.gray400,
           minimumSize: const Size.fromHeight(52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(26),
