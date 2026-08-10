@@ -43,6 +43,8 @@ class StickyNavButtons extends StatelessWidget {
                     onPressed: onPrevious,
                     style: OutlinedButton.styleFrom(
                       minimumSize: Size.fromHeight(buttonHeight),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      alignment: Alignment.center,
                       foregroundColor: colors.textPrimary,
                       side: BorderSide(color: colors.borderDefault),
                       shape: RoundedRectangleBorder(
@@ -53,7 +55,10 @@ class StickyNavButtons extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    child: Text(previousLabel),
+                    child: Text(
+                      previousLabel,
+                      textAlign: TextAlign.center,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -77,6 +82,8 @@ class StickyNavButtons extends StatelessWidget {
                     onPressed: nextEnabled ? onNext : null,
                     style: FilledButton.styleFrom(
                       minimumSize: Size.fromHeight(buttonHeight),
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      alignment: Alignment.center,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(radius),
                       ),
@@ -90,7 +97,10 @@ class StickyNavButtons extends StatelessWidget {
                               color: TwiffelTokens.textOnPrimary,
                             ),
                           )
-                        : Text(nextLabel),
+                        : Text(
+                            nextLabel,
+                            textAlign: TextAlign.center,
+                          ),
                   ),
                 ),
               ),

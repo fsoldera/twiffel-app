@@ -434,11 +434,16 @@ class _StickyResultsActions extends StatelessWidget {
                   foregroundColor: colors.textSecondary,
                   side: BorderSide(color: colors.borderDefault),
                   minimumSize: Size.fromHeight(buttonHeight),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  alignment: Alignment.center,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(radius),
                   ),
                 ),
-                child: const Text(DecisionCopy.analysisStartOver),
+                child: const Text(
+                  DecisionCopy.analysisStartOver,
+                  textAlign: TextAlign.center,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -447,9 +452,14 @@ class _StickyResultsActions extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: onShare,
                 icon: Icon(Icons.ios_share, size: iconSize),
-                label: const Text(DecisionCopy.analysisShare),
+                label: const Text(
+                  DecisionCopy.analysisShare,
+                  textAlign: TextAlign.center,
+                ),
                 style: FilledButton.styleFrom(
                   minimumSize: Size.fromHeight(buttonHeight),
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  alignment: Alignment.center,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(radius),
                   ),
