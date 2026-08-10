@@ -390,6 +390,13 @@ then rebuild.
     rows (e.g. `… Lifetime` / `… Monthly`), not only Test Store placeholders.
 11. New signed iOS build with `appl_…` → Internal TestFlight → sandbox purchase.
 
+> **Gotcha — App Store encryption / export compliance every upload:** set
+> `ITSAppUsesNonExemptEncryption` to `false` in `ios/Runner/Info.plist` when the
+> app only uses exempt encryption (HTTPS, OS crypto), which is the usual case for
+> Twiffel-style apps. That answers the question in the binary so ASC/Codemagic
+> stop prompting on every build. Optional ASC UI: App → App Information → App
+> Encryption Documentation (same “none / exempt” answer).
+
 > **Gotcha — Codemagic 422 on `betaAppReviewSubmissions`:** IPA + publishing can
 > still succeed; external beta metadata is the failure. **Internal Testing** works.
 

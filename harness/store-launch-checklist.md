@@ -110,6 +110,7 @@ Doppler too — see infrastructure-setup step 4.
 
 | Symptom | Meaning |
 |---|---|
+| Asked for encryption / export compliance on every upload | Missing `ITSAppUsesNonExemptEncryption` = `false` in `ios/Runner/Info.plist` (exempt HTTPS-only apps) |
 | IPA + Publishing green; distribution `422` on beta review | External beta metadata — **internal TF still OK** |
 | Shop placeholder | RC key not in this binary / offering missing store products |
 | Wrong API key on Play | `test_…` baked instead of `goog_…` |
