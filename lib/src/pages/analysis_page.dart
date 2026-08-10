@@ -359,7 +359,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
                     _verdictExpanded ? 48 : 12,
                   ),
                   child: _VerdictBar(
-                    verdict: analysis.verdict,
+                    verdictPoints: analysis.verdictPoints,
                     expanded: _verdictExpanded,
                     onExpandedChanged: _setVerdictExpanded,
                   ),
@@ -888,29 +888,28 @@ class _SwipeHint extends StatelessWidget {
 
 class _VerdictBody extends StatelessWidget {
   const _VerdictBody({
-    required this.verdict,
+    required this.verdictPoints,
     required this.colors,
   });
 
-  final String verdict;
+  final List<String> verdictPoints;
   final TwiffelColors colors;
 
   @override
   Widget build(BuildContext context) {
-    final points = verdictParagraphs(verdict);
     final style = TextStyle(
       color: colors.textPrimary,
       fontSize: 14,
-      height: 1.5,
+      height: 1.45,
     );
-    if (points.isEmpty) {
-      return Text(verdict, style: style);
+    if (verdictPoints.isEmpty) {
+      return const SizedBox.shrink();
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        for (var i = 0; i < points.length; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
+        for (var i = 0; i < verdictPoints.length; i++) ...[
+          if (i > 0) const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -923,7 +922,7 @@ class _VerdictBody extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Text(points[i], style: style)),
+              Expanded(child: Text(verdictPoints[i], style: style)),
             ],
           ),
         ],
@@ -934,19 +933,19 @@ class _VerdictBody extends StatelessWidget {
 
 class _VerdictBar extends StatelessWidget {
   const _VerdictBar({
-    required this.verdict,
+    required this.verdictPoints,
     required this.expanded,
     required this.onExpandedChanged,
   });
 
-  final String verdict;
+  final List<String> verdictPoints;
   final bool expanded;
   final ValueChanged<bool> onExpandedChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
-    final maxBodyHeight = MediaQuery.sizeOf(context).height * 0.5;
+    final maxBodyHeight = MediaQuery.sizeOf(context).height * 0.62;
 
     return AnimatedPhysicalModel(
       duration: const Duration(milliseconds: 200),
@@ -1022,7 +1021,10 @@ class _VerdictBar extends StatelessWidget {
                         constraints: BoxConstraints(maxHeight: maxBodyHeight),
                         child: SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                          child: _VerdictBody(verdict: verdict, colors: colors),
+                          child: _VerdictBody(
+                            verdictPoints: verdictPoints,
+                            colors: colors,
+                          ),
                         ),
                       )
                     : const SizedBox(

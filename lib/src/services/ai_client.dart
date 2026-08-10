@@ -30,7 +30,7 @@ class AiClient {
       if (analysis is! Map) return null;
       final parsed =
           DecisionAnalysis.fromJson(Map<String, dynamic>.from(analysis));
-      if (parsed.verdict.trim().isEmpty) return null;
+      if (parsed.verdictPoints.isEmpty) return null;
       return parsed;
     } catch (_) {
       return null;

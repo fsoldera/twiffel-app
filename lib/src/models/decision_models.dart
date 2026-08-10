@@ -54,7 +54,7 @@ class DecisionRequest {
 class DecisionAnalysis {
   const DecisionAnalysis({
     required this.mode,
-    required this.verdict,
+    required this.verdictPoints,
     this.target,
     this.optionA,
     this.optionB,
@@ -76,7 +76,12 @@ class DecisionAnalysis {
   final List<AnalysisPoint> optionACons;
   final List<AnalysisPoint> optionBPros;
   final List<AnalysisPoint> optionBCons;
-  final String verdict;
+
+  /// Exactly the bullet lines shown in the UI (prefer API array, no re-split).
+  final List<String> verdictPoints;
+
+  /// Joined form for PDF / legacy helpers.
+  String get verdict => verdictPoints.join('\n\n');
 
   factory DecisionAnalysis.fromJson(Map<String, dynamic> json) {
     List<AnalysisPoint> points(String key) {
@@ -104,23 +109,27 @@ class DecisionAnalysis {
       optionACons: points('optionACons'),
       optionBPros: points('optionBPros'),
       optionBCons: points('optionBCons'),
-      verdict: _verdictFromJson(json['verdict']),
+      verdictPoints: verdictPointsFromJson(json['verdict']),
     );
   }
 }
 
-String _verdictFromJson(Object? raw) {
+/// Parses API `verdict` as a string[] (preferred) or legacy string.
+List<String> verdictPointsFromJson(Object? raw) {
   if (raw is List) {
     return raw
         .whereType<String>()
         .map((part) => part.trim())
         .where((part) => part.isNotEmpty)
-        .join('\n\n');
+        .toList(growable: false);
   }
-  return (raw ?? '').toString().trim();
+  if (raw is String) {
+    return verdictParagraphs(raw);
+  }
+  return const <String>[];
 }
 
-/// Splits a verdict into sentence-sized points for bullet display.
+/// Legacy splitter for string verdicts (newline-separated, else sentences).
 List<String> verdictParagraphs(String verdict) {
   final trimmed = verdict.trim();
   if (trimmed.isEmpty) return const <String>[];

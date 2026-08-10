@@ -16,8 +16,8 @@ abstract final class DecisionCopy {
 
   // Shared
   static const String generateAnalysis = 'Generate analysis';
-  static const String nextLabel = 'Next';
-  static const String previousLabel = 'Previous';
+  static const String nextLabel = 'NEXT';
+  static const String previousLabel = 'PREV.';
   static const String otherLabel = 'Other: ___';
   static const String obstacleHelper =
       'Pick the single most important point to weigh.';

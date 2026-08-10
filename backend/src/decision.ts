@@ -37,7 +37,8 @@ export interface DecisionAnalysis {
   optionACons: AnalysisPoint[];
   optionBPros: AnalysisPoint[];
   optionBCons: AnalysisPoint[];
-  verdict: string;
+  /** Exactly VERDICT_SENTENCES_TARGET bullet sentences for the client. */
+  verdict: string[];
 }
 
 function cleanPoint(raw: unknown): AnalysisPoint | null {
@@ -60,34 +61,29 @@ function point(title: string, detail: string): AnalysisPoint {
   return { title, detail };
 }
 
-function verdictSentenceCount(verdict: string): number {
-  if (!verdict.trim()) return 0;
-  return verdict
-    .split(/\n+/)
-    .map((part) => part.trim())
-    .filter((part) => part.length > 0).length;
-}
-
-/** Normalize model verdict (string or string[]) into newline-separated sentences. */
+/** Normalize model verdict (string or string[]) into bullet sentence strings. */
 export function normalizeVerdict(
   raw: unknown,
   max = VERDICT_SENTENCES_TARGET,
-): string {
-  const fromParts = (parts: string[]): string =>
+): string[] {
+  const fromParts = (parts: string[]): string[] =>
     parts
       .map((part) => part.trim())
       .filter((part) => part.length > 0)
       .slice(0, max)
-      .map((part) => (/[.!?]$/.test(part) ? part : `${part}.`))
-      .join("\n\n");
+      .map((part) => (/[.!?]$/.test(part) ? part : `${part}.`));
 
   if (Array.isArray(raw)) {
     const parts = raw.filter((item): item is string => typeof item === "string");
     return fromParts(parts);
   }
-  if (typeof raw !== "string") return "";
+  if (typeof raw !== "string") return [];
   const trimmed = raw.trim();
-  if (!trimmed) return "";
+  if (!trimmed) return [];
+  // Prefer explicit newlines when the model already separated bullets.
+  if (/\n/.test(trimmed)) {
+    return fromParts(trimmed.split(/\n+/));
+  }
   const sentences = trimmed
     .split(/(?<=[.!?])\s+/)
     .map((part) => part.trim())
@@ -134,7 +130,7 @@ function fallbackSingle(req: DecisionRequest): DecisionAnalysis {
       "A careful next step beats waiting for perfect certainty that may never arrive.",
       "Keep the move small enough to reverse if early feedback looks wrong.",
       "If the obstacle still blocks every path, waiting is wiser than forcing a leap.",
-    ].join("\n\n"),
+    ],
   };
 }
 
@@ -184,7 +180,7 @@ function fallbackComparison(req: DecisionRequest): DecisionAnalysis {
       `"${optionB}" wins if stability and lower stress matter more in this window.`,
       "Use the obstacle as the tie-breaker instead of chasing a perfect feeling.",
       "If neither option clears the obstacle soon enough, waiting is the wiser call.",
-    ].join("\n\n"),
+    ],
   };
 }
 
@@ -193,7 +189,7 @@ function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnaly
   try {
     const parsed = JSON.parse(trimmed) as Record<string, unknown>;
     const verdict = normalizeVerdict(parsed.verdict);
-    if (!verdict) return null;
+    if (verdict.length === 0) return null;
 
     if (req.mode === "single") {
       return {
@@ -320,11 +316,11 @@ export async function generateDecisionAnalysis(
     const parsed = parseAnalysisJson(content, req);
     if (!parsed) return localFallback;
     // Twiffel verdicts are gated on content-safety only (not compassionate tone).
-    // Also require exactly VERDICT_SENTENCES_TARGET bullets; otherwise use local fallback copy.
-    if (
-      !isSafeContent(parsed.verdict) ||
-      verdictSentenceCount(parsed.verdict) !== VERDICT_SENTENCES_TARGET
-    ) {
+    // Require exactly VERDICT_SENTENCES_TARGET bullets; otherwise use local fallback copy.
+    const verdictOk =
+      parsed.verdict.length === VERDICT_SENTENCES_TARGET &&
+      parsed.verdict.every((line) => isSafeContent(line));
+    if (!verdictOk) {
       parsed.verdict = localFallback.verdict;
     }
     return parsed;

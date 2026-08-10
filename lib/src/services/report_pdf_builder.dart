@@ -165,7 +165,7 @@ class ReportPdfBuilder {
           _padded(
             _verdictCard(
               title: DecisionCopy.reportVerdictSingle,
-              verdict: analysis.verdict,
+              verdictPoints: analysis.verdictPoints,
               sparkles: assets.sparkles,
             ),
           ),
@@ -310,7 +310,7 @@ class ReportPdfBuilder {
           _padded(
             _verdictCard(
               title: DecisionCopy.reportVerdictComparison,
-              verdict: analysis.verdict,
+              verdictPoints: analysis.verdictPoints,
               sparkles: assets.sparkles,
             ),
           ),
@@ -823,11 +823,12 @@ class ReportPdfBuilder {
 
   static pw.Widget _verdictCard({
     required String title,
-    required String verdict,
+    required List<String> verdictPoints,
     required pw.Widget? sparkles,
   }) {
-    final points = verdictParagraphs(verdict);
-    final items = points.isEmpty ? <String>[verdict] : points;
+    final items = verdictPoints.isEmpty
+        ? const <String>['']
+        : verdictPoints;
 
     return pw.Container(
       width: double.infinity,

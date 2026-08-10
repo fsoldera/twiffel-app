@@ -10,6 +10,7 @@ import 'services/analytics.dart';
 import 'state/app_settings_controller.dart';
 import 'state/session_controller.dart';
 import 'theme/app_theme.dart';
+import 'widgets/app_splash_overlay.dart';
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -25,6 +26,10 @@ class _MyAppState extends State<MyApp> {
   late final AiClient _ai;
   late final AppSettingsController _settings;
   late final GoRouter _router;
+
+  /// Flutter splash plate on top of the app (native splash cannot fade).
+  bool _splashVisible = true;
+  bool _splashMounted = true;
 
   @override
   void initState() {
@@ -46,10 +51,25 @@ class _MyAppState extends State<MyApp> {
       analytics: _analytics,
       settings: _settings,
     );
-    // Drop the native stacked-logo plate once Flutter has painted.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      FlutterNativeSplash.remove();
-    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _finishSplash());
+  }
+
+  Future<void> _finishSplash() async {
+    final elapsed = DateTime.now().difference(appLaunchAt);
+    final remaining = kMinSplashDuration - elapsed;
+    if (remaining > Duration.zero) {
+      await Future<void>.delayed(remaining);
+    }
+    if (!mounted) return;
+
+    // Native plate has no cross-fade API; hand off to the matching Flutter plate.
+    FlutterNativeSplash.remove();
+    setState(() => _splashVisible = false);
+  }
+
+  void _onSplashFadeEnd() {
+    if (_splashVisible || !_splashMounted) return;
+    setState(() => _splashMounted = false);
   }
 
   @override
@@ -73,6 +93,29 @@ class _MyAppState extends State<MyApp> {
           darkTheme: AppTheme.dark(),
           themeMode: _settings.themeMode,
           routerConfig: _router,
+          builder: (context, child) {
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                AnimatedOpacity(
+                  opacity: _splashVisible ? 0 : 1,
+                  duration: kSplashFadeDuration,
+                  curve: Curves.easeOut,
+                  child: child ?? const SizedBox.shrink(),
+                ),
+                if (_splashMounted)
+                  IgnorePointer(
+                    child: AnimatedOpacity(
+                      opacity: _splashVisible ? 1 : 0,
+                      duration: kSplashFadeDuration,
+                      curve: Curves.easeOut,
+                      onEnd: _onSplashFadeEnd,
+                      child: const AppSplashOverlay(),
+                    ),
+                  ),
+              ],
+            );
+          },
         );
       },
     );

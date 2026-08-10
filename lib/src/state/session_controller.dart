@@ -153,9 +153,13 @@ class SessionController extends ChangeNotifier {
                 'You may never feel 100% ready, so waiting for that signal can stall you.',
           ),
         ],
-        verdict:
-            'Based on your timing (${request.timing}) and main obstacle (${request.obstacle}), '
-            '"$target" looks worth a careful next step, not a rushed leap.',
+        verdictPoints: [
+          'Based on your timing (${request.timing}) and main obstacle (${request.obstacle}), "$target" deserves a clear lean.',
+          'The named obstacle is real, so treat it as the main constraint rather than a vague worry.',
+          'A careful next step beats waiting for perfect certainty that may never arrive.',
+          'Keep the move small enough to reverse if early feedback looks wrong.',
+          'If the obstacle still blocks every path, waiting is wiser than forcing a leap.',
+        ],
       );
     }
 
@@ -268,9 +272,13 @@ class SessionController extends ChangeNotifier {
               'Avoiding change does not dissolve "${request.obstacle}" by itself.',
         ),
       ],
-      verdict:
-          'Given obstacle "${request.obstacle}" and timing "${request.timing}", compare whether '
-          '"$optionA" unlocks enough upside to justify the friction versus staying with "$optionB".',
+      verdictPoints: [
+        'Given obstacle "${request.obstacle}" and timing "${request.timing}", weigh "$optionA" against "$optionB" with a clear lean.',
+        '"$optionA" wins if the upside clearly outruns the friction you already named.',
+        '"$optionB" wins if stability and lower stress matter more in this window.',
+        'Use the obstacle as the tie-breaker instead of chasing a perfect feeling.',
+        'If neither option clears the obstacle soon enough, waiting is the wiser call.',
+      ],
     );
   }
 }

@@ -27,7 +27,13 @@ void main() {
         target: 'Should I buy the MacBook Pro 16?',
         pros: _points('Pro', 7),
         cons: _points('Con', 7),
-        verdict: 'A careful next step beats a rushed leap.',
+        verdictPoints: const [
+          'A careful next step beats a rushed leap.',
+          'Name the real obstacle before you commit.',
+          'Keep the first move small enough to reverse.',
+          'Timing matters once, not in every detail.',
+          'If nothing clears the blocker, waiting is wiser.',
+        ],
       ),
     );
 
@@ -45,7 +51,13 @@ void main() {
         optionACons: _points('A Con', 7),
         optionBPros: _points('B Pro', 7),
         optionBCons: _points('B Con', 7),
-        verdict: 'Turbo has a slight edge if timing is tight.',
+        verdictPoints: const [
+          'Turbo has a slight edge if timing is tight.',
+          'Steady wins if you need lower risk right now.',
+          'Use the obstacle as the tie-breaker.',
+          'A small test beats endless comparison.',
+          'If neither clears the blocker, wait.',
+        ],
       ),
     );
 

@@ -37,7 +37,13 @@ void main() {
           target: 'Should I buy the MacBook Pro 16?',
           pros: _points('Pro', 7),
           cons: _points('Con', 7),
-          verdict: 'A careful next step beats a rushed leap.',
+          verdictPoints: const [
+            'A careful next step beats a rushed leap.',
+            'Name the real obstacle before you commit.',
+            'Keep the first move small enough to reverse.',
+            'Timing matters once, not in every detail.',
+            'If nothing clears the blocker, waiting is wiser.',
+          ],
         ),
       );
 
