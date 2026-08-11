@@ -62,8 +62,10 @@ void main() {
 
       expect(find.text(DecisionCopy.analysisTitleSingle), findsOneWidget);
       expect(find.text('Should I buy the MacBook Pro 16?'), findsNothing);
-      expect(find.text('${DecisionCopy.analysisPros} (7)'), findsOneWidget);
-      expect(find.text('${DecisionCopy.analysisCons} (7)'), findsOneWidget);
+      expect(find.text(DecisionCopy.analysisPros), findsWidgets);
+      expect(find.text(DecisionCopy.analysisCons), findsOneWidget);
+      expect(find.text('${DecisionCopy.analysisPros} (7)'), findsNothing);
+      expect(find.text('${DecisionCopy.analysisCons} (7)'), findsNothing);
 
       expect(find.text('Pro 1 title'), findsOneWidget);
       expect(find.text('Pro 7 title'), findsNothing);
@@ -88,7 +90,7 @@ void main() {
       expect(find.text('Pro 7 title'), findsOneWidget);
       expect(find.byKey(const ValueKey<String>('list-overflow-cue')), findsNothing);
 
-      await tester.tap(find.text('${DecisionCopy.analysisCons} (7)'));
+      await tester.tap(find.text(DecisionCopy.analysisCons));
       await tester.pumpAndSettle();
       await tester.pump();
 

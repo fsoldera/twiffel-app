@@ -68,7 +68,7 @@ void main() {
     expect(find.text('Cat pro'), findsOneWidget);
     expect(find.text('Dog pro'), findsNothing);
 
-    await tester.tap(find.text('${DecisionCopy.analysisCons} (1)'));
+    await tester.tap(find.text(DecisionCopy.analysisCons));
     await tester.pumpAndSettle();
     expect(find.text('Cat con'), findsOneWidget);
   });

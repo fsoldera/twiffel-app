@@ -309,7 +309,7 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final duration = reduceMotion
         ? Duration.zero
-        : const Duration(milliseconds: 280);
+        : const Duration(milliseconds: 320);
     final direction = _stepDirection;
 
     return Scaffold(
@@ -352,10 +352,14 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
                                       child: child,
                                     );
                                   }
+                                  // Shared-axis: forward out left / in from right
+                                  // (and reverse when going back).
                                   final isIncoming =
                                       child.key == ValueKey<int>(_step);
                                   final begin = Offset(
-                                    isIncoming ? 0.08 * direction : -0.06 * direction,
+                                    isIncoming
+                                        ? 0.24 * direction
+                                        : -0.18 * direction,
                                     0,
                                   );
                                   final offset = Tween<Offset>(

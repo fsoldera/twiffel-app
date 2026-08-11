@@ -56,6 +56,7 @@ class _TwiffelLoadingAnimationState extends State<TwiffelLoadingAnimation>
   Widget build(BuildContext context) {
     final scale = widget.height / 78;
     final colors = TwiffelColors.of(context);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     // On light surfaces, white pill would disappear; use brand navy instead.
     final rightPillColor =
         colors.isDark ? Colors.white : TwiffelTokens.gray800;
@@ -72,6 +73,9 @@ class _TwiffelLoadingAnimationState extends State<TwiffelLoadingAnimation>
             final t = _bounce.value;
             final leftDy = -12 * scale * t;
             final rightDy = 12 * scale * t;
+            final barOpacity = reduceMotion
+                ? 1.0
+                : 0.55 + (0.45 * (1 - (t - 0.5).abs() * 2));
 
             return Stack(
               clipBehavior: Clip.none,
@@ -96,16 +100,19 @@ class _TwiffelLoadingAnimationState extends State<TwiffelLoadingAnimation>
                     color: rightPillColor,
                   ),
                 ),
-                // Balance bar (fixed).
+                // Balance bar with a subtle pulse synced to the bounce.
                 Positioned(
                   left: 0,
                   top: 71 * scale,
-                  child: Container(
-                    width: 87 * scale,
-                    height: 7 * scale,
-                    decoration: BoxDecoration(
-                      color: TwiffelTokens.primary400,
-                      borderRadius: BorderRadius.circular(3.5 * scale),
+                  child: Opacity(
+                    opacity: barOpacity,
+                    child: Container(
+                      width: 87 * scale,
+                      height: 7 * scale,
+                      decoration: BoxDecoration(
+                        color: TwiffelTokens.primary400,
+                        borderRadius: BorderRadius.circular(3.5 * scale),
+                      ),
                     ),
                   ),
                 ),

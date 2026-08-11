@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
@@ -368,20 +370,20 @@ class _ResultsBodyState extends State<_ResultsBody> {
             const SizedBox(height: 20),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _TabBar(
-                labels: [
-                  '${DecisionCopy.analysisPros} (${pros.length})',
-                  '${DecisionCopy.analysisCons} (${cons.length})',
+              child: _AspectSlider(
+                labels: const [
+                  DecisionCopy.analysisPros,
+                  DecisionCopy.analysisCons,
                 ],
                 activeIndex: pageIndex,
-                onTap: _selectAspect,
+                onChanged: _selectAspect,
               ),
             ),
             if (isComparison) ...[
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _OptionSlider(
+                child: _OptionButtons(
                   optionA: analysis.optionA?.trim().isNotEmpty == true
                       ? analysis.optionA!
                       : DecisionCopy.analysisOptionALabel,
@@ -474,7 +476,9 @@ class _ResultsBodyState extends State<_ResultsBody> {
             ignoring: !_verdictExpanded,
             child: AnimatedOpacity(
               opacity: _verdictExpanded ? 1 : 0,
-              duration: const Duration(milliseconds: 200),
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : const Duration(milliseconds: 280),
               curve: Curves.easeOut,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
@@ -487,34 +491,18 @@ class _ResultsBodyState extends State<_ResultsBody> {
         Positioned(
           left: 20,
           right: 20,
-          // Expanded: occupy the band above the sticky bar, then center the
-          // card vertically (shrink-wrap when short, max-height when tall).
-          // Collapsed: sit just above the sticky bar.
-          top: _verdictExpanded ? 12 : null,
+          // Keep a top bound so AnimatedSize can grow upward from the sticky
+          // actions without jumping layout when expanding.
+          top: 12,
           bottom: stickyHeight + 12,
-          child: _verdictExpanded
-              ? LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Align(
-                      alignment: Alignment.center,
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight: constraints.maxHeight,
-                        ),
-                        child: _VerdictBar(
-                          verdictPoints: analysis.verdictPoints,
-                          expanded: true,
-                          onExpandedChanged: _setVerdictExpanded,
-                        ),
-                      ),
-                    );
-                  },
-                )
-              : _VerdictBar(
-                  verdictPoints: analysis.verdictPoints,
-                  expanded: false,
-                  onExpandedChanged: _setVerdictExpanded,
-                ),
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: _VerdictBar(
+              verdictPoints: analysis.verdictPoints,
+              expanded: _verdictExpanded,
+              onExpandedChanged: _setVerdictExpanded,
+            ),
+          ),
         ),
       ],
     );
@@ -606,25 +594,62 @@ class _LoadingBody extends StatefulWidget {
 }
 
 class _LoadingBodyState extends State<_LoadingBody> {
-  late final String _message;
+  late String _message;
   bool _showCancel = false;
+  bool _subjectVisible = false;
+  Timer? _rotateTimer;
+  Timer? _cancelTimer;
 
   static const _cancelDelay = Duration(seconds: 8);
+  static const _rotateInterval = Duration(milliseconds: 3200);
 
   @override
   void initState() {
     super.initState();
     _message = LoadingResponseTexts.next();
-    Future<void>.delayed(_cancelDelay, () {
+    _cancelTimer = Timer(_cancelDelay, () {
       if (!mounted) return;
       setState(() => _showCancel = true);
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _subjectVisible = true);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    if (reduceMotion) {
+      _rotateTimer?.cancel();
+      _rotateTimer = null;
+      return;
+    }
+    _rotateTimer ??= Timer.periodic(_rotateInterval, (_) {
+      if (!mounted) return;
+      setState(() => _message = LoadingResponseTexts.next());
+    });
+  }
+
+  @override
+  void dispose() {
+    _rotateTimer?.cancel();
+    _cancelTimer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
     final request = widget.request;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final lineDuration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 360);
+    final subjectDuration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 480);
 
     return Stack(
       children: [
@@ -638,19 +663,52 @@ class _LoadingBodyState extends State<_LoadingBody> {
                 const SizedBox(height: 16),
                 const TwiffelLoadingAnimation(height: 96),
                 const SizedBox(height: 24),
-                Text(
-                  _message,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: colors.textSecondary,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w500,
-                    height: 1.35,
+                AnimatedSwitcher(
+                  duration: lineDuration,
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  layoutBuilder: (currentChild, previousChildren) {
+                    return Stack(
+                      alignment: Alignment.center,
+                      children: <Widget>[
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    );
+                  },
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: child,
+                    );
+                  },
+                  child: Text(
+                    _message,
+                    key: ValueKey<String>(_message),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                    ),
                   ),
                 ),
                 if (request != null) ...[
                   const SizedBox(height: 20),
-                  _LoadingSubject(request: request),
+                  AnimatedOpacity(
+                    opacity: _subjectVisible ? 1 : 0,
+                    duration: subjectDuration,
+                    curve: Curves.easeOut,
+                    child: AnimatedSlide(
+                      offset: _subjectVisible || reduceMotion
+                          ? Offset.zero
+                          : const Offset(0, 0.08),
+                      duration: subjectDuration,
+                      curve: Curves.easeOutCubic,
+                      child: _LoadingSubject(request: request),
+                    ),
+                  ),
                 ],
               ],
             ),
@@ -858,24 +916,22 @@ class _ErrorBody extends StatelessWidget {
   }
 }
 
-/// Squared segmented slider for Option A / Option B (distinct from Pros/Cons pills).
-class _OptionSlider extends StatelessWidget {
-  const _OptionSlider({
-    required this.optionA,
-    required this.optionB,
+/// Sliding Pros / Cons control (shared track + moving thumb).
+class _AspectSlider extends StatelessWidget {
+  const _AspectSlider({
+    required this.labels,
     required this.activeIndex,
     required this.onChanged,
   });
 
-  final String optionA;
-  final String optionB;
+  final List<String> labels;
   final int activeIndex;
   final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
-    const radius = 12.0;
+    const radius = 999.0;
     const inset = 4.0;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final thumbDuration = reduceMotion
@@ -889,16 +945,15 @@ class _OptionSlider extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.softFill,
         borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: colors.borderStrong, width: 1.5),
+        border: Border.all(color: colors.borderDefault),
       ),
       padding: const EdgeInsets.all(inset),
-      // Measure after border + padding so the thumb never overruns the track.
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final segmentWidth = constraints.maxWidth / 2;
+          final segmentWidth = constraints.maxWidth / labels.length;
 
           return SizedBox(
-            height: 48,
+            height: 44,
             width: constraints.maxWidth,
             child: Stack(
               clipBehavior: Clip.hardEdge,
@@ -912,74 +967,35 @@ class _OptionSlider extends StatelessWidget {
                   width: segmentWidth,
                   child: DecoratedBox(
                     decoration: BoxDecoration(
-                      color: colors.pageBg,
-                      borderRadius: BorderRadius.circular(radius - 4),
-                      border: Border.all(
-                        color: TwiffelTokens.primaryDefault,
-                        width: 1.5,
-                      ),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x1AD97706),
-                          blurRadius: 6,
-                          offset: Offset(0, 2),
-                        ),
-                      ],
+                      color: TwiffelTokens.primary400,
+                      borderRadius: BorderRadius.circular(radius),
                     ),
                   ),
                 ),
                 Row(
                   children: [
-                    for (var i = 0; i < 2; i++)
+                    for (var i = 0; i < labels.length; i++)
                       Expanded(
                         child: InkWell(
                           onTap: () => onChanged(i),
-                          borderRadius: BorderRadius.circular(radius - 4),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                AnimatedDefaultTextStyle(
-                                  duration: labelDuration,
-                                  curve: Curves.easeOut,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.4,
-                                    color: activeIndex == i
-                                        ? TwiffelTokens.primaryDefault
-                                        : colors.textTertiary,
-                                  ),
-                                  child: Text(
-                                    i == 0
-                                        ? DecisionCopy.analysisOptionALabel
-                                            .toUpperCase()
-                                        : DecisionCopy.analysisOptionBLabel
-                                            .toUpperCase(),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                AnimatedDefaultTextStyle(
-                                  duration: labelDuration,
-                                  curve: Curves.easeOut,
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: activeIndex == i
-                                        ? colors.textPrimary
-                                        : colors.textSecondary,
-                                  ),
-                                  child: Text(
-                                    i == 0 ? optionA : optionB,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ),
-                              ],
+                          borderRadius: BorderRadius.circular(radius),
+                          child: Center(
+                            child: AnimatedDefaultTextStyle(
+                              duration: labelDuration,
+                              curve: Curves.easeOut,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: activeIndex == i
+                                    ? TwiffelTokens.gray900
+                                    : colors.textPrimary,
+                              ),
+                              child: Text(
+                                labels[i],
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                              ),
                             ),
                           ),
                         ),
@@ -995,78 +1011,146 @@ class _OptionSlider extends StatelessWidget {
   }
 }
 
-class _TabBar extends StatelessWidget {
-  const _TabBar({
-    required this.labels,
+/// Distinct Option A / Option B buttons (not a shared slider track).
+class _OptionButtons extends StatelessWidget {
+  const _OptionButtons({
+    required this.optionA,
+    required this.optionB,
     required this.activeIndex,
+    required this.onChanged,
+  });
+
+  final String optionA;
+  final String optionB;
+  final int activeIndex;
+  final ValueChanged<int> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _OptionButton(
+            eyebrow: DecisionCopy.analysisOptionALabel,
+            label: optionA,
+            selected: activeIndex == 0,
+            onTap: () => onChanged(0),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _OptionButton(
+            eyebrow: DecisionCopy.analysisOptionBLabel,
+            label: optionB,
+            selected: activeIndex == 1,
+            onTap: () => onChanged(1),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OptionButton extends StatelessWidget {
+  const _OptionButton({
+    required this.eyebrow,
+    required this.label,
+    required this.selected,
     required this.onTap,
   });
 
-  final List<String> labels;
-  final int activeIndex;
-  final ValueChanged<int> onTap;
+  final String eyebrow;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final chipDuration = reduceMotion
+    final duration = reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 180);
+    final borderColor =
+        selected ? TwiffelTokens.primaryDefault : colors.borderDefault;
 
-    return Row(
-      children: [
-        for (var i = 0; i < labels.length; i++) ...[
-          if (i > 0) const SizedBox(width: 10),
-          Expanded(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                onTap: () => onTap(i),
-                borderRadius: BorderRadius.circular(999),
-                child: AnimatedContainer(
-                  duration: chipDuration,
-                  curve: Curves.easeOut,
-                  alignment: Alignment.center,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 12,
-                    horizontal: 12,
-                  ),
-                  decoration: BoxDecoration(
-                    color: activeIndex == i
-                        ? TwiffelTokens.primary400
-                        : colors.softFill,
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(
-                      color: activeIndex == i
-                          ? TwiffelTokens.primary400
-                          : colors.borderDefault,
-                      width: 1.5,
-                    ),
-                  ),
-                  child: AnimatedDefaultTextStyle(
-                    duration: chipDuration,
-                    curve: Curves.easeOut,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: activeIndex == i
-                          ? TwiffelTokens.gray900
-                          : colors.textPrimary,
-                    ),
-                    child: Text(
-                      labels[i],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: duration,
+          curve: Curves.easeOut,
+          constraints: const BoxConstraints(minHeight: 56),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: selected ? colors.selectedFill : colors.softFill,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: borderColor, width: 1.5),
+          ),
+          child: Row(
+            children: [
+              AnimatedContainer(
+                duration: duration,
+                curve: Curves.easeOut,
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: selected
+                      ? TwiffelTokens.primaryDefault
+                      : colors.borderDefault,
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    AnimatedDefaultTextStyle(
+                      duration: duration,
+                      curve: Curves.easeOut,
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.3,
+                        color: selected
+                            ? TwiffelTokens.primaryDefault
+                            : colors.textTertiary,
+                      ),
+                      child: Text(
+                        eyebrow.toUpperCase(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    AnimatedDefaultTextStyle(
+                      duration: duration,
+                      curve: Curves.easeOut,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                        color: selected
+                            ? colors.textPrimary
+                            : colors.textSecondary,
+                      ),
+                      child: Text(
+                        label,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ],
+        ),
+      ),
     );
   }
 }
@@ -1126,6 +1210,13 @@ class _VerdictBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final sizeDuration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 280);
+    final fadeDuration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 220);
 
     final headerRow = Material(
       color: Colors.transparent,
@@ -1166,35 +1257,54 @@ class _VerdictBar extends StatelessWidget {
       elevation: expanded ? 8 : 0,
       shadowColor: const Color(0x33000000),
       borderRadius: BorderRadius.circular(16),
-      child: Container(
-        width: double.infinity,
+      child: AnimatedContainer(
+        duration: sizeDuration,
+        curve: Curves.easeOutCubic,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: colors.borderDefault),
         ),
         clipBehavior: Clip.antiAlias,
-        child: expanded
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  headerRow,
-                  Flexible(
-                    child: _OverflowScrollView(
-                      key: const ValueKey('verdict-body'),
-                      showOverflowCue: true,
-                      shrinkWrap: true,
-                      fadeColor: colors.softFill,
-                      padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
-                      children: [
-                        for (final point in verdictPoints)
-                          _VerdictBullet(text: point, colors: colors),
-                      ],
-                    ),
-                  ),
-                ],
-              )
-            : headerRow,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            headerRow,
+            AnimatedSize(
+              duration: sizeDuration,
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: expanded
+                  ? TweenAnimationBuilder<double>(
+                      key: const ValueKey('verdict-fade'),
+                      tween: Tween<double>(begin: 0, end: 1),
+                      duration: fadeDuration,
+                      curve: Curves.easeOut,
+                      builder: (context, opacity, child) {
+                        return Opacity(opacity: opacity, child: child);
+                      },
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight:
+                              MediaQuery.sizeOf(context).height * 0.55,
+                        ),
+                        child: _OverflowScrollView(
+                          key: const ValueKey('verdict-body'),
+                          showOverflowCue: true,
+                          shrinkWrap: true,
+                          fadeColor: colors.softFill,
+                          padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+                          children: [
+                            for (final point in verdictPoints)
+                              _VerdictBullet(text: point, colors: colors),
+                          ],
+                        ),
+                      ),
+                    )
+                  : const SizedBox(width: double.infinity),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1298,7 +1408,6 @@ class _PointsPanelState extends State<_PointsPanel>
               point: points[i],
               accent: widget.accent,
               icon: widget.icon,
-              showDivider: i < points.length - 1,
             )
           else
             _StaggeredPointRow(
@@ -1309,7 +1418,6 @@ class _PointsPanelState extends State<_PointsPanel>
                 point: points[i],
                 accent: widget.accent,
                 icon: widget.icon,
-                showDivider: i < points.length - 1,
               ),
             ),
       ],
@@ -1512,72 +1620,59 @@ class _PointRow extends StatelessWidget {
     required this.point,
     required this.accent,
     required this.icon,
-    required this.showDivider,
   });
 
   final AnalysisPoint point;
   final Color accent;
   final IconData icon;
-  final bool showDivider;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 10),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 22,
-                height: 22,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 13, color: accent),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      point.title,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        height: 1.25,
-                        color: colors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      point.detail,
-                      style: TextStyle(
-                        fontSize: 12.5,
-                        height: 1.35,
-                        color: colors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 22,
+            height: 22,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 13, color: accent),
           ),
-        ),
-        if (showDivider)
-          Divider(
-            height: 1,
-            thickness: 1,
-            color: colors.borderDefault,
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  point.title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.25,
+                    color: colors.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  point.detail,
+                  style: TextStyle(
+                    fontSize: 12.5,
+                    height: 1.35,
+                    color: colors.textSecondary,
+                  ),
+                ),
+              ],
+            ),
           ),
-      ],
+        ],
+      ),
     );
   }
 }
