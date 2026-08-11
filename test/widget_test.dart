@@ -55,6 +55,7 @@ void main() {
 
     expect(find.text(DecisionCopy.timingStepTitle), findsOneWidget);
     expect(find.text(DecisionCopy.timingMonths), findsOneWidget);
+    expect(find.text(DecisionCopy.timingDateRange), findsOneWidget);
     expect(find.text(DecisionCopy.generateAnalysis), findsOneWidget);
   });
 }

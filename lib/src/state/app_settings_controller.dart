@@ -16,7 +16,9 @@ enum AppTextSize {
   final double scale;
 }
 
-/// User preferences for sound, haptics, and appearance (persisted locally).
+/// User preferences for appearance and text size (persisted locally).
+///
+/// Sound and vibration stay off until those features are implemented.
 class AppSettingsController extends ChangeNotifier {
   AppSettingsController({LocalStore? store})
       : _store = store ?? LocalStore('app_settings');
@@ -39,8 +41,8 @@ class AppSettingsController extends ChangeNotifier {
   final LocalStore _store;
 
   bool _initialized = false;
-  bool _soundEnabled = true;
-  bool _vibrationEnabled = true;
+  bool _soundEnabled = false;
+  bool _vibrationEnabled = false;
   ThemeMode _themeMode = ThemeMode.system;
   AppTextSize _textSize = AppTextSize.medium;
 
@@ -51,9 +53,11 @@ class AppSettingsController extends ChangeNotifier {
   AppTextSize get textSize => _textSize;
 
   Future<void> init() async {
-    _soundEnabled = await _store.getInt(_keySoundEnabled, fallback: 1) == 1;
-    _vibrationEnabled =
-        await _store.getInt(_keyVibrationEnabled, fallback: 1) == 1;
+    // Force sound/vibration off until the features ship (ignore prior prefs).
+    _soundEnabled = false;
+    _vibrationEnabled = false;
+    await _store.setInt(_keySoundEnabled, 0);
+    await _store.setInt(_keyVibrationEnabled, 0);
     _themeMode = _themeModeFromInt(
       await _store.getInt(_keyThemeMode, fallback: _themeSystem),
     );
@@ -65,16 +69,18 @@ class AppSettingsController extends ChangeNotifier {
   }
 
   Future<void> setSoundEnabled(bool enabled) async {
-    if (_soundEnabled == enabled) return;
-    _soundEnabled = enabled;
-    await _store.setInt(_keySoundEnabled, enabled ? 1 : 0);
+    // Not implemented in the UI yet; keep off.
+    if (!_soundEnabled && !enabled) return;
+    _soundEnabled = false;
+    await _store.setInt(_keySoundEnabled, 0);
     notifyListeners();
   }
 
   Future<void> setVibrationEnabled(bool enabled) async {
-    if (_vibrationEnabled == enabled) return;
-    _vibrationEnabled = enabled;
-    await _store.setInt(_keyVibrationEnabled, enabled ? 1 : 0);
+    // Not implemented in the UI yet; keep off.
+    if (!_vibrationEnabled && !enabled) return;
+    _vibrationEnabled = false;
+    await _store.setInt(_keyVibrationEnabled, 0);
     notifyListeners();
   }
 

@@ -8,6 +8,7 @@ import '../theme/tokens.dart';
 /// Top-left hamburger that opens Sound / Vibration / Theme / Text size
 /// and Buy a license.
 /// Structure matches Stikkteller and Joppling [HomeMenuButton].
+/// Sound and vibration stay visible but disabled until those features ship.
 class HomeMenuButton extends StatefulWidget {
   const HomeMenuButton({
     super.key,
@@ -69,12 +70,6 @@ class _HomeMenuButtonState extends State<HomeMenuButton> {
                   left: origin.dx,
                   child: _SettingsMenuPanel(
                     settings: widget.settings,
-                    onSoundChanged: (enabled) async {
-                      await widget.settings.setSoundEnabled(enabled);
-                    },
-                    onVibrationChanged: (enabled) async {
-                      await widget.settings.setVibrationEnabled(enabled);
-                    },
                     onThemeModeChanged: (mode) async {
                       await widget.settings.setThemeMode(mode);
                     },
@@ -179,16 +174,12 @@ class _MenuPanelColors {
 class _SettingsMenuPanel extends StatelessWidget {
   const _SettingsMenuPanel({
     required this.settings,
-    required this.onSoundChanged,
-    required this.onVibrationChanged,
     required this.onThemeModeChanged,
     required this.onTextSizeChanged,
     required this.onBuyLicense,
   });
 
   final AppSettingsController settings;
-  final ValueChanged<bool> onSoundChanged;
-  final ValueChanged<bool> onVibrationChanged;
   final ValueChanged<ThemeMode> onThemeModeChanged;
   final ValueChanged<AppTextSize> onTextSizeChanged;
   final VoidCallback onBuyLicense;
@@ -256,10 +247,11 @@ class _SettingsMenuPanel extends StatelessWidget {
                 vertical: 4,
               ),
               title: Text('Sound', style: labelStyle),
-              value: settings.soundEnabled,
+              value: false,
               activeThumbColor: accent,
               activeTrackColor: accent.withValues(alpha: 0.45),
-              onChanged: onSoundChanged,
+              // Disabled until sound is implemented.
+              onChanged: null,
             ),
             Divider(height: 1, color: colors.divider),
             SwitchListTile(
@@ -268,10 +260,11 @@ class _SettingsMenuPanel extends StatelessWidget {
                 vertical: 4,
               ),
               title: Text('Vibration', style: labelStyle),
-              value: settings.vibrationEnabled,
+              value: false,
               activeThumbColor: accent,
               activeTrackColor: accent.withValues(alpha: 0.45),
-              onChanged: onVibrationChanged,
+              // Disabled until haptics are implemented.
+              onChanged: null,
             ),
             Divider(height: 1, color: colors.divider),
             Padding(

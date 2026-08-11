@@ -9,25 +9,26 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  test('defaults to sound/vibration on, system theme, and medium text',
+  test('defaults to sound/vibration off, system theme, and medium text',
       () async {
     final store = LocalStore('app_settings_test_defaults');
     final settings = AppSettingsController(store: store);
     await settings.init();
 
-    expect(settings.soundEnabled, isTrue);
-    expect(settings.vibrationEnabled, isTrue);
+    expect(settings.soundEnabled, isFalse);
+    expect(settings.vibrationEnabled, isFalse);
     expect(settings.themeMode, ThemeMode.system);
     expect(settings.textSize, AppTextSize.medium);
   });
 
-  test('persists sound, vibration, theme mode, and text size', () async {
+  test('keeps sound/vibration off and persists theme mode and text size',
+      () async {
     final store = LocalStore('app_settings_test_persist');
     final settings = AppSettingsController(store: store);
     await settings.init();
 
-    await settings.setSoundEnabled(false);
-    await settings.setVibrationEnabled(false);
+    await settings.setSoundEnabled(true);
+    await settings.setVibrationEnabled(true);
     await settings.setThemeMode(ThemeMode.dark);
     await settings.setTextSize(AppTextSize.large);
 

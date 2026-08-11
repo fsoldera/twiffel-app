@@ -1,6 +1,7 @@
 import 'package:common_app_kit/common_app_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../models/decision_models.dart';
 import '../state/app_settings_controller.dart';
@@ -34,8 +35,11 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
 
   /// 0 = options, 1 = consideration, 2 = timing.
   int _step = 0;
+  /// +1 forward, -1 back, for step slide direction.
+  int _stepDirection = 1;
   int? _obstacleIndex;
   int? _timingIndex;
+  DateTimeRange? _timingRange;
   String? _formError;
   bool _submitting = false;
 
@@ -50,7 +54,10 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
     DecisionCopy.timingAsap,
     DecisionCopy.timingMonths,
     DecisionCopy.timingLater,
+    DecisionCopy.timingDateRange,
   ];
+
+  static const int _timingDateRangeIndex = 3;
 
   bool get _isLastStep => _step >= 2;
 
@@ -78,7 +85,11 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
         }
         return true;
       case 2:
-        return _timingIndex != null;
+        if (_timingIndex == null) return false;
+        if (_timingIndex == _timingDateRangeIndex) {
+          return _timingRange != null;
+        }
+        return true;
       default:
         return false;
     }
@@ -92,14 +103,59 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
     return _obstacleOptions[_obstacleIndex!];
   }
 
+  String _timingLabel() {
+    if (_timingIndex == _timingDateRangeIndex) {
+      final range = _timingRange!;
+      final locale = Localizations.localeOf(context).toString();
+      final format = DateFormat.yMMMd(locale);
+      return 'Between ${format.format(range.start)} and ${format.format(range.end)}';
+    }
+    return _timingOptions[_timingIndex!];
+  }
+
+  String? get _timingRangeSummary {
+    final range = _timingRange;
+    if (range == null) return null;
+    final locale = Localizations.localeOf(context).toString();
+    final format = DateFormat.yMMMd(locale);
+    return '${format.format(range.start)} – ${format.format(range.end)}';
+  }
+
   DecisionRequest _buildRequest() {
     return DecisionRequest(
       mode: DecisionMode.comparison,
       optionA: _optionAController.text.trim(),
       optionB: _optionBController.text.trim(),
       obstacle: _obstacleLabel(),
-      timing: _timingOptions[_timingIndex!],
+      timing: _timingLabel(),
     );
+  }
+
+  Future<void> _pickTimingRange() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(now.year, now.month, now.day),
+      lastDate: DateTime(now.year + 5, 12, 31),
+      initialDateRange: _timingRange,
+      helpText: DecisionCopy.timingPickDates,
+    );
+    if (!mounted || picked == null) return;
+    final start = picked.start;
+    final end = picked.end.isBefore(picked.start) ? picked.start : picked.end;
+    setState(() {
+      _timingRange = DateTimeRange(start: start, end: end);
+      _formError = null;
+    });
+  }
+
+  void _onTimingSelected(int index) {
+    setState(() {
+      _timingIndex = index;
+      if (index != _timingDateRangeIndex) {
+        _timingRange = null;
+      }
+    });
   }
 
   bool _validateCurrentStep() {
@@ -129,6 +185,7 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
     if (_step <= 0 || _submitting) return;
     setState(() {
       _formError = null;
+      _stepDirection = -1;
       _step -= 1;
     });
   }
@@ -138,7 +195,10 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
     if (!_validateCurrentStep()) return;
 
     if (!_isLastStep) {
-      setState(() => _step += 1);
+      setState(() {
+        _stepDirection = 1;
+        _step += 1;
+      });
       return;
     }
 
@@ -184,7 +244,11 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
           helper: DecisionCopy.timingHelper,
           options: _timingOptions,
           selectedIndex: _timingIndex,
-          onSelected: (index) => setState(() => _timingIndex = index),
+          onSelected: _onTimingSelected,
+          dateRangeOptionIndex: _timingDateRangeIndex,
+          dateRangeSummary: _timingRangeSummary,
+          pickDatesLabel: DecisionCopy.timingPickDates,
+          onPickDates: _pickTimingRange,
         );
       default:
         return Column(
@@ -214,9 +278,39 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
     }
   }
 
+  Widget _stepContent() {
+    return Column(
+      key: ValueKey<int>(_step),
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          _stepTitle,
+          style: Theme.of(context).textTheme.headlineSmall,
+        ),
+        const SizedBox(height: 20),
+        _stepBody(),
+        if (_formError != null) ...[
+          const SizedBox(height: 16),
+          Text(
+            _formError!,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.error,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final duration = reduceMotion
+        ? Duration.zero
+        : const Duration(milliseconds: 280);
+    final direction = _stepDirection;
 
     return Scaffold(
       body: Column(
@@ -237,29 +331,46 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
                             ),
                             child: Padding(
                               padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                              child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Text(
-                                    _stepTitle,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineSmall,
-                                  ),
-                                  const SizedBox(height: 20),
-                                  _stepBody(),
-                                  if (_formError != null) ...[
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      _formError!,
-                                      style: TextStyle(
-                                        color: colors.error,
-                                        fontSize: 13,
-                                      ),
+                              child: AnimatedSwitcher(
+                                duration: duration,
+                                reverseDuration: duration,
+                                switchInCurve: Curves.easeOutCubic,
+                                switchOutCurve: Curves.easeInCubic,
+                                layoutBuilder: (currentChild, previousChildren) {
+                                  return Stack(
+                                    alignment: Alignment.center,
+                                    children: <Widget>[
+                                      ...previousChildren,
+                                      if (currentChild != null) currentChild,
+                                    ],
+                                  );
+                                },
+                                transitionBuilder: (child, animation) {
+                                  if (reduceMotion) {
+                                    return FadeTransition(
+                                      opacity: animation,
+                                      child: child,
+                                    );
+                                  }
+                                  final isIncoming =
+                                      child.key == ValueKey<int>(_step);
+                                  final begin = Offset(
+                                    isIncoming ? 0.08 * direction : -0.06 * direction,
+                                    0,
+                                  );
+                                  final offset = Tween<Offset>(
+                                    begin: begin,
+                                    end: Offset.zero,
+                                  ).animate(animation);
+                                  return FadeTransition(
+                                    opacity: animation,
+                                    child: SlideTransition(
+                                      position: offset,
+                                      child: child,
                                     ),
-                                  ],
-                                ],
+                                  );
+                                },
+                                child: _stepContent(),
                               ),
                             ),
                           ),

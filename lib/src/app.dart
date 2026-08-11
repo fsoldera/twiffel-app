@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:common_app_kit/common_app_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -7,6 +9,7 @@ import 'config/app_config.dart';
 import 'router.dart';
 import 'services/ai_client.dart';
 import 'services/analytics.dart';
+import 'services/android_system_ui.dart';
 import 'state/app_settings_controller.dart';
 import 'state/session_controller.dart';
 import 'theme/app_theme.dart';
@@ -24,7 +27,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> {
+class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   late final LicenseController _license;
   late final SessionController _session;
   late final Analytics _analytics;
@@ -35,6 +38,7 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _license = LicenseController(appLicenseConfig);
     _license.init();
     _settings = AppSettingsController();
@@ -67,11 +71,19 @@ class _MyAppState extends State<MyApp> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _session.dispose();
     _license.dispose();
     _settings.dispose();
     _ai.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(hideAndroidNavigationBar());
+    }
   }
 
   @override

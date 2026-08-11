@@ -24,6 +24,8 @@ abstract final class DecisionCopy {
   static const String timingAsap = 'As soon as possible';
   static const String timingMonths = 'In 1–3 months';
   static const String timingLater = 'Later / Flexible';
+  static const String timingDateRange = 'Date range';
+  static const String timingPickDates = 'Pick date range';
   static const String timingHelper =
       'This helps us calculate the cost of waiting.';
   static const String optionsStepTitle = 'Tell us about your options';
@@ -82,11 +84,19 @@ abstract final class DecisionCopy {
   static const String analysisError = 'Something went wrong. Please try again.';
   static const String analysisPros = 'Pros';
   static const String analysisCons = 'Cons';
-  static const String analysisSwipeHint = 'Swipe to switch';
   static const String analysisVerdictLabel = 'Summary Verdict';
   static const String analysisQuestionLabel = 'Question';
   static const String analysisOptionALabel = 'Option A';
   static const String analysisOptionBLabel = 'Option B';
+  static const String analysisCancel = 'Cancel';
+  static const String analysisVsWord = 'VS';
+  static const String analysisStartOverTitle = 'Start over?';
+  static const String analysisStartOverBody =
+      'This discards the current analysis. You can generate a new one anytime.';
+  static const String analysisStartOverBodyPdf =
+      'You can also save the results as a PDF file and use it later.';
+  static const String analysisStartOverConfirm = 'Start over';
+  static const String analysisStartOverKeep = 'Keep results';
 
   // PDF report copy (aligned with Figma report-single-choice / report-comparison)
   static const String reportSingleSubtitle = 'Decision Analysis Report';

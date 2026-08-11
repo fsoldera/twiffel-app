@@ -52,7 +52,10 @@ GoRouter buildRouter({
         pageBuilder: (context, state) {
           return _fadePage(
             key: state.pageKey,
-            child: AnalysisPage(session: session),
+            child: AnalysisPage(
+              session: session,
+              settings: settings,
+            ),
           );
         },
       ),

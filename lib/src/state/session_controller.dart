@@ -25,6 +25,7 @@ class SessionController extends ChangeNotifier {
   DecisionRequest? _request;
   DecisionAnalysis? _analysis;
   String? _inputError;
+  int _submitGeneration = 0;
 
   SessionPhase get phase => _phase;
   DecisionRequest? get request => _request;
@@ -54,6 +55,7 @@ class SessionController extends ChangeNotifier {
       }
     }
 
+    final generation = ++_submitGeneration;
     _inputError = null;
     _request = request;
     _analysis = null;
@@ -70,10 +72,19 @@ class SessionController extends ChangeNotifier {
       remoteFuture,
       Future<void>.delayed(minLoading),
     ]);
+    if (generation != _submitGeneration) return;
     final remote = await remoteFuture;
+    if (generation != _submitGeneration) return;
     _analysis = remote ?? _localFallback(request);
     _phase = SessionPhase.ready;
     notifyListeners();
+  }
+
+  /// Abandon an in-flight analysis. Late AI results are ignored.
+  void cancelAnalysis() {
+    if (_phase != SessionPhase.loading) return;
+    _submitGeneration++;
+    reset();
   }
 
   void reset() {

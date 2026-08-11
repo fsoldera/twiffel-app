@@ -60,6 +60,17 @@ void main() {
     expect(find.text('Default'), findsOneWidget);
     expect(find.text('Large'), findsOneWidget);
     expect(find.text(appLicenseConfig.unlockButtonText), findsOneWidget);
+
+    final soundTile = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Sound'),
+    );
+    final vibrationTile = tester.widget<SwitchListTile>(
+      find.widgetWithText(SwitchListTile, 'Vibration'),
+    );
+    expect(soundTile.value, isFalse);
+    expect(soundTile.onChanged, isNull);
+    expect(vibrationTile.value, isFalse);
+    expect(vibrationTile.onChanged, isNull);
   });
 
   testWidgets('theme Auto selection updates settings', (tester) async {

@@ -7,6 +7,7 @@ import 'package:twiffel_app/src/config/app_config.dart';
 import 'package:twiffel_app/src/models/decision_models.dart';
 import 'package:twiffel_app/src/pages/analysis_page.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
+import 'package:twiffel_app/src/state/app_settings_controller.dart';
 import 'package:twiffel_app/src/state/session_controller.dart';
 
 List<AnalysisPoint> _points(String kind, int count) {
@@ -25,12 +26,14 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    '7 pros and 7 cons show Question label and bottom overflow cue',
+    '7 pros and 7 cons show title and bottom overflow cue',
     (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final license = LicenseController(appLicenseConfig);
       await license.init();
       final session = SessionController(license: license);
+    final settings = AppSettingsController();
+    await settings.init();
       session.debugSetReady(
         DecisionAnalysis(
           mode: DecisionMode.single,
@@ -52,16 +55,13 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
-          home: AnalysisPage(session: session),
+          home: AnalysisPage(session: session, settings: settings),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(
-        find.text(DecisionCopy.analysisQuestionLabel.toUpperCase()),
-        findsOneWidget,
-      );
-      expect(find.text('Should I buy the MacBook Pro 16?'), findsOneWidget);
+      expect(find.text(DecisionCopy.analysisTitleSingle), findsOneWidget);
+      expect(find.text('Should I buy the MacBook Pro 16?'), findsNothing);
       expect(find.text('${DecisionCopy.analysisPros} (7)'), findsOneWidget);
       expect(find.text('${DecisionCopy.analysisCons} (7)'), findsOneWidget);
 
