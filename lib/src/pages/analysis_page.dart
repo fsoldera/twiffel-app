@@ -30,13 +30,33 @@ class AnalysisPage extends StatefulWidget {
 }
 
 class _AnalysisPageState extends State<AnalysisPage> {
-  final _pageController = PageController();
-  int _pageIndex = 0;
+  bool _showingDetails = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.session.addListener(_resetDetailsOnLoad);
+  }
 
   @override
   void dispose() {
-    _pageController.dispose();
+    widget.session.removeListener(_resetDetailsOnLoad);
     super.dispose();
+  }
+
+  void _resetDetailsOnLoad() {
+    if (widget.session.phase == SessionPhase.loading && _showingDetails) {
+      setState(() => _showingDetails = false);
+    }
+  }
+
+  void _openDetails() {
+    setState(() => _showingDetails = true);
+  }
+
+  void _closeDetails() {
+    if (!_showingDetails) return;
+    setState(() => _showingDetails = false);
   }
 
   Future<void> _share(DecisionAnalysis analysis) async {
@@ -172,16 +192,23 @@ class _AnalysisPageState extends State<AnalysisPage> {
           );
         } else {
           body = KeyedSubtree(
-            key: const ValueKey<String>('results'),
-            child: _ResultsBody(
-              analysis: analysis,
-              isComparison: isComparison,
-              pageIndex: _pageIndex,
-              pageController: _pageController,
-              onPageChanged: (index) => setState(() => _pageIndex = index),
-              onShare: () => _share(analysis),
-              onStartOver: _confirmStartOver,
+            key: ValueKey<String>(
+              _showingDetails ? 'results-details' : 'results-verdict',
             ),
+            child: _showingDetails
+                ? _ResultsBody(
+                    analysis: analysis,
+                    isComparison: isComparison,
+                    onShare: () => _share(analysis),
+                    onStartOver: _confirmStartOver,
+                    onBackToVerdict: _closeDetails,
+                  )
+                : _VerdictPage(
+                    analysis: analysis,
+                    isComparison: isComparison,
+                    onSeeProsCons: _openDetails,
+                    onStartOver: _confirmStartOver,
+                  ),
           );
         }
 
@@ -197,6 +224,10 @@ class _AnalysisPageState extends State<AnalysisPage> {
             }
             if (error || analysis == null) {
               _navigateHome();
+              return;
+            }
+            if (_showingDetails) {
+              _closeDetails();
               return;
             }
             _confirmStartOver();
@@ -247,44 +278,42 @@ class _ResultsBody extends StatefulWidget {
   const _ResultsBody({
     required this.analysis,
     required this.isComparison,
-    required this.pageIndex,
-    required this.pageController,
-    required this.onPageChanged,
     required this.onShare,
     required this.onStartOver,
+    required this.onBackToVerdict,
   });
 
   final DecisionAnalysis analysis;
   final bool isComparison;
-  final int pageIndex;
-  final PageController pageController;
-  final ValueChanged<int> onPageChanged;
   final VoidCallback onShare;
   final Future<void> Function() onStartOver;
+  final VoidCallback onBackToVerdict;
 
   @override
   State<_ResultsBody> createState() => _ResultsBodyState();
 }
 
 class _ResultsBodyState extends State<_ResultsBody> {
-  bool _verdictExpanded = false;
+  final _pageController = PageController();
+  int _pageIndex = 0;
   int _optionIndex = 0;
   /// +1 toward Option B, -1 toward Option A (list slide direction).
   int _optionDirection = 1;
 
-  void _setVerdictExpanded(bool expanded) {
-    if (_verdictExpanded == expanded) return;
-    setState(() => _verdictExpanded = expanded);
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   void _selectAspect(int index) {
-    widget.onPageChanged(index);
+    setState(() => _pageIndex = index);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     if (reduceMotion) {
-      widget.pageController.jumpToPage(index);
+      _pageController.jumpToPage(index);
       return;
     }
-    widget.pageController.animateToPage(
+    _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
@@ -301,10 +330,9 @@ class _ResultsBodyState extends State<_ResultsBody> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = TwiffelColors.of(context);
     final analysis = widget.analysis;
     final isComparison = widget.isComparison;
-    final pageIndex = widget.pageIndex;
+    final pageIndex = _pageIndex;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final optionSwitchDuration = reduceMotion
         ? Duration.zero
@@ -326,8 +354,8 @@ class _ResultsBodyState extends State<_ResultsBody> {
     final stickyHeight = 20 + buttonHeight;
 
     final pointsPager = PageView(
-      controller: widget.pageController,
-      onPageChanged: widget.onPageChanged,
+      controller: _pageController,
+      onPageChanged: (index) => setState(() => _pageIndex = index),
       children: [
         _PointsPanel(
           key: const ValueKey<String>('pros'),
@@ -353,17 +381,13 @@ class _ResultsBodyState extends State<_ResultsBody> {
         Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-              child: Text(
-                isComparison
-                    ? DecisionCopy.analysisTitleComparison
-                    : DecisionCopy.analysisTitleSingle,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w700,
-                  color: colors.textPrimary,
-                  height: 1.15,
+              padding: const EdgeInsets.fromLTRB(8, 4, 20, 0),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: widget.onBackToVerdict,
+                  tooltip: DecisionCopy.analysisVerdictLabel,
+                  icon: const Icon(Icons.arrow_back),
                 ),
               ),
             ),
@@ -448,8 +472,6 @@ class _ResultsBodyState extends State<_ResultsBody> {
                           )
                         : pointsPager,
                   ),
-                  // Reserve collapsed verdict height so list content does not jump.
-                  const SizedBox(height: 68),
                 ],
               ),
             ),
@@ -463,45 +485,120 @@ class _ResultsBodyState extends State<_ResultsBody> {
           bottom: 0,
           height: stickyHeight,
           child: _StickyResultsActions(
-            onStartOver: widget.onStartOver,
-            onShare: widget.onShare,
+            onSecondary: widget.onStartOver,
+            secondaryLabel: DecisionCopy.analysisStartOver,
+            onPrimary: widget.onShare,
+            primaryLabel: DecisionCopy.analysisShare,
+            primaryIcon: Icons.ios_share,
           ),
         ),
-        Positioned(
-          left: 0,
-          right: 0,
-          top: 0,
-          bottom: stickyHeight,
-          child: IgnorePointer(
-            ignoring: !_verdictExpanded,
-            child: AnimatedOpacity(
-              opacity: _verdictExpanded ? 1 : 0,
-              duration: MediaQuery.disableAnimationsOf(context)
-                  ? Duration.zero
-                  : const Duration(milliseconds: 280),
-              curve: Curves.easeOut,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: () => _setVerdictExpanded(false),
-                child: const ColoredBox(color: Color(0x66000000)),
+      ],
+    );
+  }
+}
+
+class _VerdictPage extends StatelessWidget {
+  const _VerdictPage({
+    required this.analysis,
+    required this.isComparison,
+    required this.onSeeProsCons,
+    required this.onStartOver,
+  });
+
+  final DecisionAnalysis analysis;
+  final bool isComparison;
+  final VoidCallback onSeeProsCons;
+  final Future<void> Function() onStartOver;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    final buttonHeight = MediaQuery.textScalerOf(context).scale(48);
+    final stickyHeight = 20 + buttonHeight;
+    final optionA = analysis.optionA?.trim() ?? '';
+    final optionB = analysis.optionB?.trim() ?? '';
+
+    return Column(
+      children: [
+        Expanded(
+          child: _OverflowScrollView(
+            key: const ValueKey<String>('verdict-body'),
+            showOverflowCue: true,
+            fadeColor: colors.pageBg,
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.auto_awesome,
+                    size: 18,
+                    color: TwiffelTokens.primaryDefault,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    DecisionCopy.analysisVerdictLabel,
+                    style: TextStyle(
+                      color: TwiffelTokens.primaryDefault,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
-            ),
+              if (isComparison &&
+                  (optionA.isNotEmpty || optionB.isNotEmpty)) ...[
+                const SizedBox(height: 16),
+                if (optionA.isNotEmpty)
+                  Text(
+                    optionA,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                    ),
+                  ),
+                if (optionA.isNotEmpty && optionB.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    DecisionCopy.analysisVsWord,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: TwiffelTokens.primaryDefault,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (optionB.isNotEmpty)
+                  Text(
+                    optionB,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: colors.textSecondary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      height: 1.35,
+                    ),
+                  ),
+              ],
+              const SizedBox(height: 24),
+              for (final point in analysis.verdictPoints)
+                _VerdictBullet(text: point, colors: colors),
+            ],
           ),
         ),
-        Positioned(
-          left: 20,
-          right: 20,
-          // Keep a top bound so AnimatedSize can grow upward from the sticky
-          // actions without jumping layout when expanding.
-          top: 12,
-          bottom: stickyHeight + 12,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: _VerdictBar(
-              verdictPoints: analysis.verdictPoints,
-              expanded: _verdictExpanded,
-              onExpandedChanged: _setVerdictExpanded,
-            ),
+        SizedBox(
+          height: stickyHeight,
+          child: _StickyResultsActions(
+            onSecondary: onStartOver,
+            secondaryLabel: DecisionCopy.analysisStartOver,
+            onPrimary: onSeeProsCons,
+            primaryLabel: DecisionCopy.analysisSeeProsCons,
           ),
         ),
       ],
@@ -511,12 +608,18 @@ class _ResultsBodyState extends State<_ResultsBody> {
 
 class _StickyResultsActions extends StatelessWidget {
   const _StickyResultsActions({
-    required this.onStartOver,
-    required this.onShare,
+    required this.onSecondary,
+    required this.secondaryLabel,
+    required this.onPrimary,
+    required this.primaryLabel,
+    this.primaryIcon,
   });
 
-  final Future<void> Function() onStartOver;
-  final VoidCallback onShare;
+  final Future<void> Function() onSecondary;
+  final String secondaryLabel;
+  final VoidCallback onPrimary;
+  final String primaryLabel;
+  final IconData? primaryIcon;
 
   @override
   Widget build(BuildContext context) {
@@ -524,6 +627,28 @@ class _StickyResultsActions extends StatelessWidget {
     final buttonHeight = MediaQuery.textScalerOf(context).scale(48);
     final iconSize = MediaQuery.textScalerOf(context).scale(16);
     final radius = buttonHeight / 2;
+
+    final Widget primaryChild;
+    if (primaryIcon == null) {
+      primaryChild = Text(
+        primaryLabel,
+        textAlign: TextAlign.center,
+      );
+    } else {
+      primaryChild = Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(primaryIcon, size: iconSize),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              primaryLabel,
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      );
+    }
 
     return Material(
       color: colors.pageBg,
@@ -535,7 +660,7 @@ class _StickyResultsActions extends StatelessWidget {
             Expanded(
               flex: 1,
               child: OutlinedButton(
-                onPressed: onStartOver,
+                onPressed: onSecondary,
                 style: OutlinedButton.styleFrom(
                   foregroundColor: colors.textSecondary,
                   side: BorderSide(color: colors.borderDefault),
@@ -546,8 +671,8 @@ class _StickyResultsActions extends StatelessWidget {
                     borderRadius: BorderRadius.circular(radius),
                   ),
                 ),
-                child: const Text(
-                  DecisionCopy.analysisStartOver,
+                child: Text(
+                  secondaryLabel,
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -555,13 +680,8 @@ class _StickyResultsActions extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               flex: 2,
-              child: FilledButton.icon(
-                onPressed: onShare,
-                icon: Icon(Icons.ios_share, size: iconSize),
-                label: const Text(
-                  DecisionCopy.analysisShare,
-                  textAlign: TextAlign.center,
-                ),
+              child: FilledButton(
+                onPressed: onPrimary,
                 style: FilledButton.styleFrom(
                   minimumSize: Size.fromHeight(buttonHeight),
                   padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -570,6 +690,7 @@ class _StickyResultsActions extends StatelessWidget {
                     borderRadius: BorderRadius.circular(radius),
                   ),
                 ),
+                child: primaryChild,
               ),
             ),
           ],
@@ -594,14 +715,12 @@ class _LoadingBody extends StatefulWidget {
 }
 
 class _LoadingBodyState extends State<_LoadingBody> {
-  late String _message;
+  late final String _message;
   bool _showCancel = false;
   bool _subjectVisible = false;
-  Timer? _rotateTimer;
   Timer? _cancelTimer;
 
   static const _cancelDelay = Duration(seconds: 8);
-  static const _rotateInterval = Duration(milliseconds: 3200);
 
   @override
   void initState() {
@@ -618,23 +737,7 @@ class _LoadingBodyState extends State<_LoadingBody> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    if (reduceMotion) {
-      _rotateTimer?.cancel();
-      _rotateTimer = null;
-      return;
-    }
-    _rotateTimer ??= Timer.periodic(_rotateInterval, (_) {
-      if (!mounted) return;
-      setState(() => _message = LoadingResponseTexts.next());
-    });
-  }
-
-  @override
   void dispose() {
-    _rotateTimer?.cancel();
     _cancelTimer?.cancel();
     super.dispose();
   }
@@ -644,9 +747,6 @@ class _LoadingBodyState extends State<_LoadingBody> {
     final colors = TwiffelColors.of(context);
     final request = widget.request;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final lineDuration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 360);
     final subjectDuration = reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 480);
@@ -663,35 +763,14 @@ class _LoadingBodyState extends State<_LoadingBody> {
                 const SizedBox(height: 16),
                 const TwiffelLoadingAnimation(height: 96),
                 const SizedBox(height: 24),
-                AnimatedSwitcher(
-                  duration: lineDuration,
-                  switchInCurve: Curves.easeOut,
-                  switchOutCurve: Curves.easeIn,
-                  layoutBuilder: (currentChild, previousChildren) {
-                    return Stack(
-                      alignment: Alignment.center,
-                      children: <Widget>[
-                        ...previousChildren,
-                        if (currentChild != null) currentChild,
-                      ],
-                    );
-                  },
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: child,
-                    );
-                  },
-                  child: Text(
-                    _message,
-                    key: ValueKey<String>(_message),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                      height: 1.35,
-                    ),
+                Text(
+                  _message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: colors.textSecondary,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                    height: 1.35,
                   ),
                 ),
                 if (request != null) ...[
@@ -1185,126 +1264,12 @@ class _VerdictBullet extends StatelessWidget {
               text,
               style: TextStyle(
                 color: colors.textPrimary,
-                fontSize: 14,
-                height: 1.45,
+                fontSize: 16,
+                height: 1.5,
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _VerdictBar extends StatelessWidget {
-  const _VerdictBar({
-    required this.verdictPoints,
-    required this.expanded,
-    required this.onExpandedChanged,
-  });
-
-  final List<String> verdictPoints;
-  final bool expanded;
-  final ValueChanged<bool> onExpandedChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = TwiffelColors.of(context);
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final sizeDuration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 280);
-    final fadeDuration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 220);
-
-    final headerRow = Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => onExpandedChanged(!expanded),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(14, 16, 10, 16),
-          child: Row(
-            children: [
-              const Icon(
-                Icons.auto_awesome,
-                size: 18,
-                color: TwiffelTokens.primaryDefault,
-              ),
-              const Expanded(
-                child: Text(
-                  DecisionCopy.analysisVerdictLabel,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: TwiffelTokens.primaryDefault,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              Icon(
-                expanded ? Icons.expand_more : Icons.keyboard_arrow_up,
-                color: colors.textSecondary,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    return Material(
-      color: colors.softFill,
-      elevation: expanded ? 8 : 0,
-      shadowColor: const Color(0x33000000),
-      borderRadius: BorderRadius.circular(16),
-      child: AnimatedContainer(
-        duration: sizeDuration,
-        curve: Curves.easeOutCubic,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: colors.borderDefault),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            headerRow,
-            AnimatedSize(
-              duration: sizeDuration,
-              curve: Curves.easeOutCubic,
-              alignment: Alignment.topCenter,
-              child: expanded
-                  ? TweenAnimationBuilder<double>(
-                      key: const ValueKey('verdict-fade'),
-                      tween: Tween<double>(begin: 0, end: 1),
-                      duration: fadeDuration,
-                      curve: Curves.easeOut,
-                      builder: (context, opacity, child) {
-                        return Opacity(opacity: opacity, child: child);
-                      },
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxHeight:
-                              MediaQuery.sizeOf(context).height * 0.55,
-                        ),
-                        child: _OverflowScrollView(
-                          key: const ValueKey('verdict-body'),
-                          showOverflowCue: true,
-                          shrinkWrap: true,
-                          fadeColor: colors.softFill,
-                          padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
-                          children: [
-                            for (final point in verdictPoints)
-                              _VerdictBullet(text: point, colors: colors),
-                          ],
-                        ),
-                      ),
-                    )
-                  : const SizedBox(width: double.infinity),
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -1468,14 +1433,12 @@ class _OverflowScrollView extends StatefulWidget {
     required this.children,
     required this.padding,
     required this.showOverflowCue,
-    this.shrinkWrap = false,
     this.fadeColor,
   });
 
   final List<Widget> children;
   final EdgeInsets padding;
   final bool showOverflowCue;
-  final bool shrinkWrap;
   /// Gradient/cue background; defaults to page background.
   final Color? fadeColor;
 
@@ -1547,10 +1510,6 @@ class _OverflowScrollViewState extends State<_OverflowScrollView> {
         children: [
           ListView(
             controller: _controller,
-            shrinkWrap: widget.shrinkWrap,
-            physics: widget.shrinkWrap
-                ? const ClampingScrollPhysics()
-                : null,
             padding: widget.padding.copyWith(
               bottom: widget.padding.bottom + 28,
             ),

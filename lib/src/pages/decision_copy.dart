@@ -85,6 +85,7 @@ abstract final class DecisionCopy {
   static const String analysisPros = 'Pros';
   static const String analysisCons = 'Cons';
   static const String analysisVerdictLabel = 'Summary Verdict';
+  static const String analysisSeeProsCons = 'See pros & cons';
   static const String analysisQuestionLabel = 'Question';
   static const String analysisOptionALabel = 'Option A';
   static const String analysisOptionBLabel = 'Option B';

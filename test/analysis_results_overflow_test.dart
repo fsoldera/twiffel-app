@@ -60,7 +60,13 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text(DecisionCopy.analysisTitleSingle), findsOneWidget);
+      expect(find.text(DecisionCopy.analysisVerdictLabel), findsOneWidget);
+      expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+      expect(find.text('Pro 1 title'), findsNothing);
+
+      await tester.tap(find.text(DecisionCopy.analysisSeeProsCons));
+      await tester.pumpAndSettle();
+
       expect(find.text('Should I buy the MacBook Pro 16?'), findsNothing);
       expect(find.text(DecisionCopy.analysisPros), findsWidgets);
       expect(find.text(DecisionCopy.analysisCons), findsOneWidget);

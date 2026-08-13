@@ -59,6 +59,12 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+    expect(find.text('Dog pro'), findsNothing);
+
+    await tester.tap(find.text(DecisionCopy.analysisSeeProsCons));
+    await tester.pumpAndSettle();
+
     expect(find.text('Dog pro'), findsOneWidget);
     expect(find.text('Cat pro'), findsNothing);
 

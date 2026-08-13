@@ -47,6 +47,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+    expect(find.text(DecisionCopy.analysisVerdictLabel), findsOneWidget);
+
     final startOverButton = find.widgetWithText(
       OutlinedButton,
       DecisionCopy.analysisStartOver,
@@ -73,5 +76,57 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(session.phase, SessionPhase.input);
+  });
+
+  testWidgets('See pros & cons opens details and back returns to verdict', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    final license = LicenseController(appLicenseConfig);
+    await license.init();
+    final session = SessionController(license: license);
+    final settings = AppSettingsController();
+    await settings.init();
+    session.debugSetReady(
+      const DecisionAnalysis(
+        mode: DecisionMode.single,
+        target: 'Should I move?',
+        pros: [
+          AnalysisPoint(title: '1. Pro', detail: 'Detail'),
+        ],
+        cons: [
+          AnalysisPoint(title: '1. Con', detail: 'Detail'),
+        ],
+        verdictPoints: [
+          'Lean carefully.',
+          'Name the obstacle.',
+          'Keep the first move small.',
+          'Timing matters.',
+          'Waiting can be wise.',
+        ],
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AnalysisPage(session: session, settings: settings),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Lean carefully.'), findsOneWidget);
+    expect(find.text('1. Pro'), findsNothing);
+
+    await tester.tap(find.text(DecisionCopy.analysisSeeProsCons));
+    await tester.pumpAndSettle();
+
+    expect(find.text('1. Pro'), findsOneWidget);
+    expect(find.text(DecisionCopy.analysisSeeProsCons), findsNothing);
+
+    await tester.tap(find.byTooltip(DecisionCopy.analysisVerdictLabel));
+    await tester.pumpAndSettle();
+
+    expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+    expect(find.text('1. Pro'), findsNothing);
   });
 }
