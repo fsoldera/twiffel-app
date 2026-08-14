@@ -21,6 +21,10 @@ void main() {
     expect(find.text('Twiffel'), findsWidgets);
     expect(find.byIcon(Icons.menu), findsOneWidget);
     expect(find.text(DecisionCopy.optionsStepTitle), findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text(DecisionCopy.optionsStepTitle)).textAlign,
+      TextAlign.center,
+    );
     expect(find.text(DecisionCopy.pathBOptionALabel), findsOneWidget);
     expect(find.text(DecisionCopy.pathBOptionBLabel), findsOneWidget);
     expect(find.text(DecisionCopy.nextLabel), findsOneWidget);

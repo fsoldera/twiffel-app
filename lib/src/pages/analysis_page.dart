@@ -31,6 +31,10 @@ class AnalysisPage extends StatefulWidget {
 
 class _AnalysisPageState extends State<AnalysisPage> {
   bool _showingDetails = false;
+  /// 0 = Pros, 1 = Cons. Reset for each new analysis.
+  int _detailsPageIndex = 0;
+  /// 0 = Option A, 1 = Option B. Reset for each new analysis.
+  int _detailsOptionIndex = 0;
 
   @override
   void initState() {
@@ -45,9 +49,17 @@ class _AnalysisPageState extends State<AnalysisPage> {
   }
 
   void _resetDetailsOnLoad() {
-    if (widget.session.phase == SessionPhase.loading && _showingDetails) {
-      setState(() => _showingDetails = false);
+    if (widget.session.phase != SessionPhase.loading) return;
+    if (!_showingDetails &&
+        _detailsPageIndex == 0 &&
+        _detailsOptionIndex == 0) {
+      return;
     }
+    setState(() {
+      _showingDetails = false;
+      _detailsPageIndex = 0;
+      _detailsOptionIndex = 0;
+    });
   }
 
   void _openDetails() {
@@ -87,18 +99,28 @@ class _AnalysisPageState extends State<AnalysisPage> {
     }
 
     try {
-      // Device locale drives footer date and the share filename.
+      // Device locale drives footer date, share filename, and email subject.
       final locale = View.of(context).platformDispatcher.locale;
+      final generatedAt = DateTime.now();
       final bytes = await ReportPdfBuilder.build(
         analysis,
         locale: locale,
+        generatedAt: generatedAt,
       );
-      final filename = await ReportPdfBuilder.filenameFor(locale: locale);
+      final filename = await ReportPdfBuilder.filenameFor(
+        at: generatedAt,
+        locale: locale,
+      );
+      final subject = await ReportPdfBuilder.shareSubjectFor(
+        at: generatedAt,
+        locale: locale,
+      );
       if (!mounted) return;
       closeDialog();
       final shared = await Printing.sharePdf(
         bytes: bytes,
         filename: filename,
+        subject: subject,
       );
       if (!shared && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -199,14 +221,21 @@ class _AnalysisPageState extends State<AnalysisPage> {
                 ? _ResultsBody(
                     analysis: analysis,
                     isComparison: isComparison,
+                    pageIndex: _detailsPageIndex,
+                    optionIndex: _detailsOptionIndex,
+                    onPageIndexChanged: (index) {
+                      setState(() => _detailsPageIndex = index);
+                    },
+                    onOptionIndexChanged: (index) {
+                      setState(() => _detailsOptionIndex = index);
+                    },
                     onShare: () => _share(analysis),
                     onStartOver: _confirmStartOver,
-                    onBackToVerdict: _closeDetails,
                   )
                 : _VerdictPage(
                     analysis: analysis,
                     isComparison: isComparison,
-                    onSeeProsCons: _openDetails,
+                    onShare: () => _share(analysis),
                     onStartOver: _confirmStartOver,
                   ),
           );
@@ -238,6 +267,24 @@ class _AnalysisPageState extends State<AnalysisPage> {
               child: Column(
                 children: [
                   TwiffelHeader(settings: widget.settings),
+                  if (!loading && !error && analysis != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+                      child: _AspectSlider(
+                        labels: const [
+                          DecisionCopy.analysisSummaryTab,
+                          DecisionCopy.analysisDetailsTab,
+                        ],
+                        activeIndex: _showingDetails ? 1 : 0,
+                        onChanged: (index) {
+                          if (index == 1) {
+                            _openDetails();
+                          } else {
+                            _closeDetails();
+                          }
+                        },
+                      ),
+                    ),
                   Expanded(
                     child: AnimatedSwitcher(
                       duration: reduceMotion
@@ -278,27 +325,41 @@ class _ResultsBody extends StatefulWidget {
   const _ResultsBody({
     required this.analysis,
     required this.isComparison,
+    required this.pageIndex,
+    required this.optionIndex,
+    required this.onPageIndexChanged,
+    required this.onOptionIndexChanged,
     required this.onShare,
     required this.onStartOver,
-    required this.onBackToVerdict,
   });
 
   final DecisionAnalysis analysis;
   final bool isComparison;
+  final int pageIndex;
+  final int optionIndex;
+  final ValueChanged<int> onPageIndexChanged;
+  final ValueChanged<int> onOptionIndexChanged;
   final VoidCallback onShare;
   final Future<void> Function() onStartOver;
-  final VoidCallback onBackToVerdict;
 
   @override
   State<_ResultsBody> createState() => _ResultsBodyState();
 }
 
 class _ResultsBodyState extends State<_ResultsBody> {
-  final _pageController = PageController();
-  int _pageIndex = 0;
-  int _optionIndex = 0;
+  late final PageController _pageController;
+  late int _pageIndex;
+  late int _optionIndex;
   /// +1 toward Option B, -1 toward Option A (list slide direction).
   int _optionDirection = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    _pageIndex = widget.pageIndex;
+    _optionIndex = widget.optionIndex;
+    _pageController = PageController(initialPage: _pageIndex);
+  }
 
   @override
   void dispose() {
@@ -308,6 +369,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
 
   void _selectAspect(int index) {
     setState(() => _pageIndex = index);
+    widget.onPageIndexChanged(index);
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     if (reduceMotion) {
       _pageController.jumpToPage(index);
@@ -326,6 +388,63 @@ class _ResultsBodyState extends State<_ResultsBody> {
       _optionDirection = index > _optionIndex ? 1 : -1;
       _optionIndex = index;
     });
+    widget.onOptionIndexChanged(index);
+  }
+
+  Widget _aspectPage({
+    required String heading,
+    required Color accent,
+    required IconData icon,
+    required List<AnalysisPoint> points,
+    required Duration switchDuration,
+  }) {
+    final panel = _PointsPanel(
+      key: ValueKey<String>('$heading-$_optionIndex'),
+      heading: heading,
+      accent: accent,
+      icon: icon,
+      points: points,
+    );
+    if (!widget.isComparison) return panel;
+
+    final optionDirection = _optionDirection;
+    final optionIndex = _optionIndex;
+    return AnimatedSwitcher(
+      duration: switchDuration,
+      reverseDuration: switchDuration,
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) {
+        return Stack(
+          fit: StackFit.expand,
+          children: <Widget>[
+            ...previousChildren,
+            if (currentChild != null) currentChild,
+          ],
+        );
+      },
+      transitionBuilder: (child, animation) {
+        if (switchDuration == Duration.zero) {
+          return FadeTransition(opacity: animation, child: child);
+        }
+        final isIncoming = child.key == ValueKey<String>('$heading-$optionIndex');
+        final begin = Offset(
+          0.07 * (isIncoming ? optionDirection : -optionDirection),
+          0,
+        );
+        return FadeTransition(
+          opacity: animation,
+          child: SlideTransition(
+            position: Tween<Offset>(
+              begin: begin,
+              end: Offset.zero,
+            ).animate(animation),
+            child: child,
+          ),
+        );
+      },
+      child: panel,
+    );
   }
 
   @override
@@ -337,7 +456,6 @@ class _ResultsBodyState extends State<_ResultsBody> {
     final optionSwitchDuration = reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 280);
-    final optionDirection = _optionDirection;
 
     final List<AnalysisPoint> pros;
     final List<AnalysisPoint> cons;
@@ -355,23 +473,24 @@ class _ResultsBodyState extends State<_ResultsBody> {
 
     final pointsPager = PageView(
       controller: _pageController,
-      onPageChanged: (index) => setState(() => _pageIndex = index),
+      onPageChanged: (index) {
+        setState(() => _pageIndex = index);
+        widget.onPageIndexChanged(index);
+      },
       children: [
-        _PointsPanel(
-          key: const ValueKey<String>('pros'),
+        _aspectPage(
           heading: DecisionCopy.analysisPros,
           accent: TwiffelTokens.semanticSuccess,
           icon: Icons.check,
           points: pros,
-          showOverflowCue: pageIndex == 0,
+          switchDuration: optionSwitchDuration,
         ),
-        _PointsPanel(
-          key: const ValueKey<String>('cons'),
+        _aspectPage(
           heading: DecisionCopy.analysisCons,
           accent: TwiffelTokens.semanticError,
           icon: Icons.close,
           points: cons,
-          showOverflowCue: pageIndex == 1,
+          switchDuration: optionSwitchDuration,
         ),
       ],
     );
@@ -381,19 +500,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
         Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(8, 4, 20, 0),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: IconButton(
-                  onPressed: widget.onBackToVerdict,
-                  tooltip: DecisionCopy.analysisVerdictLabel,
-                  icon: const Icon(Icons.arrow_back),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
               child: _AspectSlider(
                 labels: const [
                   DecisionCopy.analysisPros,
@@ -407,13 +514,15 @@ class _ResultsBodyState extends State<_ResultsBody> {
               const SizedBox(height: 12),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _OptionButtons(
-                  optionA: analysis.optionA?.trim().isNotEmpty == true
-                      ? analysis.optionA!
-                      : DecisionCopy.analysisOptionALabel,
-                  optionB: analysis.optionB?.trim().isNotEmpty == true
-                      ? analysis.optionB!
-                      : DecisionCopy.analysisOptionBLabel,
+                child: _AspectSlider(
+                  labels: [
+                    analysis.optionA?.trim().isNotEmpty == true
+                        ? analysis.optionA!
+                        : DecisionCopy.analysisOptionALabel,
+                    analysis.optionB?.trim().isNotEmpty == true
+                        ? analysis.optionB!
+                        : DecisionCopy.analysisOptionBLabel,
+                  ],
                   activeIndex: _optionIndex,
                   onChanged: _selectOption,
                 ),
@@ -423,54 +532,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
               child: Column(
                 children: [
                   Expanded(
-                    child: isComparison
-                        ? AnimatedSwitcher(
-                            duration: optionSwitchDuration,
-                            reverseDuration: optionSwitchDuration,
-                            switchInCurve: Curves.easeOutCubic,
-                            switchOutCurve: Curves.easeInCubic,
-                            layoutBuilder: (currentChild, previousChildren) {
-                              return Stack(
-                                fit: StackFit.expand,
-                                children: <Widget>[
-                                  ...previousChildren,
-                                  if (currentChild != null) currentChild,
-                                ],
-                              );
-                            },
-                            transitionBuilder: (child, animation) {
-                              if (reduceMotion) {
-                                return FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                );
-                              }
-                              final isIncoming =
-                                  child.key == ValueKey<int>(_optionIndex);
-                              final begin = Offset(
-                                0.07 *
-                                    (isIncoming
-                                        ? optionDirection
-                                        : -optionDirection),
-                                0,
-                              );
-                              return FadeTransition(
-                                opacity: animation,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: begin,
-                                    end: Offset.zero,
-                                  ).animate(animation),
-                                  child: child,
-                                ),
-                              );
-                            },
-                            child: KeyedSubtree(
-                              key: ValueKey<int>(_optionIndex),
-                              child: pointsPager,
-                            ),
-                          )
-                        : pointsPager,
+                    child: pointsPager,
                   ),
                 ],
               ),
@@ -501,13 +563,13 @@ class _VerdictPage extends StatelessWidget {
   const _VerdictPage({
     required this.analysis,
     required this.isComparison,
-    required this.onSeeProsCons,
+    required this.onShare,
     required this.onStartOver,
   });
 
   final DecisionAnalysis analysis;
   final bool isComparison;
-  final VoidCallback onSeeProsCons;
+  final VoidCallback onShare;
   final Future<void> Function() onStartOver;
 
   @override
@@ -521,10 +583,8 @@ class _VerdictPage extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: _OverflowScrollView(
+          child: ListView(
             key: const ValueKey<String>('verdict-body'),
-            showOverflowCue: true,
-            fadeColor: colors.pageBg,
             padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
             children: [
               Row(
@@ -597,8 +657,9 @@ class _VerdictPage extends StatelessWidget {
           child: _StickyResultsActions(
             onSecondary: onStartOver,
             secondaryLabel: DecisionCopy.analysisStartOver,
-            onPrimary: onSeeProsCons,
-            primaryLabel: DecisionCopy.analysisSeeProsCons,
+            onPrimary: onShare,
+            primaryLabel: DecisionCopy.analysisShare,
+            primaryIcon: Icons.ios_share,
           ),
         ),
       ],
@@ -1090,150 +1151,6 @@ class _AspectSlider extends StatelessWidget {
   }
 }
 
-/// Distinct Option A / Option B buttons (not a shared slider track).
-class _OptionButtons extends StatelessWidget {
-  const _OptionButtons({
-    required this.optionA,
-    required this.optionB,
-    required this.activeIndex,
-    required this.onChanged,
-  });
-
-  final String optionA;
-  final String optionB;
-  final int activeIndex;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _OptionButton(
-            eyebrow: DecisionCopy.analysisOptionALabel,
-            label: optionA,
-            selected: activeIndex == 0,
-            onTap: () => onChanged(0),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _OptionButton(
-            eyebrow: DecisionCopy.analysisOptionBLabel,
-            label: optionB,
-            selected: activeIndex == 1,
-            onTap: () => onChanged(1),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _OptionButton extends StatelessWidget {
-  const _OptionButton({
-    required this.eyebrow,
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String eyebrow;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = TwiffelColors.of(context);
-    final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final duration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 180);
-    final borderColor =
-        selected ? TwiffelTokens.primaryDefault : colors.borderDefault;
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: AnimatedContainer(
-          duration: duration,
-          curve: Curves.easeOut,
-          constraints: const BoxConstraints(minHeight: 56),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: selected ? colors.selectedFill : colors.softFill,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: borderColor, width: 1.5),
-          ),
-          child: Row(
-            children: [
-              AnimatedContainer(
-                duration: duration,
-                curve: Curves.easeOut,
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: selected
-                      ? TwiffelTokens.primaryDefault
-                      : colors.borderDefault,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    AnimatedDefaultTextStyle(
-                      duration: duration,
-                      curve: Curves.easeOut,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.3,
-                        color: selected
-                            ? TwiffelTokens.primaryDefault
-                            : colors.textTertiary,
-                      ),
-                      child: Text(
-                        eyebrow.toUpperCase(),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    AnimatedDefaultTextStyle(
-                      duration: duration,
-                      curve: Curves.easeOut,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        height: 1.2,
-                        color: selected
-                            ? colors.textPrimary
-                            : colors.textSecondary,
-                      ),
-                      child: Text(
-                        label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _VerdictBullet extends StatelessWidget {
   const _VerdictBullet({
     required this.text,
@@ -1316,14 +1233,12 @@ class _PointsPanel extends StatefulWidget {
     required this.accent,
     required this.icon,
     required this.points,
-    required this.showOverflowCue,
   });
 
   final String heading;
   final Color accent;
   final IconData icon;
   final List<AnalysisPoint> points;
-  final bool showOverflowCue;
 
   @override
   State<_PointsPanel> createState() => _PointsPanelState();
@@ -1361,8 +1276,7 @@ class _PointsPanelState extends State<_PointsPanel>
     final points = widget.points;
     final controller = _stagger;
 
-    return _OverflowScrollView(
-      showOverflowCue: widget.showOverflowCue,
+    return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
       children: [
         _InsightsHeading(label: widget.heading),
@@ -1420,155 +1334,6 @@ class _StaggeredPointRow extends StatelessWidget {
           end: Offset.zero,
         ).animate(curve),
         child: child,
-      ),
-    );
-  }
-}
-
-/// List that fades the bottom edge and shows a chevron while more content
-/// remains below, so overflow is obvious even when a row ends at the clip.
-class _OverflowScrollView extends StatefulWidget {
-  const _OverflowScrollView({
-    super.key,
-    required this.children,
-    required this.padding,
-    required this.showOverflowCue,
-    this.fadeColor,
-  });
-
-  final List<Widget> children;
-  final EdgeInsets padding;
-  final bool showOverflowCue;
-  /// Gradient/cue background; defaults to page background.
-  final Color? fadeColor;
-
-  @override
-  State<_OverflowScrollView> createState() => _OverflowScrollViewState();
-}
-
-class _OverflowScrollViewState extends State<_OverflowScrollView> {
-  final _controller = ScrollController();
-  bool _canScrollDown = false;
-  bool _updateScheduled = false;
-
-  static const cueKey = ValueKey<String>('list-overflow-cue');
-
-  @override
-  void initState() {
-    super.initState();
-    _controller.addListener(_updateOverflow);
-    _scheduleOverflowUpdate();
-  }
-
-  @override
-  void didUpdateWidget(covariant _OverflowScrollView oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _scheduleOverflowUpdate();
-  }
-
-  @override
-  void dispose() {
-    _controller
-      ..removeListener(_updateOverflow)
-      ..dispose();
-    super.dispose();
-  }
-
-  void _scheduleOverflowUpdate() {
-    if (_updateScheduled) return;
-    _updateScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _updateScheduled = false;
-      _updateOverflow();
-    });
-  }
-
-  void _updateOverflow() {
-    if (!mounted) return;
-    if (!_controller.hasClients) {
-      _scheduleOverflowUpdate();
-      return;
-    }
-    final position = _controller.position;
-    final canScrollDown = position.extentAfter > 1;
-    if (canScrollDown != _canScrollDown) {
-      setState(() => _canScrollDown = canScrollDown);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = TwiffelColors.of(context);
-    final fade = widget.fadeColor ?? colors.pageBg;
-
-    return NotificationListener<ScrollNotification>(
-      onNotification: (_) {
-        _updateOverflow();
-        return false;
-      },
-      child: Stack(
-        children: [
-          ListView(
-            controller: _controller,
-            padding: widget.padding.copyWith(
-              bottom: widget.padding.bottom + 28,
-            ),
-            children: widget.children,
-          ),
-          if (widget.showOverflowCue && _canScrollDown)
-            Positioned(
-              key: cueKey,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: IgnorePointer(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      height: 40,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            fade.withValues(alpha: 0),
-                            fade.withValues(alpha: 0.85),
-                            fade,
-                          ],
-                        ),
-                      ),
-                    ),
-                    ColoredBox(
-                      color: fade,
-                      child: Padding(
-                        padding: const EdgeInsets.only(bottom: 6),
-                        child: Center(
-                          child: Container(
-                            width: 36,
-                            height: 36,
-                            decoration: BoxDecoration(
-                              color: colors.softFill,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: TwiffelTokens.primaryDefault,
-                                width: 1.5,
-                              ),
-                            ),
-                            child: const Icon(
-                              Icons.keyboard_arrow_down_rounded,
-                              size: 28,
-                              color: TwiffelTokens.primaryDefault,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
       ),
     );
   }

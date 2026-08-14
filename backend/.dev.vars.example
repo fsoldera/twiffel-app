@@ -6,4 +6,7 @@ DOPPLER_CONFIG=prd
 # Optional local override only (skip Doppler API).
 # Canonical Doppler name: TWIFFEL_XAI_API_KEY (legacy alias XAI still accepted).
 # TWIFFEL_XAI_API_KEY=
-# TWIFFEL_XAI_MODEL=grok-latest
+# TWIFFEL_XAI_MODEL=grok-4.3
+# TWIFFEL_XAI_BASE_URL=https://eu-west-1.api.x.ai/v1
+# TWIFFEL_XAI_REASONING_EFFORT=medium
+# TWIFFEL_XAI_TEMPERATURE=0.7

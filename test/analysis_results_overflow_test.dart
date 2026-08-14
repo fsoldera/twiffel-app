@@ -26,7 +26,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    '7 pros and 7 cons show title and bottom overflow cue',
+    '7 pros and 7 cons scroll without a bottom overflow cue',
     (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final license = LicenseController(appLicenseConfig);
@@ -61,10 +61,11 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text(DecisionCopy.analysisVerdictLabel), findsOneWidget);
-      expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+      expect(find.text(DecisionCopy.analysisDetailsTab), findsOneWidget);
       expect(find.text('Pro 1 title'), findsNothing);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
 
-      await tester.tap(find.text(DecisionCopy.analysisSeeProsCons));
+      await tester.tap(find.text(DecisionCopy.analysisDetailsTab));
       await tester.pumpAndSettle();
 
       expect(find.text('Should I buy the MacBook Pro 16?'), findsNothing);
@@ -75,9 +76,7 @@ void main() {
 
       expect(find.text('Pro 1 title'), findsOneWidget);
       expect(find.text('Pro 7 title'), findsNothing);
-      // Allow a frame for overflow metrics after ListView layout.
-      await tester.pump();
-      expect(find.byKey(const ValueKey<String>('list-overflow-cue')), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
 
       final prosScrollable = find
           .byWidgetPredicate(
@@ -94,7 +93,7 @@ void main() {
       }
       expect(position.extentAfter, lessThanOrEqualTo(1));
       expect(find.text('Pro 7 title'), findsOneWidget);
-      expect(find.byKey(const ValueKey<String>('list-overflow-cue')), findsNothing);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
 
       await tester.tap(find.text(DecisionCopy.analysisCons));
       await tester.pumpAndSettle();
@@ -102,7 +101,7 @@ void main() {
 
       expect(find.text('Con 1 title'), findsOneWidget);
       expect(find.text('Con 7 title'), findsNothing);
-      expect(find.byKey(const ValueKey<String>('list-overflow-cue')), findsOneWidget);
+      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
     },
   );
 }

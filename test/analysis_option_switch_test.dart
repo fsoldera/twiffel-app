@@ -59,10 +59,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+    expect(find.text(DecisionCopy.analysisDetailsTab), findsOneWidget);
     expect(find.text('Dog pro'), findsNothing);
 
-    await tester.tap(find.text(DecisionCopy.analysisSeeProsCons));
+    await tester.tap(find.text(DecisionCopy.analysisDetailsTab));
     await tester.pumpAndSettle();
 
     expect(find.text('Dog pro'), findsOneWidget);
@@ -77,5 +77,23 @@ void main() {
     await tester.tap(find.text(DecisionCopy.analysisCons));
     await tester.pumpAndSettle();
     expect(find.text('Cat con'), findsOneWidget);
+    expect(find.text('Cat pro'), findsNothing);
+
+    await tester.tap(find.text('buy a dog'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dog con'), findsOneWidget);
+    expect(find.text('Dog pro'), findsNothing);
+    expect(find.text('Cat con'), findsNothing);
+
+    await tester.tap(find.text(DecisionCopy.analysisSummaryTab));
+    await tester.pumpAndSettle();
+    expect(find.text(DecisionCopy.analysisSummaryTab), findsOneWidget);
+
+    await tester.tap(find.text(DecisionCopy.analysisDetailsTab));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Dog con'), findsOneWidget);
+    expect(find.text('Dog pro'), findsNothing);
   });
 }

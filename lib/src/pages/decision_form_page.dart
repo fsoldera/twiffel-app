@@ -286,6 +286,7 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
       children: [
         Text(
           _stepTitle,
+          textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.headlineSmall,
         ),
         const SizedBox(height: 20),

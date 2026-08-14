@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 enum DecisionMode { single, comparison }
 
 class AnalysisPoint {
@@ -8,8 +10,8 @@ class AnalysisPoint {
 
   factory AnalysisPoint.fromJson(Map<String, dynamic> json) {
     return AnalysisPoint(
-      title: (json['title'] ?? '').toString(),
-      detail: (json['detail'] ?? '').toString(),
+      title: _jsonString(json, const ['title', 'heading', 'label']),
+      detail: _jsonString(json, const ['detail', 'text', 'body', 'content']),
     );
   }
 
@@ -84,14 +86,18 @@ class DecisionAnalysis {
   String get verdict => verdictPoints.join('\n\n');
 
   factory DecisionAnalysis.fromJson(Map<String, dynamic> json) {
-    List<AnalysisPoint> points(String key) {
-      final raw = json[key];
-      if (raw is! List) return const <AnalysisPoint>[];
-      return raw
-          .whereType<Map>()
-          .map((e) => AnalysisPoint.fromJson(Map<String, dynamic>.from(e)))
-          .where((p) => p.title.isNotEmpty && p.detail.isNotEmpty)
-          .toList(growable: false);
+    List<AnalysisPoint> points(List<String> keys) {
+      for (final key in keys) {
+        final raw = json[key];
+        if (raw is! List) continue;
+        final parsed = raw
+            .whereType<Map>()
+            .map((e) => AnalysisPoint.fromJson(Map<String, dynamic>.from(e)))
+            .where((p) => p.title.isNotEmpty && p.detail.isNotEmpty)
+            .toList(growable: false);
+        if (parsed.isNotEmpty) return parsed;
+      }
+      return const <AnalysisPoint>[];
     }
 
     final modeRaw = json['mode']?.toString();
@@ -101,32 +107,74 @@ class DecisionAnalysis {
     return DecisionAnalysis(
       mode: mode,
       target: json['target']?.toString(),
-      optionA: json['optionA']?.toString(),
-      optionB: json['optionB']?.toString(),
-      pros: points('pros'),
-      cons: points('cons'),
-      optionAPros: points('optionAPros'),
-      optionACons: points('optionACons'),
-      optionBPros: points('optionBPros'),
-      optionBCons: points('optionBCons'),
+      optionA: json['optionA']?.toString() ?? json['option_a']?.toString(),
+      optionB: json['optionB']?.toString() ?? json['option_b']?.toString(),
+      pros: points(const ['pros']),
+      cons: points(const ['cons']),
+      optionAPros: points(const ['optionAPros', 'option_a_pros']),
+      optionACons: points(const ['optionACons', 'option_a_cons']),
+      optionBPros: points(const ['optionBPros', 'option_b_pros']),
+      optionBCons: points(const ['optionBCons', 'option_b_cons']),
       verdictPoints: verdictPointsFromJson(json['verdict']),
     );
   }
+}
+
+/// Pulls the analysis object from `{ "analysis": ... }` or a bare analysis map.
+Map<String, dynamic> unwrapAnalysisMap(Map<dynamic, dynamic> data) {
+  final analysis = data['analysis'];
+  if (analysis is Map) {
+    return Map<String, dynamic>.from(analysis);
+  }
+  if (analysis is String) {
+    final decoded = jsonDecode(analysis);
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+  }
+  return Map<String, dynamic>.from(data);
+}
+
+String _jsonString(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value == null) continue;
+    final text = value.toString().trim();
+    if (text.isNotEmpty) return text;
+  }
+  return '';
 }
 
 /// Parses API `verdict` as a string[] (preferred) or legacy string.
 List<String> verdictPointsFromJson(Object? raw) {
   if (raw is List) {
     return raw
-        .whereType<String>()
-        .map((part) => part.trim())
+        .map(_verdictItemToString)
         .where((part) => part.isNotEmpty)
         .toList(growable: false);
   }
   if (raw is String) {
+    final trimmed = raw.trim();
+    if (trimmed.startsWith('[')) {
+      try {
+        final decoded = jsonDecode(trimmed);
+        if (decoded is List) {
+          return verdictPointsFromJson(decoded);
+        }
+      } catch (_) {
+        // Fall through to paragraph split.
+      }
+    }
     return verdictParagraphs(raw);
   }
   return const <String>[];
+}
+
+String _verdictItemToString(Object? item) {
+  if (item is String) return item.trim();
+  if (item is Map) {
+    final map = Map<String, dynamic>.from(item);
+    return _jsonString(map, const ['text', 'sentence', 'content', 'detail', 'verdict']);
+  }
+  return item?.toString().trim() ?? '';
 }
 
 /// Legacy splitter for string verdicts (newline-separated, else sentences).

@@ -50,7 +50,7 @@ In Doppler project `<app>` (`dev` + `prd`, and optionally `ci`):
 
 | Secret | When |
 |---|---|
-| `<APP>_XAI_API_KEY` / `<APP>_XAI_MODEL` | Step 1–2 of infrastructure-setup |
+| `<APP>_XAI_API_KEY` / `<APP>_XAI_MODEL` / `<APP>_XAI_BASE_URL` / `<APP>_XAI_REASONING_EFFORT` / `<APP>_XAI_TEMPERATURE` | Step 1–2 of infrastructure-setup |
 | `<APP>_RC_KEY_ANDROID` (`goog_…`) | After RC Play app exists |
 | `<APP>_RC_KEY_IOS` (`appl_…`) | After RC App Store app exists |
 | Optional: keystore passwords / base64 | If you want signing out of Codemagic UI |

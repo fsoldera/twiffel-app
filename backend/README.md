@@ -29,7 +29,13 @@ npm run deploy
 # cmd /c "doppler configs tokens create --name twiffel-api-prd --project twiffel --config prd --plain | npx wrangler secret put DOPPLER_SERVICE_TOKEN"
 ```
 
-`wrangler.toml` already sets `DOPPLER_PROJECT` / `DOPPLER_CONFIG` / `TWIFFEL_XAI_MODEL`.
+`wrangler.toml` already sets `DOPPLER_PROJECT` / `DOPPLER_CONFIG` / `TWIFFEL_XAI_MODEL` /
+`TWIFFEL_XAI_BASE_URL` / `TWIFFEL_XAI_REASONING_EFFORT` / `TWIFFEL_XAI_TEMPERATURE`.
+Doppler `prd` overrides those xAI knobs at runtime. EU cluster:
+`https://eu-west-1.api.x.ai/v1`. Reasoning: `none` | `low` | `medium` | `high`.
+Temperature: `0` to `2`. Analyze calls use `response_format.json_schema` so lists and
+`verdict` (exactly 5 sentences) are all required. The Worker waits up to 60s for xAI.
+The Flutter client waits 65s.
 
 Point the Flutter app at the deployed URL:
 

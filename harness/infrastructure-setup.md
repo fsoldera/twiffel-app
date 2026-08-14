@@ -19,7 +19,10 @@ variable is prefixed with the app name: `<APP>_*`.
 | Secret | Required in |
 |---|---|
 | `<APP>_XAI_API_KEY` | Doppler `dev` + `prd` |
-| `<APP>_XAI_MODEL` | Doppler `dev` + `prd` (e.g. `grok-3-mini`) |
+| `<APP>_XAI_MODEL` | Doppler `dev` + `prd` (e.g. `grok-4.3`) |
+| `<APP>_XAI_REASONING_EFFORT` | Doppler `dev` + `prd` (`none` / `low` / `medium` / `high`) |
+| `<APP>_XAI_TEMPERATURE` | Doppler `dev` + `prd` (`0` to `2`) |
+| `<APP>_XAI_BASE_URL` | Doppler `dev` + `prd` (e.g. `https://eu-west-1.api.x.ai/v1`) |
 | `<APP>_GITHUB_TOKEN` | Doppler `ci` |
 | `<APP>_CM_KEYSTORE` (+ password / alias / key password) | Doppler `ci` |
 | `<APP>_RC_KEY_ANDROID` / `<APP>_RC_KEY_IOS` | Doppler `ci` (+ `prd` if you like) after RC |
@@ -65,11 +68,16 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 
 1. Create a **new API key** named after the app (`<app>`). Do not reuse another
    app's key. Never paste Joppling / Stikkteller / Twiffel keys into a new project.
-2. Note the model (default: `grok-3-mini`).
+2. Note the model (default: `grok-4.3`), reasoning effort (`low`), temperature (`0.7`),
+   and cluster (`https://eu-west-1.api.x.ai/v1` for EU).
 3. Keep both in a password manager until step 2.
 
 > **Never** put the xAI key in the Flutter app, Codemagic dart-defines, or git.
 > Only Doppler → Worker.
+
+> **Gotcha — EU cluster:** region is the request host, not a JSON body field.
+> Set `<APP>_XAI_BASE_URL=https://eu-west-1.api.x.ai/v1`. Global `https://api.x.ai`
+> may hang or miss EU-only models.
 
 > **Gotcha — isolation:** after Doppler step 2, optionally hash-compare the new
 > `<APP>_XAI_API_KEY` against other apps’ keys (print hashes only). If equal, rotate.
@@ -88,7 +96,10 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
    | Secret | Configs | When |
    |---|---|---|
    | `<APP>_XAI_API_KEY` | `dev`, `prd` | now |
-   | `<APP>_XAI_MODEL` | `dev`, `prd` | now (`grok-3-mini`) |
+   | `<APP>_XAI_MODEL` | `dev`, `prd` | now (`grok-4.3` on EU, or `grok-latest`) |
+   | `<APP>_XAI_REASONING_EFFORT` | `dev`, `prd` | now (`none` \| `low` \| `medium` \| `high`; default `low`) |
+   | `<APP>_XAI_TEMPERATURE` | `dev`, `prd` | now (`0` to `2`; default `0.7`) |
+   | `<APP>_XAI_BASE_URL` | `dev`, `prd` | now (`https://eu-west-1.api.x.ai/v1` for EU) |
    | `<APP>_GITHUB_TOKEN` | `ci` | before first Codemagic build |
    | `<APP>_CM_KEYSTORE*` | `ci` | after step 5 |
    | `<APP>_RC_KEY_ANDROID` / `_IOS` | `ci` | after steps 7–8 (ok empty for first binary) |
@@ -116,9 +127,11 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 Repo config (adjust when bootstrapping):
 
 - `backend/wrangler.toml`: `name = "<app>-api"`, dataset `<app>_events`, `[vars]` with
-  `DOPPLER_PROJECT = "<app>"`, `DOPPLER_CONFIG = "prd"`, `<APP>_XAI_MODEL`.
+  `DOPPLER_PROJECT = "<app>"`, `DOPPLER_CONFIG = "prd"`, `<APP>_XAI_MODEL`,
+  `<APP>_XAI_BASE_URL`, `<APP>_XAI_REASONING_EFFORT`, `<APP>_XAI_TEMPERATURE`.
 - `backend/src/ai.ts`: rename the env/secret keys to `<APP>_XAI_API_KEY` /
-  `<APP>_XAI_MODEL` (resolved from Doppler first, direct Worker env as fallback).
+  `<APP>_XAI_MODEL` / `<APP>_XAI_BASE_URL` / `<APP>_XAI_REASONING_EFFORT` /
+  `<APP>_XAI_TEMPERATURE` (resolved from Doppler first, direct Worker env as fallback).
 
 Deploy:
 

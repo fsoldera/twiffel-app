@@ -45,7 +45,10 @@ short aliases for new apps.
 | Kind | Canonical name | Notes |
 |---|---|---|
 | xAI API key | `<APP>_XAI_API_KEY` | New key in console.x.ai labeled `<app>`. Never share across apps. |
-| xAI model | `<APP>_XAI_MODEL` | Usually `grok-3-mini` |
+| xAI model | `<APP>_XAI_MODEL` | e.g. `grok-4.3` |
+| xAI reasoning effort | `<APP>_XAI_REASONING_EFFORT` | `none` / `low` / `medium` / `high`. Default `low`. |
+| xAI temperature | `<APP>_XAI_TEMPERATURE` | `0` to `2`. Default `0.7`. |
+| xAI API base URL | `<APP>_XAI_BASE_URL` | e.g. `https://eu-west-1.api.x.ai/v1`. Not `<APP>_API_BASE`. |
 | Worker URL (CI / dart-define) | `<APP>_API_BASE` | Not a Doppler secret; Codemagic runtime group |
 | GitHub PAT for private kit | `<APP>_GITHUB_TOKEN` | Doppler `ci` |
 | Android keystore (base64) | `<APP>_CM_KEYSTORE` | Plus `_PASSWORD`, `_KEY_ALIAS`, `_KEY_PASSWORD` |

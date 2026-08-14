@@ -80,4 +80,20 @@ void main() {
     );
     expect(it, 'Twiffel_results_03-08-2026_19-13-45.pdf');
   });
+
+  test('share subject uses Twiffel results prefix with locale date and time', () async {
+    final when = DateTime(2026, 8, 3, 19, 13, 45);
+
+    final us = await ReportPdfBuilder.shareSubjectFor(
+      at: when,
+      locale: const Locale('en', 'US'),
+    );
+    expect(us, 'Twiffel results 8/3/2026 7:13:45\u202FPM');
+
+    final it = await ReportPdfBuilder.shareSubjectFor(
+      at: when,
+      locale: const Locale('it', 'IT'),
+    );
+    expect(it, 'Twiffel results 03/08/2026 19:13:45');
+  });
 }

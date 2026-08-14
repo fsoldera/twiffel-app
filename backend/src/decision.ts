@@ -1,4 +1,5 @@
 import { DECISION_ANALYSIS_SYSTEM_PROMPT } from "./prompts";
+import { analysisResponseFormat } from "./schema";
 import { isSafeContent, validateAllInputs, type TaskInputValidation } from "./tone";
 import { callXaiChat, type Env } from "./ai";
 
@@ -43,12 +44,18 @@ export interface DecisionAnalysis {
 
 function cleanPoint(raw: unknown): AnalysisPoint | null {
   if (!raw || typeof raw !== "object") return null;
-  const obj = raw as { title?: unknown; detail?: unknown };
-  const title = typeof obj.title === "string" ? obj.title.trim() : "";
-  const detail = typeof obj.detail === "string" ? obj.detail.trim() : "";
+  const obj = raw as { title?: unknown; heading?: unknown; label?: unknown; detail?: unknown; text?: unknown; body?: unknown; content?: unknown };
+  const titleRaw =
+    [obj.title, obj.heading, obj.label].find((value) => typeof value === "string") ?? "";
+  const detailRaw =
+    [obj.detail, obj.text, obj.body, obj.content].find((value) => typeof value === "string") ?? "";
+  const title = typeof titleRaw === "string" ? titleRaw.trim() : "";
+  const detail = typeof detailRaw === "string" ? detailRaw.trim() : "";
   if (!title || !detail) return null;
-  if (title.length > 80 || detail.length > 220) return null;
-  return { title, detail };
+  return {
+    title: title.length > 80 ? title.slice(0, 80).trim() : title,
+    detail: detail.length > 400 ? detail.slice(0, 400).trim() : detail,
+  };
 }
 
 function cleanPoints(raw: unknown, max = ANALYSIS_POINTS_TARGET): AnalysisPoint[] {
@@ -59,6 +66,17 @@ function cleanPoints(raw: unknown, max = ANALYSIS_POINTS_TARGET): AnalysisPoint[
 
 function point(title: string, detail: string): AnalysisPoint {
   return { title, detail };
+}
+
+function coerceVerdictItem(item: unknown): string | null {
+  if (typeof item === "string") return item;
+  if (item && typeof item === "object") {
+    const obj = item as Record<string, unknown>;
+    for (const key of ["text", "sentence", "content", "detail", "verdict"]) {
+      if (typeof obj[key] === "string") return obj[key];
+    }
+  }
+  return null;
 }
 
 /** Normalize model verdict (string or string[]) into bullet sentence strings. */
@@ -74,12 +92,19 @@ export function normalizeVerdict(
       .map((part) => (/[.!?]$/.test(part) ? part : `${part}.`));
 
   if (Array.isArray(raw)) {
-    const parts = raw.filter((item): item is string => typeof item === "string");
+    const parts = raw.map(coerceVerdictItem).filter((item): item is string => item != null);
     return fromParts(parts);
   }
   if (typeof raw !== "string") return [];
   const trimmed = raw.trim();
   if (!trimmed) return [];
+  if (trimmed.startsWith("[")) {
+    try {
+      return normalizeVerdict(JSON.parse(trimmed), max);
+    } catch {
+      // Fall through to sentence split.
+    }
+  }
   // Prefer explicit newlines when the model already separated bullets.
   if (/\n/.test(trimmed)) {
     return fromParts(trimmed.split(/\n+/));
@@ -89,6 +114,48 @@ export function normalizeVerdict(
     .map((part) => part.trim())
     .filter((part) => part.length > 0);
   return fromParts(sentences.length > 0 ? sentences : [trimmed]);
+}
+
+/** Pull a JSON object out of fenced or prose-wrapped model output. */
+export function extractJsonPayload(content: string): string | null {
+  const trimmed = content.trim();
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  const body = (fence ? fence[1] : trimmed).trim();
+  const start = body.indexOf("{");
+  if (start < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = start; i < body.length; i++) {
+    const ch = body[i];
+    if (inString) {
+      if (escape) {
+        escape = false;
+      } else if (ch === "\\") {
+        escape = true;
+      } else if (ch === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === "{") depth++;
+    if (ch === "}") {
+      depth--;
+      if (depth === 0) return body.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
+function pickList(parsed: Record<string, unknown>, keys: string[]): unknown {
+  for (const key of keys) {
+    if (parsed[key] != null) return parsed[key];
+  }
+  return undefined;
 }
 
 function fallbackSingle(req: DecisionRequest): DecisionAnalysis {
@@ -184,10 +251,11 @@ function fallbackComparison(req: DecisionRequest): DecisionAnalysis {
   };
 }
 
-function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnalysis | null {
-  const trimmed = content.trim().replace(/^```json\s*/i, "").replace(/```$/i, "").trim();
+export function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnalysis | null {
+  const payload = extractJsonPayload(content);
+  if (!payload) return null;
   try {
-    const parsed = JSON.parse(trimmed) as Record<string, unknown>;
+    const parsed = JSON.parse(payload) as Record<string, unknown>;
     const verdict = normalizeVerdict(parsed.verdict);
     if (verdict.length === 0) return null;
 
@@ -195,8 +263,8 @@ function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnaly
       return {
         mode: "single",
         target: req.target?.trim(),
-        pros: cleanPoints(parsed.pros),
-        cons: cleanPoints(parsed.cons),
+        pros: cleanPoints(pickList(parsed, ["pros"])),
+        cons: cleanPoints(pickList(parsed, ["cons"])),
         optionAPros: [],
         optionACons: [],
         optionBPros: [],
@@ -211,10 +279,10 @@ function parseAnalysisJson(content: string, req: DecisionRequest): DecisionAnaly
       optionB: req.optionB?.trim(),
       pros: [],
       cons: [],
-      optionAPros: cleanPoints(parsed.optionAPros),
-      optionACons: cleanPoints(parsed.optionACons),
-      optionBPros: cleanPoints(parsed.optionBPros),
-      optionBCons: cleanPoints(parsed.optionBCons),
+      optionAPros: cleanPoints(pickList(parsed, ["optionAPros", "option_a_pros"])),
+      optionACons: cleanPoints(pickList(parsed, ["optionACons", "option_a_cons"])),
+      optionBPros: cleanPoints(pickList(parsed, ["optionBPros", "option_b_pros"])),
+      optionBCons: cleanPoints(pickList(parsed, ["optionBCons", "option_b_cons"])),
       verdict,
     };
   } catch {
@@ -238,8 +306,8 @@ function buildUserPrompt(req: DecisionRequest): string {
       "Do not echo the preferred timing in every detail; omit timing from lists unless one point is truly about the deadline.",
       "Keep list copy factual and balanced, not witty.",
       "",
-      "Verdict:",
-      `Also return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings (one sentence each) with a lean (positive / cautious / wait).`,
+      "Verdict (required, do not omit):",
+      `Return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings (one sentence each) with a lean (positive / cautious / wait).`,
       "Count the array items before answering; it must be exactly 5.",
       "Verdict tone: smart, nice, balanced, witty; no vulgarity or shame.",
       "Timing may appear once in the verdict if useful.",
@@ -259,8 +327,8 @@ function buildUserPrompt(req: DecisionRequest): string {
     "Do not echo the preferred timing in every detail; omit timing from lists unless one point is truly about the deadline.",
     "Keep list copy factual and balanced, not witty.",
     "",
-    "Verdict:",
-    `Also return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings (one sentence each) saying which option has a slight edge and why, or when waiting is wiser.`,
+      "Verdict (required, do not omit):",
+      `Return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings (one sentence each) saying which option has a slight edge and why, or when waiting is wiser.`,
     "Count the array items before answering; it must be exactly 5.",
     "Verdict tone: smart, nice, balanced, witty; no vulgarity or shame.",
     "Timing may appear once in the verdict if useful.",
@@ -312,19 +380,23 @@ export async function generateDecisionAnalysis(
         { role: "user", content: buildUserPrompt(req) },
       ],
       env,
+      analysisResponseFormat(req.mode),
     );
     const parsed = parseAnalysisJson(content, req);
-    if (!parsed) return localFallback;
-    // Twiffel verdicts are gated on content-safety only (not compassionate tone).
-    // Require exactly VERDICT_SENTENCES_TARGET bullets; otherwise use local fallback copy.
-    const verdictOk =
-      parsed.verdict.length === VERDICT_SENTENCES_TARGET &&
-      parsed.verdict.every((line) => isSafeContent(line));
-    if (!verdictOk) {
-      parsed.verdict = localFallback.verdict;
+    if (!parsed) {
+      console.log(JSON.stringify({ event: "analyze_fallback", reason: "parse" }));
+      return localFallback;
     }
+    const safeVerdict = parsed.verdict.filter((line) => isSafeContent(line));
+    parsed.verdict =
+      safeVerdict.length > 0
+        ? safeVerdict.slice(0, VERDICT_SENTENCES_TARGET)
+        : localFallback.verdict;
+    console.log(JSON.stringify({ event: "analyze_ok", verdicts: parsed.verdict.length }));
     return parsed;
-  } catch {
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "unknown";
+    console.log(JSON.stringify({ event: "analyze_fallback", reason }));
     return localFallback;
   }
 }

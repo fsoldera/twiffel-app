@@ -47,8 +47,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+    expect(find.text(DecisionCopy.analysisDetailsTab), findsOneWidget);
+    expect(find.text(DecisionCopy.analysisSummaryTab), findsOneWidget);
     expect(find.text(DecisionCopy.analysisVerdictLabel), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, DecisionCopy.analysisShare),
+      findsOneWidget,
+    );
 
     final startOverButton = find.widgetWithText(
       OutlinedButton,
@@ -78,7 +83,7 @@ void main() {
     expect(session.phase, SessionPhase.input);
   });
 
-  testWidgets('See pros & cons opens details and back returns to verdict', (
+  testWidgets('Pros & Cons tab opens details and Summary returns to verdict', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
@@ -116,17 +121,25 @@ void main() {
 
     expect(find.text('Lean carefully.'), findsOneWidget);
     expect(find.text('1. Pro'), findsNothing);
+    expect(
+      find.widgetWithText(FilledButton, DecisionCopy.analysisShare),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.text(DecisionCopy.analysisSeeProsCons));
+    await tester.tap(find.text(DecisionCopy.analysisDetailsTab));
     await tester.pumpAndSettle();
 
     expect(find.text('1. Pro'), findsOneWidget);
-    expect(find.text(DecisionCopy.analysisSeeProsCons), findsNothing);
+    expect(find.text(DecisionCopy.analysisDetailsTab), findsOneWidget);
+    expect(
+      find.widgetWithText(FilledButton, DecisionCopy.analysisShare),
+      findsOneWidget,
+    );
 
-    await tester.tap(find.byTooltip(DecisionCopy.analysisVerdictLabel));
+    await tester.tap(find.text(DecisionCopy.analysisSummaryTab));
     await tester.pumpAndSettle();
 
-    expect(find.text(DecisionCopy.analysisSeeProsCons), findsOneWidget);
+    expect(find.text(DecisionCopy.analysisSummaryTab), findsOneWidget);
     expect(find.text('1. Pro'), findsNothing);
   });
 }

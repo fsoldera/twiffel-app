@@ -67,6 +67,24 @@ class ReportPdfBuilder {
     DateTime? at,
     Locale? locale,
   }) async {
+    final parts = await _shareDateTimeParts(at: at, locale: locale);
+    return 'Twiffel_results_${_fileSafe(parts.date)}_${_fileSafe(parts.time)}.pdf';
+  }
+
+  /// Email subject when the user picks Mail from the share sheet:
+  /// `Twiffel results <date> <time>`.
+  static Future<String> shareSubjectFor({
+    DateTime? at,
+    Locale? locale,
+  }) async {
+    final parts = await _shareDateTimeParts(at: at, locale: locale);
+    return '${DecisionCopy.analysisShareSubjectPrefix} ${parts.date} ${parts.time}';
+  }
+
+  static Future<({String date, String time})> _shareDateTimeParts({
+    DateTime? at,
+    Locale? locale,
+  }) async {
     final when = at ?? DateTime.now();
     final resolved = locale ?? PlatformDispatcher.instance.locale;
     final localeName = resolved.toString();
@@ -77,9 +95,10 @@ class ReportPdfBuilder {
       await initializeDateFormatting('en');
     }
 
-    final date = DateFormat.yMd(localeName).format(when);
-    final time = DateFormat.jms(localeName).format(when);
-    return 'Twiffel_results_${_fileSafe(date)}_${_fileSafe(time)}.pdf';
+    return (
+      date: DateFormat.yMd(localeName).format(when),
+      time: DateFormat.jms(localeName).format(when),
+    );
   }
 
   static String _fileSafe(String value) {

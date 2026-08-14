@@ -28,7 +28,8 @@ abstract final class DecisionCopy {
   static const String timingPickDates = 'Pick date range';
   static const String timingHelper =
       'This helps us calculate the cost of waiting.';
-  static const String optionsStepTitle = 'Tell us about your options';
+  static const String optionsStepTitle =
+      "Let's choose the right option together";
   static const String considerationStepTitle =
       'What is the most important point to consider?';
   static const String timingStepTitle = 'When do you need to decide?';
@@ -52,7 +53,8 @@ abstract final class DecisionCopy {
       'When would you ideally like this to happen?';
 
   // Path B – This or That (separate Option A / Option B fields)
-  static const String pathBFormTitle = 'Tell us about your options';
+  static const String pathBFormTitle =
+      "Let's choose the right option together";
   static const String pathBOptionALabel = 'Option A - What is the first option?';
   static const String pathBOptionAPlaceholder = 'e.g. Buy a new car';
   static const String pathBOptionAHelper = 'Describe the first option clearly.';
@@ -78,6 +80,7 @@ abstract final class DecisionCopy {
   static const String analysisThinking = 'Thinking...';
   static const String analysisStartOver = 'Start over';
   static const String analysisShare = 'Share results';
+  static const String analysisShareSubjectPrefix = 'Twiffel results';
   static const String analysisShareCopied = 'Results copied to clipboard';
   static const String analysisShareFailed =
       'Could not prepare the PDF report. Please try again.';
@@ -85,6 +88,8 @@ abstract final class DecisionCopy {
   static const String analysisPros = 'Pros';
   static const String analysisCons = 'Cons';
   static const String analysisVerdictLabel = 'Summary Verdict';
+  static const String analysisSummaryTab = 'Summary';
+  static const String analysisDetailsTab = 'Pros & Cons';
   static const String analysisSeeProsCons = 'See pros & cons';
   static const String analysisQuestionLabel = 'Question';
   static const String analysisOptionALabel = 'Option A';

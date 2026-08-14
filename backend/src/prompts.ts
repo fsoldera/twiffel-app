@@ -5,7 +5,7 @@ const DECISION_ROLE_SYSTEM_PROMPT = [
   "Ground the analysis in the user's exact options and obstacle; treat timing as background context, not a refrain.",
   "Be practical and specific to their situation.",
   "Never invent unrelated tasks or micro-steps for productivity apps.",
-  "Reply with JSON only.",
+  "Reply with JSON only. Include every required field, especially verdict.",
 ].join(" ");
 
 /** Tone/rules for pros and cons arrays only. */

@@ -35,7 +35,10 @@ Project `twiffel`, configs `dev` / `prd` / `ci`:
 | Secret | Config | Notes |
 |---|---|---|
 | `TWIFFEL_XAI_API_KEY` | `dev`, `prd` | Canonical. Twiffel currently also has legacy bare `XAI` (Worker accepts both). Next apps: prefixed only. |
-| `TWIFFEL_XAI_MODEL` | `dev`, `prd` | e.g. `grok-3-mini` |
+| `TWIFFEL_XAI_MODEL` | `dev`, `prd` | e.g. `grok-4.3` |
+| `TWIFFEL_XAI_REASONING_EFFORT` | `dev`, `prd` | `none` / `low` / `medium` / `high` (default `low`) |
+| `TWIFFEL_XAI_TEMPERATURE` | `dev`, `prd` | `0` to `2` (default `0.7`) |
+| `TWIFFEL_XAI_BASE_URL` | `dev`, `prd` | `https://eu-west-1.api.x.ai/v1` |
 | `TWIFFEL_GITHUB_TOKEN` | `ci` | GitHub PAT with access to `common-app-kit` |
 | `TWIFFEL_CM_KEYSTORE` | `ci` | base64 of `twiffel-upload.jks` |
 | `TWIFFEL_CM_KEYSTORE_PASSWORD` | `ci` | |

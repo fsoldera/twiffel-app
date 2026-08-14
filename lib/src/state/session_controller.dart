@@ -73,10 +73,19 @@ class SessionController extends ChangeNotifier {
       Future<void>.delayed(minLoading),
     ]);
     if (generation != _submitGeneration) return;
-    final remote = await remoteFuture;
+    final outcome = await remoteFuture;
     if (generation != _submitGeneration) return;
-    _analysis = remote ?? _localFallback(request);
-    _phase = SessionPhase.ready;
+    if (outcome.analysis != null) {
+      _analysis = outcome.analysis;
+      _phase = SessionPhase.ready;
+    } else if (!_ai.isConfigured || outcome.transportFailed) {
+      _analysis = _localFallback(request);
+      _phase = SessionPhase.ready;
+    } else {
+      _analysis = null;
+      _inputError = outcome.errorMessage;
+      _phase = SessionPhase.error;
+    }
     notifyListeners();
   }
 
