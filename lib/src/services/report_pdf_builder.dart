@@ -31,7 +31,7 @@ class ReportPdfBuilder {
   static const _successCmp = PdfColor.fromInt(0xFF10B981);
   static const _errorCmp = PdfColor.fromInt(0xFFEF4444);
   static const _white = PdfColor.fromInt(0xFFFFFFFF);
-  static const _footerHeight = 96.0;
+  static const _footerHeight = 70.0;
 
   static Future<Uint8List> build(
     DecisionAnalysis analysis, {
@@ -59,17 +59,17 @@ class ReportPdfBuilder {
     return doc.save();
   }
 
-  /// Share filename: `Twiffel_results_<date>_<hh:mi:ss>.pdf`.
+  /// Share filename, same wording as [shareSubjectFor], plus `.pdf`.
   ///
   /// Date and time use the device locale (or [locale] when provided). Characters
-  /// that are illegal in file names are replaced so the share sheet can write
-  /// the file on Android and iOS.
+  /// that are illegal in file names (`/` `:` and similar) are replaced so Save
+  /// and Forward keep a name that still reads like the email subject.
   static Future<String> filenameFor({
     DateTime? at,
     Locale? locale,
   }) async {
-    final parts = await _shareDateTimeParts(at: at, locale: locale);
-    return 'Twiffel_results_${_fileSafe(parts.date)}_${_fileSafe(parts.time)}.pdf';
+    final subject = await shareSubjectFor(at: at, locale: locale);
+    return '${_fileSafe(subject)}.pdf';
   }
 
   /// Email subject when the user picks Mail from the share sheet:
@@ -106,7 +106,7 @@ class ReportPdfBuilder {
     return value
         .trim()
         .replaceAll(RegExp(r'[<>:"/\\|?*]'), '-')
-        .replaceAll(RegExp(r'\s+'), '_');
+        .replaceAll(RegExp(r'\s+'), ' ');
   }
 
   static Future<String> _formatFooterDate(DateTime when, Locale locale) async {
@@ -455,30 +455,30 @@ class ReportPdfBuilder {
     required _ReportAssets assets,
   }) {
     return pw.Container(
-      height: _footerHeight,
       width: double.infinity,
       padding: const pw.EdgeInsets.fromLTRB(28, 8, 28, 8),
       decoration: const pw.BoxDecoration(
         border: pw.Border(top: pw.BorderSide(color: _border, width: 1)),
       ),
       child: pw.Column(
-        mainAxisAlignment: pw.MainAxisAlignment.center,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        mainAxisSize: pw.MainAxisSize.min,
         children: [
           pw.Row(
             crossAxisAlignment: pw.CrossAxisAlignment.center,
             children: [
-              pw.Text(
-                DecisionCopy.reportGeneratedBy,
-                style: const pw.TextStyle(color: _textMuted, fontSize: 10),
-              ),
-              pw.UrlLink(
-                destination: DecisionCopy.reportSiteUrl,
+              pw.Expanded(
                 child: pw.Text(
-                  DecisionCopy.reportSite,
-                  style: const pw.TextStyle(color: _primary, fontSize: 10),
+                  DecisionCopy.reportDownload,
+                  textAlign: pw.TextAlign.left,
+                  style: pw.TextStyle(
+                    color: _headerBg,
+                    fontSize: 11,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
               ),
-              pw.Spacer(),
+              pw.SizedBox(width: 12),
               pw.Text(
                 dateLabel,
                 style: const pw.TextStyle(color: _textMuted, fontSize: 10),
@@ -496,8 +496,23 @@ class ReportPdfBuilder {
               ),
             ],
           ),
-          pw.SizedBox(height: 8),
-          _downloadSection(assets),
+          pw.SizedBox(height: 6),
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.start,
+            children: [
+              _storeBadge(
+                artwork: assets.appStore,
+                url: DecisionCopy.reportAppStoreUrl,
+                fallbackLabel: DecisionCopy.reportAppStore,
+              ),
+              pw.SizedBox(width: 8),
+              _storeBadge(
+                artwork: assets.googlePlay,
+                url: DecisionCopy.reportGooglePlayUrl,
+                fallbackLabel: DecisionCopy.reportGooglePlay,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -917,87 +932,22 @@ class ReportPdfBuilder {
     );
   }
 
-  static pw.Widget _downloadSection(_ReportAssets assets) {
-    return pw.Column(
-      children: [
-        pw.Text(
-          DecisionCopy.reportDownload,
-          textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(
-            color: _headerBg,
-            fontSize: 11,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.center,
-          children: [
-            _storeBadge(
-              label: DecisionCopy.reportAppStore,
-              icon: assets.apple,
-              url: DecisionCopy.reportAppStoreUrl,
-            ),
-            pw.SizedBox(width: 8),
-            _storeBadge(
-              label: DecisionCopy.reportGooglePlay,
-              icon: assets.play,
-              url: DecisionCopy.reportGooglePlayUrl,
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
   static pw.Widget _storeBadge({
-    required String label,
-    required pw.Widget? icon,
+    required pw.Widget? artwork,
     required String url,
+    required String fallbackLabel,
   }) {
     return pw.UrlLink(
       destination: url,
-      child: pw.Container(
-        width: 108,
-        height: 28,
-        padding: const pw.EdgeInsets.symmetric(horizontal: 10),
-        decoration: pw.BoxDecoration(
-          color: _headerBg,
-          borderRadius: pw.BorderRadius.circular(14),
-        ),
-        child: pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.center,
-          children: [
-            pw.Container(
-              width: 14,
-              height: 14,
-              alignment: pw.Alignment.center,
-              decoration: pw.BoxDecoration(
-                color: const PdfColor.fromInt(0x1AFFFFFF),
-                borderRadius: pw.BorderRadius.circular(4),
-              ),
-              child: icon ??
-                  pw.Text(
-                    label[0],
-                    style: pw.TextStyle(
-                      color: _white,
-                      fontSize: 8,
-                      fontWeight: pw.FontWeight.bold,
-                    ),
-                  ),
+      child: artwork ??
+          pw.Text(
+            fallbackLabel,
+            style: pw.TextStyle(
+              color: _primary,
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
             ),
-            pw.SizedBox(width: 6),
-            pw.Text(
-              label,
-              style: pw.TextStyle(
-                color: _white,
-                fontSize: 9,
-                fontWeight: pw.FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-      ),
+          ),
     );
   }
 }
@@ -1005,19 +955,32 @@ class ReportPdfBuilder {
 class _ReportAssets {
   const _ReportAssets({
     this.sparkles,
-    this.apple,
-    this.play,
+    this.appStore,
+    this.googlePlay,
   });
 
   final pw.Widget? sparkles;
-  final pw.Widget? apple;
-  final pw.Widget? play;
+  final pw.Widget? appStore;
+  final pw.Widget? googlePlay;
+
+  /// Official badge height in PDF points. Google requires at least 28px digital.
+  static const _badgeHeight = 28.0;
+  static const _appStoreWidth = _badgeHeight * 119.66407 / 40;
+  static const _playWidth = _badgeHeight * 239 / 70.9;
 
   static Future<_ReportAssets> load() async {
     return _ReportAssets(
       sparkles: await _svgIcon('assets/report/sparkles.svg', 14),
-      apple: await _svgIcon('assets/report/apple.svg', 12),
-      play: await _svgIcon('assets/report/play.svg', 12),
+      appStore: await _svgBadge(
+        'assets/report/badge-app-store.svg',
+        width: _appStoreWidth,
+        height: _badgeHeight,
+      ),
+      googlePlay: await _svgBadge(
+        'assets/report/badge-google-play.svg',
+        width: _playWidth,
+        height: _badgeHeight,
+      ),
     );
   }
 
@@ -1027,6 +990,23 @@ class _ReportAssets {
       return pw.SizedBox(
         width: size,
         height: size,
+        child: pw.SvgImage(svg: svg, fit: pw.BoxFit.contain),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<pw.Widget?> _svgBadge(
+    String assetPath, {
+    required double width,
+    required double height,
+  }) async {
+    try {
+      final svg = await rootBundle.loadString(assetPath);
+      return pw.SizedBox(
+        width: width,
+        height: height,
         child: pw.SvgImage(svg: svg, fit: pw.BoxFit.contain),
       );
     } catch (_) {

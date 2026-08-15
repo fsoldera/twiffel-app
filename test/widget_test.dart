@@ -69,6 +69,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(DecisionCopy.timingStepTitle), findsOneWidget);
+    expect(find.text(DecisionCopy.timingAsap), findsOneWidget);
     expect(find.text(DecisionCopy.timingMonths), findsOneWidget);
     expect(find.text(DecisionCopy.timingDateRange), findsOneWidget);
     expect(find.text(DecisionCopy.generateAnalysis), findsOneWidget);
