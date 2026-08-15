@@ -7,6 +7,7 @@ import '../models/decision_models.dart';
 import '../state/app_settings_controller.dart';
 import '../state/session_controller.dart';
 import '../widgets/labeled_text_field.dart';
+import '../widgets/once_play_video.dart';
 import '../widgets/radio_option_list.dart';
 import '../widgets/segmented_choice.dart';
 import '../widgets/sticky_nav_buttons.dart';
@@ -281,9 +282,15 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
   Widget _stepContent() {
     return Column(
       key: ValueKey<int>(_step),
-      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisAlignment: _step == 0
+          ? MainAxisAlignment.start
+          : MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (_step == 0) ...[
+          const OncePlayVideo(),
+          const SizedBox(height: 16),
+        ],
         Text(
           _stepTitle,
           textAlign: TextAlign.center,

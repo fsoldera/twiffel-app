@@ -499,21 +499,9 @@ class _ResultsBodyState extends State<_ResultsBody> {
       children: [
         Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-              child: _AspectSlider(
-                labels: const [
-                  DecisionCopy.analysisPros,
-                  DecisionCopy.analysisCons,
-                ],
-                activeIndex: pageIndex,
-                onChanged: _selectAspect,
-              ),
-            ),
             if (isComparison) ...[
-              const SizedBox(height: 12),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
                 child: _AspectSlider(
                   labels: [
                     analysis.optionA?.trim().isNotEmpty == true
@@ -527,7 +515,19 @@ class _ResultsBodyState extends State<_ResultsBody> {
                   onChanged: _selectOption,
                 ),
               ),
+              const SizedBox(height: 12),
             ],
+            Padding(
+              padding: EdgeInsets.fromLTRB(20, isComparison ? 0 : 8, 20, 0),
+              child: _AspectSlider(
+                labels: const [
+                  DecisionCopy.analysisPros,
+                  DecisionCopy.analysisCons,
+                ],
+                activeIndex: pageIndex,
+                onChanged: _selectAspect,
+              ),
+            ),
             Expanded(
               child: Column(
                 children: [

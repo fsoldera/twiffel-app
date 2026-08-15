@@ -13,6 +13,7 @@ import 'services/android_system_ui.dart';
 import 'state/app_settings_controller.dart';
 import 'state/session_controller.dart';
 import 'theme/app_theme.dart';
+import 'widgets/once_play_video.dart';
 
 /// Minimum time the native launch splash stays up.
 const Duration kMinSplashDuration = Duration(milliseconds: 1500);
@@ -60,6 +61,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   }
 
   Future<void> _finishSplash() async {
+    await HeroVideo.preload();
     final elapsed = DateTime.now().difference(appLaunchAt);
     final remaining = kMinSplashDuration - elapsed;
     if (remaining > Duration.zero) {
@@ -67,6 +69,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     }
     if (!mounted) return;
     FlutterNativeSplash.remove();
+    HeroVideo.markSplashCleared();
   }
 
   @override

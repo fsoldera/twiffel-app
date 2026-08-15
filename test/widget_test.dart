@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:twiffel_app/src/app.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
+import 'package:twiffel_app/src/widgets/once_play_video.dart';
 
 Future<void> _pumpApp(WidgetTester tester) async {
   await tester.pumpWidget(const MyApp());
@@ -14,12 +15,18 @@ Future<void> _pumpApp(WidgetTester tester) async {
 }
 
 void main() {
+  test('hero video preload is skipped under the widget test binding', () async {
+    await HeroVideo.preload();
+    expect(HeroVideo.isReady, isFalse);
+  });
+
   testWidgets('home opens options step with Previous/Next nav', (tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});
     await _pumpApp(tester);
 
     expect(find.text('Twiffel'), findsWidgets);
     expect(find.byIcon(Icons.menu), findsOneWidget);
+    expect(find.byKey(OncePlayVideo.slotKey), findsOneWidget);
     expect(find.text(DecisionCopy.optionsStepTitle), findsOneWidget);
     expect(
       tester.widget<Text>(find.text(DecisionCopy.optionsStepTitle)).textAlign,
@@ -49,6 +56,7 @@ void main() {
     await tester.tap(find.text(DecisionCopy.nextLabel));
     await tester.pumpAndSettle();
 
+    expect(find.byKey(OncePlayVideo.slotKey), findsNothing);
     expect(find.text(DecisionCopy.considerationStepTitle), findsOneWidget);
     expect(find.text(DecisionCopy.pathBObstacleCost), findsOneWidget);
 

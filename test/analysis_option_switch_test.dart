@@ -67,6 +67,10 @@ void main() {
 
     expect(find.text('Dog pro'), findsOneWidget);
     expect(find.text('Cat pro'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('buy a dog')).dy,
+      lessThan(tester.getTopLeft(find.text(DecisionCopy.analysisPros).first).dy),
+    );
 
     await tester.tap(find.text('buy a cat'));
     await tester.pumpAndSettle();
