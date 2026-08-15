@@ -6,6 +6,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'src/app.dart';
 import 'src/copy/loading_response_texts.dart';
 import 'src/services/android_system_ui.dart';
+import 'src/widgets/loop_play_video.dart';
 import 'src/widgets/once_play_video.dart';
 
 Future<void> main() async {
@@ -16,6 +17,7 @@ Future<void> main() async {
   await Future.wait<void>([
     LoadingResponseTexts.load(),
     HeroVideo.preload(),
+    WaitingVideo.preload(),
   ]);
   runApp(const MyApp());
   // Apply immersive mode after the first frame so Android does not report a

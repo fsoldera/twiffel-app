@@ -10,7 +10,7 @@ import '../services/report_pdf_builder.dart';
 import '../state/app_settings_controller.dart';
 import '../state/session_controller.dart';
 import '../theme/tokens.dart';
-import '../widgets/loading_animation.dart';
+import '../widgets/loop_play_video.dart';
 import '../widgets/twiffel_header.dart';
 import 'decision_copy.dart';
 
@@ -822,7 +822,7 @@ class _LoadingBodyState extends State<_LoadingBody> {
               children: [
                 const _ShimmerThinkingLabel(),
                 const SizedBox(height: 16),
-                const TwiffelLoadingAnimation(height: 96),
+                const LoopPlayVideo(),
                 const SizedBox(height: 24),
                 Text(
                   _message,

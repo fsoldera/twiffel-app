@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:twiffel_app/src/app.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
+import 'package:twiffel_app/src/widgets/loop_play_video.dart';
 import 'package:twiffel_app/src/widgets/once_play_video.dart';
 
 Future<void> _pumpApp(WidgetTester tester) async {
@@ -15,9 +16,11 @@ Future<void> _pumpApp(WidgetTester tester) async {
 }
 
 void main() {
-  test('hero video preload is skipped under the widget test binding', () async {
+  test('video preloads are skipped under the widget test binding', () async {
     await HeroVideo.preload();
+    await WaitingVideo.preload();
     expect(HeroVideo.isReady, isFalse);
+    expect(WaitingVideo.isReady, isFalse);
   });
 
   testWidgets('home opens options step with Previous/Next nav', (tester) async {
