@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:twiffel_app/src/config/app_config.dart';
 import 'package:twiffel_app/src/models/decision_models.dart';
+import 'package:twiffel_app/src/pages/decision_copy.dart';
 import 'package:twiffel_app/src/state/session_controller.dart';
 
 void main() {
@@ -21,7 +22,7 @@ void main() {
         optionA: 'buy a dog',
         optionB: 'buy a cat',
         obstacle: 'Cost / money',
-        timing: 'As soon as possible',
+        timing: DecisionCopy.timingAsap,
       ),
     );
 

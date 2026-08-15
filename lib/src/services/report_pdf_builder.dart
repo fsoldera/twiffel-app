@@ -31,6 +31,7 @@ class ReportPdfBuilder {
   static const _successCmp = PdfColor.fromInt(0xFF10B981);
   static const _errorCmp = PdfColor.fromInt(0xFFEF4444);
   static const _white = PdfColor.fromInt(0xFFFFFFFF);
+  static const _footerHeight = 96.0;
 
   static Future<Uint8List> build(
     DecisionAnalysis analysis, {
@@ -130,7 +131,7 @@ class ReportPdfBuilder {
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.only(top: 64, bottom: 44),
+        margin: const pw.EdgeInsets.only(top: 64, bottom: _footerHeight),
         header: (context) => _headerBand(
           subtitle: DecisionCopy.reportSingleSubtitle,
           sparkles: assets.sparkles,
@@ -138,6 +139,7 @@ class ReportPdfBuilder {
         footer: (context) => _footer(
           context: context,
           dateLabel: dateLabel,
+          assets: assets,
         ),
         build: (context) => [
           pw.SizedBox(height: 24),
@@ -188,9 +190,6 @@ class ReportPdfBuilder {
               sparkles: assets.sparkles,
             ),
           ),
-          pw.SizedBox(height: 16),
-          _padded(_downloadSection(assets)),
-          pw.SizedBox(height: 12),
         ],
       ),
     );
@@ -208,7 +207,7 @@ class ReportPdfBuilder {
     doc.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.only(top: 64, bottom: 44),
+        margin: const pw.EdgeInsets.only(top: 64, bottom: _footerHeight),
         header: (context) => _headerBand(
           subtitle: DecisionCopy.reportComparisonSubtitle,
           sparkles: assets.sparkles,
@@ -216,6 +215,7 @@ class ReportPdfBuilder {
         footer: (context) => _footer(
           context: context,
           dateLabel: dateLabel,
+          assets: assets,
         ),
         build: (context) => [
           pw.SizedBox(height: 24),
@@ -333,9 +333,6 @@ class ReportPdfBuilder {
               sparkles: assets.sparkles,
             ),
           ),
-          pw.SizedBox(height: 16),
-          _padded(_downloadSection(assets)),
-          pw.SizedBox(height: 12),
         ],
       ),
     );
@@ -455,44 +452,52 @@ class ReportPdfBuilder {
   static pw.Widget _footer({
     required pw.Context context,
     required String dateLabel,
+    required _ReportAssets assets,
   }) {
     return pw.Container(
-      height: 44,
+      height: _footerHeight,
       width: double.infinity,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 28),
+      padding: const pw.EdgeInsets.fromLTRB(28, 8, 28, 8),
       decoration: const pw.BoxDecoration(
         border: pw.Border(top: pw.BorderSide(color: _border, width: 1)),
       ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
+      child: pw.Column(
+        mainAxisAlignment: pw.MainAxisAlignment.center,
         children: [
-          pw.Text(
-            DecisionCopy.reportGeneratedBy,
-            style: const pw.TextStyle(color: _textMuted, fontSize: 10),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Text(
+                DecisionCopy.reportGeneratedBy,
+                style: const pw.TextStyle(color: _textMuted, fontSize: 10),
+              ),
+              pw.UrlLink(
+                destination: DecisionCopy.reportSiteUrl,
+                child: pw.Text(
+                  DecisionCopy.reportSite,
+                  style: const pw.TextStyle(color: _primary, fontSize: 10),
+                ),
+              ),
+              pw.Spacer(),
+              pw.Text(
+                dateLabel,
+                style: const pw.TextStyle(color: _textMuted, fontSize: 10),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Container(width: 1, height: 12, color: _border),
+              pw.SizedBox(width: 12),
+              pw.Text(
+                'Page ${context.pageNumber} of ${context.pagesCount}',
+                style: pw.TextStyle(
+                  color: _textSecondary,
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          pw.UrlLink(
-            destination: DecisionCopy.reportSiteUrl,
-            child: pw.Text(
-              DecisionCopy.reportSite,
-              style: const pw.TextStyle(color: _primary, fontSize: 10),
-            ),
-          ),
-          pw.Spacer(),
-          pw.Text(
-            dateLabel,
-            style: const pw.TextStyle(color: _textMuted, fontSize: 10),
-          ),
-          pw.SizedBox(width: 12),
-          pw.Container(width: 1, height: 12, color: _border),
-          pw.SizedBox(width: 12),
-          pw.Text(
-            'Page ${context.pageNumber} of ${context.pagesCount}',
-            style: pw.TextStyle(
-              color: _textSecondary,
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
+          pw.SizedBox(height: 8),
+          _downloadSection(assets),
         ],
       ),
     );
@@ -917,24 +922,27 @@ class ReportPdfBuilder {
       children: [
         pw.Text(
           DecisionCopy.reportDownload,
+          textAlign: pw.TextAlign.center,
           style: pw.TextStyle(
             color: _headerBg,
-            fontSize: 13,
+            fontSize: 11,
             fontWeight: pw.FontWeight.bold,
           ),
         ),
-        pw.SizedBox(height: 12),
+        pw.SizedBox(height: 6),
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.center,
           children: [
             _storeBadge(
               label: DecisionCopy.reportAppStore,
               icon: assets.apple,
+              url: DecisionCopy.reportAppStoreUrl,
             ),
-            pw.SizedBox(width: 12),
+            pw.SizedBox(width: 8),
             _storeBadge(
               label: DecisionCopy.reportGooglePlay,
               icon: assets.play,
+              url: DecisionCopy.reportGooglePlayUrl,
             ),
           ],
         ),
@@ -945,46 +953,50 @@ class ReportPdfBuilder {
   static pw.Widget _storeBadge({
     required String label,
     required pw.Widget? icon,
+    required String url,
   }) {
-    return pw.Container(
-      width: 120,
-      height: 40,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 12),
-      decoration: pw.BoxDecoration(
-        color: _headerBg,
-        borderRadius: pw.BorderRadius.circular(20),
-      ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.center,
-        children: [
-          pw.Container(
-            width: 18,
-            height: 18,
-            alignment: pw.Alignment.center,
-            decoration: pw.BoxDecoration(
-              color: const PdfColor.fromInt(0x1AFFFFFF),
-              borderRadius: pw.BorderRadius.circular(6),
-            ),
-            child: icon ??
-                pw.Text(
-                  label[0],
-                  style: pw.TextStyle(
-                    color: _white,
-                    fontSize: 9,
-                    fontWeight: pw.FontWeight.bold,
+    return pw.UrlLink(
+      destination: url,
+      child: pw.Container(
+        width: 108,
+        height: 28,
+        padding: const pw.EdgeInsets.symmetric(horizontal: 10),
+        decoration: pw.BoxDecoration(
+          color: _headerBg,
+          borderRadius: pw.BorderRadius.circular(14),
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.center,
+          children: [
+            pw.Container(
+              width: 14,
+              height: 14,
+              alignment: pw.Alignment.center,
+              decoration: pw.BoxDecoration(
+                color: const PdfColor.fromInt(0x1AFFFFFF),
+                borderRadius: pw.BorderRadius.circular(4),
+              ),
+              child: icon ??
+                  pw.Text(
+                    label[0],
+                    style: pw.TextStyle(
+                      color: _white,
+                      fontSize: 8,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
                   ),
-                ),
-          ),
-          pw.SizedBox(width: 8),
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              color: _white,
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
             ),
-          ),
-        ],
+            pw.SizedBox(width: 6),
+            pw.Text(
+              label,
+              style: pw.TextStyle(
+                color: _white,
+                fontSize: 9,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
