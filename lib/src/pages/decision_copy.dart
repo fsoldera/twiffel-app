@@ -81,7 +81,9 @@ abstract final class DecisionCopy {
   static const String analysisLoading = 'Twiffel is thinking...';
   static const String analysisThinking = 'Thinking...';
   static const String analysisStartOver = 'Start over';
+  static const String analysisStartNewDecision = 'Start new decision';
   static const String analysisShare = 'Share results';
+  static const String analysisShareComparison = 'Share comparison results';
   static const String analysisShareSubjectPrefix = 'Twiffel results';
   static const String analysisShareCopied = 'Results copied to clipboard';
   static const String analysisShareFailed =
@@ -89,9 +91,22 @@ abstract final class DecisionCopy {
   static const String analysisError = 'Something went wrong. Please try again.';
   static const String analysisPros = 'Pros';
   static const String analysisCons = 'Cons';
-  static const String analysisVerdictLabel = 'Summary Verdict';
+  static const String analysisVerdictLabel = 'THE VERDICT';
   static const String analysisSummaryTab = 'Summary';
-  static const String analysisDetailsTab = 'Pros & Cons';
+  static const String analysisDetailsTab = 'Detailed Score';
+  static const String analysisComparisonMode = 'COMPARISON MODE';
+  static const String analysisSingleMode = 'SINGLE MODE';
+  static const String analysisKeyParameters = 'Key parameters analyzed';
+  static const String analysisScoreLabel = 'Score';
+  static const String analysisLeanTooClose = 'Too close, weigh the nuances';
+  static const String analysisLeanNearlyEven = 'The scores are nearly even';
+  static const String analysisLeanGoAhead = 'go ahead';
+  static const String analysisLeanWait = 'wait';
+  static const String analysisLeanNet = 'Net';
+  static String analysisLeanClearTo(String name) => 'Clear lean to $name';
+  static String analysisLeanSlightTo(String name) => 'Slight lean to $name';
+  static String analysisLeanPercentToward(int percent, String name) =>
+      '$percent% toward $name';
   static const String analysisSeeProsCons = 'See pros & cons';
   static const String analysisQuestionLabel = 'Question';
   static const String analysisOptionALabel = 'Option A';
@@ -113,7 +128,16 @@ abstract final class DecisionCopy {
   static const String reportProsArguments = 'Pros & Arguments';
   static const String reportConsTradeoffs = 'Cons & Trade-offs';
   static const String reportVerdictSingle = 'Summary Verdict';
-  static const String reportVerdictComparison = 'Summary Verdict Comparison';
+  static const String reportVerdictComparison = 'Summary Verdict';
+  static const String reportFavor = 'Favor';
+  static const String reportLeanBreakdown = 'Lean breakdown';
+  static const String reportProsWeight = 'Pros weight';
+  static const String reportConsWeight = 'Cons weight';
+  static const String reportPointWeight = 'Point weight';
+  static const String reportProsDetailed = 'Pros: detailed comparison';
+  static const String reportConsDetailed = 'Cons: detailed comparison';
+  static const String reportProsDetailedSingle = 'Pros: detailed score';
+  static const String reportConsDetailedSingle = 'Cons: detailed score';
   static const String reportDownload =
       "Don't sit with the next choice alone. Try Twiffel free.";
   static const String reportAppStore = 'App Store';

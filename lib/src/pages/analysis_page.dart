@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:printing/printing.dart';
 
 import '../copy/loading_response_texts.dart';
+import '../models/analysis_score.dart';
 import '../models/decision_models.dart';
 import '../services/report_pdf_builder.dart';
 import '../state/app_settings_controller.dart';
@@ -275,6 +277,7 @@ class _AnalysisPageState extends State<AnalysisPage> {
                           DecisionCopy.analysisSummaryTab,
                           DecisionCopy.analysisDetailsTab,
                         ],
+                        outlined: true,
                         activeIndex: _showingDetails ? 1 : 0,
                         onChanged: (index) {
                           if (index == 1) {
@@ -396,6 +399,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
     required Color accent,
     required IconData icon,
     required List<AnalysisPoint> points,
+    required bool favorable,
     required Duration switchDuration,
   }) {
     final panel = _PointsPanel(
@@ -404,6 +408,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
       accent: accent,
       icon: icon,
       points: points,
+      favorable: favorable,
     );
     if (!widget.isComparison) return panel;
 
@@ -467,10 +472,6 @@ class _ResultsBodyState extends State<_ResultsBody> {
       cons = analysis.cons;
     }
 
-    // Sticky action row: padding 12+8 + button height (scales with text size).
-    final buttonHeight = MediaQuery.textScalerOf(context).scale(48);
-    final stickyHeight = 20 + buttonHeight;
-
     final pointsPager = PageView(
       controller: _pageController,
       onPageChanged: (index) {
@@ -483,6 +484,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
           accent: TwiffelTokens.semanticSuccess,
           icon: Icons.check,
           points: pros,
+          favorable: true,
           switchDuration: optionSwitchDuration,
         ),
         _aspectPage(
@@ -490,69 +492,55 @@ class _ResultsBodyState extends State<_ResultsBody> {
           accent: TwiffelTokens.semanticError,
           icon: Icons.close,
           points: cons,
+          favorable: false,
           switchDuration: optionSwitchDuration,
         ),
       ],
     );
 
-    return Stack(
+    return Column(
       children: [
-        Column(
-          children: [
-            if (isComparison) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-                child: _AspectSlider(
-                  labels: [
-                    analysis.optionA?.trim().isNotEmpty == true
-                        ? analysis.optionA!
-                        : DecisionCopy.analysisOptionALabel,
-                    analysis.optionB?.trim().isNotEmpty == true
-                        ? analysis.optionB!
-                        : DecisionCopy.analysisOptionBLabel,
-                  ],
-                  activeIndex: _optionIndex,
-                  onChanged: _selectOption,
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            Padding(
-              padding: EdgeInsets.fromLTRB(20, isComparison ? 0 : 8, 20, 0),
-              child: _AspectSlider(
-                labels: const [
-                  DecisionCopy.analysisPros,
-                  DecisionCopy.analysisCons,
-                ],
-                activeIndex: pageIndex,
-                onChanged: _selectAspect,
-              ),
+        if (isComparison) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: _AspectSlider(
+              labels: [
+                analysis.optionA?.trim().isNotEmpty == true
+                    ? analysis.optionA!
+                    : DecisionCopy.analysisOptionALabel,
+                analysis.optionB?.trim().isNotEmpty == true
+                    ? analysis.optionB!
+                    : DecisionCopy.analysisOptionBLabel,
+              ],
+              activeIndex: _optionIndex,
+              onChanged: _selectOption,
             ),
-            Expanded(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: pointsPager,
-                  ),
-                ],
-              ),
-            ),
-            // Layout spacer matching the sticky bar (drawn in the Stack).
-            SizedBox(height: stickyHeight),
-          ],
-        ),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: stickyHeight,
-          child: _StickyResultsActions(
-            onSecondary: widget.onStartOver,
-            secondaryLabel: DecisionCopy.analysisStartOver,
-            onPrimary: widget.onShare,
-            primaryLabel: DecisionCopy.analysisShare,
-            primaryIcon: Icons.ios_share,
           ),
+          const SizedBox(height: 12),
+        ],
+        Padding(
+          padding: EdgeInsets.fromLTRB(20, isComparison ? 0 : 8, 20, 0),
+          child: _AspectSlider(
+            labels: const [
+              DecisionCopy.analysisPros,
+              DecisionCopy.analysisCons,
+            ],
+            activeIndex: pageIndex,
+            onChanged: _selectAspect,
+            thumbColors: const [
+              TwiffelTokens.semanticSuccess,
+              TwiffelTokens.semanticError,
+            ],
+          ),
+        ),
+        Expanded(child: pointsPager),
+        _StickyResultsActions(
+          onSecondary: widget.onStartOver,
+          secondaryLabel: DecisionCopy.analysisStartNewDecision,
+          onPrimary: widget.onShare,
+          primaryLabel: widget.isComparison
+              ? DecisionCopy.analysisShareComparison
+              : DecisionCopy.analysisShare,
         ),
       ],
     );
@@ -575,92 +563,55 @@ class _VerdictPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
-    final buttonHeight = MediaQuery.textScalerOf(context).scale(48);
-    final stickyHeight = 20 + buttonHeight;
-    final optionA = analysis.optionA?.trim() ?? '';
-    final optionB = analysis.optionB?.trim() ?? '';
+    final score = AnalysisScore.fromAnalysis(analysis);
 
     return Column(
       children: [
         Expanded(
-          child: ListView(
-            key: const ValueKey<String>('verdict-body'),
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.auto_awesome,
-                    size: 18,
-                    color: TwiffelTokens.primaryDefault,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    DecisionCopy.analysisVerdictLabel,
-                    style: TextStyle(
-                      color: TwiffelTokens.primaryDefault,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
+          child: _ScrollOverflowFade(
+            fadeKey: const ValueKey<String>('overflow-fade-summary'),
+            child: ListView(
+              key: const ValueKey<String>('verdict-body'),
+              padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+              children: [
+              Text(
+                DecisionCopy.analysisVerdictLabel,
+                style: TextStyle(
+                  color: colors.textTertiary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.6,
+                ),
               ),
-              if (isComparison &&
-                  (optionA.isNotEmpty || optionB.isNotEmpty)) ...[
-                const SizedBox(height: 16),
-                if (optionA.isNotEmpty)
-                  Text(
-                    optionA,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      height: 1.35,
-                    ),
-                  ),
-                if (optionA.isNotEmpty && optionB.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    DecisionCopy.analysisVsWord,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: TwiffelTokens.primaryDefault,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                if (optionB.isNotEmpty)
-                  Text(
-                    optionB,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: colors.textSecondary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      height: 1.35,
-                    ),
-                  ),
-              ],
+              const SizedBox(height: 10),
+              _VerdictHeadline(score: score),
               const SizedBox(height: 24),
-              for (final point in analysis.verdictPoints)
-                _VerdictBullet(text: point, colors: colors),
-            ],
+              _SideBySideScores(score: score),
+              const SizedBox(height: 24),
+              Text(
+                DecisionCopy.analysisKeyParameters,
+                style: TextStyle(
+                  color: colors.textPrimary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 12),
+              for (final point in analysis.verdictPoints) ...[
+                _InsightCard(text: point, score: score),
+                const SizedBox(height: 12),
+              ],
+              ],
+            ),
           ),
         ),
-        SizedBox(
-          height: stickyHeight,
-          child: _StickyResultsActions(
-            onSecondary: onStartOver,
-            secondaryLabel: DecisionCopy.analysisStartOver,
-            onPrimary: onShare,
-            primaryLabel: DecisionCopy.analysisShare,
-            primaryIcon: Icons.ios_share,
-          ),
+        _StickyResultsActions(
+          onSecondary: onStartOver,
+          secondaryLabel: DecisionCopy.analysisStartNewDecision,
+          onPrimary: onShare,
+          primaryLabel: isComparison
+              ? DecisionCopy.analysisShareComparison
+              : DecisionCopy.analysisShare,
         ),
       ],
     );
@@ -673,86 +624,63 @@ class _StickyResultsActions extends StatelessWidget {
     required this.secondaryLabel,
     required this.onPrimary,
     required this.primaryLabel,
-    this.primaryIcon,
   });
 
   final Future<void> Function() onSecondary;
   final String secondaryLabel;
   final VoidCallback onPrimary;
   final String primaryLabel;
-  final IconData? primaryIcon;
 
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
-    final buttonHeight = MediaQuery.textScalerOf(context).scale(48);
-    final iconSize = MediaQuery.textScalerOf(context).scale(16);
-    final radius = buttonHeight / 2;
-
-    final Widget primaryChild;
-    if (primaryIcon == null) {
-      primaryChild = Text(
-        primaryLabel,
-        textAlign: TextAlign.center,
-      );
-    } else {
-      primaryChild = Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(primaryIcon, size: iconSize),
-          const SizedBox(width: 8),
-          Flexible(
-            child: Text(
-              primaryLabel,
-              textAlign: TextAlign.center,
-            ),
-          ),
-        ],
-      );
-    }
+    final buttonHeight = MediaQuery.textScalerOf(context).scale(47);
 
     return Material(
       color: colors.pageBg,
       elevation: 0,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-        child: Row(
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(top: BorderSide(color: colors.borderDefault)),
+        ),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Expanded(
-              flex: 1,
-              child: OutlinedButton(
-                onPressed: onSecondary,
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: colors.textSecondary,
-                  side: BorderSide(color: colors.borderDefault),
-                  minimumSize: Size.fromHeight(buttonHeight),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  alignment: Alignment.center,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(radius),
-                  ),
-                ),
-                child: Text(
-                  secondaryLabel,
-                  textAlign: TextAlign.center,
+            FilledButton(
+              onPressed: onPrimary,
+              style: FilledButton.styleFrom(
+                minimumSize: Size.fromHeight(buttonHeight),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.center,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(buttonHeight / 2),
                 ),
               ),
+              child: Text(primaryLabel, textAlign: TextAlign.center),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              flex: 2,
-              child: FilledButton(
-                onPressed: onPrimary,
-                style: FilledButton.styleFrom(
-                  minimumSize: Size.fromHeight(buttonHeight),
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  alignment: Alignment.center,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(radius),
-                  ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: onSecondary,
+              style: OutlinedButton.styleFrom(
+                foregroundColor: colors.textPrimary,
+                side: BorderSide(color: colors.borderDefault),
+                minimumSize: Size.fromHeight(buttonHeight),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.center,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                child: primaryChild,
+                textStyle: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              child: Text(secondaryLabel, textAlign: TextAlign.center),
             ),
           ],
         ),
@@ -1056,17 +984,305 @@ class _ErrorBody extends StatelessWidget {
   }
 }
 
-/// Sliding Pros / Cons control (shared track + moving thumb).
+class _VerdictHeadline extends StatelessWidget {
+  const _VerdictHeadline({required this.score});
+
+  final AnalysisScore score;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    final base = GoogleFonts.outfit(
+      fontWeight: FontWeight.w800,
+      fontSize: 32,
+      height: 1.15,
+      color: colors.textPrimary,
+    );
+    if (score.strength == LeanStrength.tooClose) {
+      return Text(score.headline, style: base);
+    }
+    final prefix = score.strength == LeanStrength.clear
+        ? 'Clear lean to '
+        : 'Slight lean to ';
+    return Text.rich(
+      TextSpan(
+        style: base,
+        children: [
+          TextSpan(text: prefix),
+          TextSpan(
+            text: score.favoredName,
+            style: base.copyWith(color: TwiffelTokens.primaryDefault),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SideBySideScores extends StatelessWidget {
+  const _SideBySideScores({required this.score});
+
+  final AnalysisScore score;
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryLabel = score.isComparison
+        ? score.primaryLabel
+        : DecisionCopy.analysisPros;
+    final secondaryLabel = score.isComparison
+        ? score.secondaryLabel
+        : DecisionCopy.analysisCons;
+
+    return Row(
+      children: [
+        Expanded(
+          child: _FavorScoreCard(
+            label: primaryLabel,
+            percent: score.primaryFavorPercent,
+            highlighted: score.strength != LeanStrength.tooClose &&
+                score.leansPrimary,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _FavorScoreCard(
+            label: secondaryLabel,
+            percent: score.secondaryFavorPercent,
+            highlighted: score.strength != LeanStrength.tooClose &&
+                !score.leansPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FavorScoreCard extends StatelessWidget {
+  const _FavorScoreCard({
+    required this.label,
+    required this.percent,
+    required this.highlighted,
+  });
+
+  final String label;
+  final int percent;
+  final bool highlighted;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    const checkSize = 22.0;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.softFill,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: colors.borderDefault),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: colors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              SizedBox(
+                width: checkSize,
+                height: checkSize,
+                child: highlighted
+                    ? const Icon(
+                        Icons.check_circle,
+                        size: checkSize,
+                        color: TwiffelTokens.semanticSuccess,
+                      )
+                    : null,
+              ),
+              Expanded(
+                child: Text(
+                  formatLeanPercent(percent),
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.outfit(
+                    fontSize: 28,
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                    color: colors.textPrimary,
+                  ),
+                ),
+              ),
+              const SizedBox(width: checkSize),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InsightCard extends StatelessWidget {
+  const _InsightCard({
+    required this.text,
+    required this.score,
+  });
+
+  final String text;
+  final AnalysisScore score;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    final tone = _insightTone(text, score);
+    final borderColor = switch (tone) {
+      _InsightTone.favorable => TwiffelTokens.semanticSuccess,
+      _InsightTone.unfavorable => TwiffelTokens.semanticError,
+      _InsightTone.neutral => colors.borderDefault,
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: colors.softFill,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: borderColor),
+      ),
+      child: Text.rich(
+        TextSpan(
+          style: TextStyle(
+            color: colors.textPrimary,
+            fontSize: 13,
+            height: 1.4,
+          ),
+          children: _highlightNames(text, score),
+        ),
+      ),
+    );
+  }
+}
+
+enum _InsightTone { favorable, unfavorable, neutral }
+
+_InsightTone _insightTone(String text, AnalysisScore score) {
+  if (score.strength == LeanStrength.tooClose) return _InsightTone.neutral;
+  final lower = text.toLowerCase();
+  final winner = score.favoredName;
+  final loser = score.leansPrimary ? score.secondaryLabel : score.primaryLabel;
+  final mentionsWinner = _mentionsName(lower, winner, loser);
+  final mentionsLoser = _mentionsName(lower, loser, winner);
+  final againstLoser = mentionsLoser &&
+      (lower.contains('against') ||
+          lower.contains('weighs on') ||
+          lower.contains('hurts') ||
+          lower.contains('leaves more') ||
+          lower.contains('cannot'));
+  if (againstLoser || (mentionsLoser && !mentionsWinner)) {
+    return _InsightTone.unfavorable;
+  }
+  if (mentionsWinner) return _InsightTone.favorable;
+  return _InsightTone.favorable;
+}
+
+bool _mentionsName(String lowerText, String name, String otherName) {
+  if (name.isEmpty) return false;
+  if (lowerText.contains(name.toLowerCase())) return true;
+  for (final token in distinctiveNameTokens(name, otherName)) {
+    if (RegExp('\\b${RegExp.escape(token)}\\b').hasMatch(lowerText)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+List<InlineSpan> _highlightNames(String text, AnalysisScore score) {
+  if (!score.isComparison) {
+    return [TextSpan(text: text)];
+  }
+  final winner = score.favoredName;
+  final loser = score.leansPrimary ? score.secondaryLabel : score.primaryLabel;
+  final needles = <({String text, Color color})>[
+    if (winner.isNotEmpty)
+      (text: winner, color: TwiffelTokens.semanticSuccess),
+    if (loser.isNotEmpty) (text: loser, color: TwiffelTokens.semanticError),
+  ]..sort((a, b) => b.text.length.compareTo(a.text.length));
+
+  if (needles.isEmpty) return [TextSpan(text: text)];
+
+  final spans = <InlineSpan>[];
+  var remaining = text;
+  while (remaining.isNotEmpty) {
+    var matchStart = remaining.length;
+    ({String text, Color color})? hit;
+    for (final needle in needles) {
+      final index = remaining.toLowerCase().indexOf(needle.text.toLowerCase());
+      if (index >= 0 && index < matchStart) {
+        matchStart = index;
+        hit = needle;
+      }
+    }
+    if (hit == null) {
+      spans.add(TextSpan(text: remaining));
+      break;
+    }
+    if (matchStart > 0) {
+      spans.add(TextSpan(text: remaining.substring(0, matchStart)));
+    }
+    final matched = remaining.substring(matchStart, matchStart + hit.text.length);
+    spans.add(
+      TextSpan(
+        text: matched,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: hit.color,
+        ),
+      ),
+    );
+    remaining = remaining.substring(matchStart + hit.text.length);
+  }
+  return spans;
+}
+
 class _AspectSlider extends StatelessWidget {
   const _AspectSlider({
     required this.labels,
     required this.activeIndex,
     required this.onChanged,
+    this.thumbColors,
+    this.outlined = false,
   });
 
   final List<String> labels;
   final int activeIndex;
   final ValueChanged<int> onChanged;
+  final List<Color>? thumbColors;
+  final bool outlined;
+
+  Color _labelColor({
+    required TwiffelColors colors,
+    required int index,
+    required bool selected,
+  }) {
+    if (outlined) {
+      return selected ? colors.textPrimary : colors.textSecondary;
+    }
+    if (thumbColors == null) {
+      return selected ? TwiffelTokens.gray900 : colors.textPrimary;
+    }
+    if (selected) return TwiffelTokens.textOnPrimary;
+    final accents = thumbColors;
+    if (accents != null && index >= 0 && index < accents.length) {
+      return accents[index];
+    }
+    return colors.textPrimary;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1091,6 +1307,12 @@ class _AspectSlider extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final segmentWidth = constraints.maxWidth / labels.length;
+          final accentColors = thumbColors;
+          final thumbColor = accentColors != null &&
+                  activeIndex >= 0 &&
+                  activeIndex < accentColors.length
+              ? accentColors[activeIndex]
+              : TwiffelTokens.primary400;
 
           return SizedBox(
             height: 44,
@@ -1105,10 +1327,15 @@ class _AspectSlider extends StatelessWidget {
                   top: 0,
                   bottom: 0,
                   width: segmentWidth,
-                  child: DecoratedBox(
+                  child: AnimatedContainer(
+                    duration: thumbDuration,
+                    curve: Curves.easeOutCubic,
                     decoration: BoxDecoration(
-                      color: TwiffelTokens.primary400,
+                      color: outlined ? Colors.transparent : thumbColor,
                       borderRadius: BorderRadius.circular(radius),
+                      border: outlined
+                          ? Border.all(color: colors.borderStrong)
+                          : null,
                     ),
                   ),
                 ),
@@ -1119,22 +1346,27 @@ class _AspectSlider extends StatelessWidget {
                         child: InkWell(
                           onTap: () => onChanged(i),
                           borderRadius: BorderRadius.circular(radius),
-                          child: Center(
-                            child: AnimatedDefaultTextStyle(
-                              duration: labelDuration,
-                              curve: Curves.easeOut,
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w700,
-                                color: activeIndex == i
-                                    ? TwiffelTokens.gray900
-                                    : colors.textPrimary,
-                              ),
-                              child: Text(
-                                labels[i],
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                textAlign: TextAlign.center,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Center(
+                              child: AnimatedDefaultTextStyle(
+                                duration: labelDuration,
+                                curve: Curves.easeOut,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: _labelColor(
+                                    colors: colors,
+                                    index: i,
+                                    selected: activeIndex == i,
+                                  ),
+                                ),
+                                child: Text(
+                                  labels[i],
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  textAlign: TextAlign.center,
+                                ),
                               ),
                             ),
                           ),
@@ -1146,47 +1378,6 @@ class _AspectSlider extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-class _VerdictBullet extends StatelessWidget {
-  const _VerdictBullet({
-    required this.text,
-    required this.colors,
-  });
-
-  final String text;
-  final TwiffelColors colors;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.only(top: 7),
-            child: Icon(
-              Icons.circle,
-              size: 6,
-              color: TwiffelTokens.primaryDefault,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: TextStyle(
-                color: colors.textPrimary,
-                fontSize: 16,
-                height: 1.5,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -1233,12 +1424,14 @@ class _PointsPanel extends StatefulWidget {
     required this.accent,
     required this.icon,
     required this.points,
+    required this.favorable,
   });
 
   final String heading;
   final Color accent;
   final IconData icon;
   final List<AnalysisPoint> points;
+  final bool favorable;
 
   @override
   State<_PointsPanel> createState() => _PointsPanelState();
@@ -1276,30 +1469,115 @@ class _PointsPanelState extends State<_PointsPanel>
     final points = widget.points;
     final controller = _stagger;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
-      children: [
-        _InsightsHeading(label: widget.heading),
-        const SizedBox(height: 4),
-        for (var i = 0; i < points.length; i++)
-          if (controller == null)
-            _PointRow(
-              point: points[i],
-              accent: widget.accent,
-              icon: widget.icon,
-            )
-          else
-            _StaggeredPointRow(
-              animation: controller,
-              index: i,
-              total: points.length,
-              child: _PointRow(
+    return _ScrollOverflowFade(
+      fadeKey: ValueKey<String>('overflow-fade-${widget.heading}'),
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+        children: [
+          _InsightsHeading(label: widget.heading),
+          const SizedBox(height: 4),
+          for (var i = 0; i < points.length; i++)
+            if (controller == null)
+              _PointRow(
                 point: points[i],
                 accent: widget.accent,
                 icon: widget.icon,
+                favorable: widget.favorable,
+              )
+            else
+              _StaggeredPointRow(
+                animation: controller,
+                index: i,
+                total: points.length,
+                child: _PointRow(
+                  point: points[i],
+                  accent: widget.accent,
+                  icon: widget.icon,
+                  favorable: widget.favorable,
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ScrollOverflowFade extends StatefulWidget {
+  const _ScrollOverflowFade({
+    required this.child,
+    required this.fadeKey,
+  });
+
+  final Widget child;
+  final Key fadeKey;
+
+  @override
+  State<_ScrollOverflowFade> createState() => _ScrollOverflowFadeState();
+}
+
+class _ScrollOverflowFadeState extends State<_ScrollOverflowFade> {
+  static const double _fadeHeight = 64;
+  static const double _overflowEpsilon = 4;
+
+  bool _showBottom = false;
+
+  void _sync(ScrollMetrics metrics) {
+    if (metrics.axis != Axis.vertical) return;
+    final show = metrics.maxScrollExtent > _overflowEpsilon &&
+        metrics.extentAfter > _overflowEpsilon;
+    if (show == _showBottom) return;
+    setState(() => _showBottom = show);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = TwiffelColors.of(context);
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    return NotificationListener<ScrollMetricsNotification>(
+      onNotification: (notification) {
+        _sync(notification.metrics);
+        return false;
+      },
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (notification) {
+          _sync(notification.metrics);
+          return false;
+        },
+        child: Stack(
+          children: [
+            widget.child,
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: _fadeHeight,
+              child: IgnorePointer(
+                child: AnimatedOpacity(
+                  key: widget.fadeKey,
+                  opacity: _showBottom ? 1 : 0,
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 180),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          colors.pageBg.withValues(alpha: 0),
+                          colors.pageBg.withValues(alpha: 0.72),
+                          colors.pageBg,
+                        ],
+                        stops: const [0, 0.45, 1],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-      ],
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1340,10 +1618,15 @@ class _StaggeredPointRow extends StatelessWidget {
 }
 
 class _WeightBadge extends StatelessWidget {
-  const _WeightBadge({required this.weight, required this.accent});
+  const _WeightBadge({
+    required this.weight,
+    required this.accent,
+    required this.favorable,
+  });
 
   final int weight;
   final Color accent;
+  final bool favorable;
 
   @override
   Widget build(BuildContext context) {
@@ -1354,7 +1637,7 @@ class _WeightBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        '$weight',
+        signedWeightLabel(weight, favorable: favorable),
         style: TextStyle(
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -1371,11 +1654,13 @@ class _PointRow extends StatelessWidget {
     required this.point,
     required this.accent,
     required this.icon,
+    required this.favorable,
   });
 
   final AnalysisPoint point;
   final Color accent;
   final IconData icon;
+  final bool favorable;
 
   @override
   Widget build(BuildContext context) {
@@ -1416,7 +1701,11 @@ class _PointRow extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _WeightBadge(weight: point.weight, accent: accent),
+                    _WeightBadge(
+                      weight: point.weight,
+                      accent: accent,
+                      favorable: favorable,
+                    ),
                   ],
                 ),
                 const SizedBox(height: 2),

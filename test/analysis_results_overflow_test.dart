@@ -23,11 +23,15 @@ List<AnalysisPoint> _points(String kind, int count) {
   );
 }
 
+double fadeOpacity(WidgetTester tester, Key key) {
+  return tester.widget<AnimatedOpacity>(find.byKey(key)).opacity;
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets(
-    '7 pros and 7 cons scroll without a bottom overflow cue',
+    'Summary and details fade when content overflows, then clear at the end',
     (tester) async {
       SharedPreferences.setMockInitialValues(<String, Object>{});
       final license = LicenseController(appLicenseConfig);
@@ -64,7 +68,10 @@ void main() {
       expect(find.text(DecisionCopy.analysisVerdictLabel), findsOneWidget);
       expect(find.text(DecisionCopy.analysisDetailsTab), findsOneWidget);
       expect(find.text('Pro 1 title'), findsNothing);
-      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
+      expect(
+        fadeOpacity(tester, const ValueKey<String>('overflow-fade-summary')),
+        1,
+      );
 
       await tester.tap(find.text(DecisionCopy.analysisDetailsTab));
       await tester.pumpAndSettle();
@@ -77,7 +84,13 @@ void main() {
 
       expect(find.text('Pro 1 title'), findsOneWidget);
       expect(find.text('Pro 7 title'), findsNothing);
-      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
+      expect(
+        fadeOpacity(
+          tester,
+          ValueKey<String>('overflow-fade-${DecisionCopy.analysisPros}'),
+        ),
+        1,
+      );
 
       final prosScrollable = find
           .byWidgetPredicate(
@@ -94,7 +107,13 @@ void main() {
       }
       expect(position.extentAfter, lessThanOrEqualTo(1));
       expect(find.text('Pro 7 title'), findsOneWidget);
-      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
+      expect(
+        fadeOpacity(
+          tester,
+          ValueKey<String>('overflow-fade-${DecisionCopy.analysisPros}'),
+        ),
+        0,
+      );
 
       await tester.tap(find.text(DecisionCopy.analysisCons));
       await tester.pumpAndSettle();
@@ -102,7 +121,13 @@ void main() {
 
       expect(find.text('Con 1 title'), findsOneWidget);
       expect(find.text('Con 7 title'), findsNothing);
-      expect(find.byIcon(Icons.keyboard_arrow_down_rounded), findsNothing);
+      expect(
+        fadeOpacity(
+          tester,
+          ValueKey<String>('overflow-fade-${DecisionCopy.analysisCons}'),
+        ),
+        1,
+      );
     },
   );
 }

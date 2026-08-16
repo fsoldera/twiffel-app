@@ -57,7 +57,7 @@ void main() {
 
     final startOverButton = find.widgetWithText(
       OutlinedButton,
-      DecisionCopy.analysisStartOver,
+      DecisionCopy.analysisStartNewDecision,
     );
 
     await tester.tap(startOverButton);
@@ -83,7 +83,7 @@ void main() {
     expect(session.phase, SessionPhase.input);
   });
 
-  testWidgets('Pros & Cons tab opens details and Summary returns to verdict', (
+  testWidgets('Details tab opens details and Summary returns to verdict', (
     tester,
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{});

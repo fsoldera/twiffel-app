@@ -7,7 +7,7 @@ const DECISION_ROLE_SYSTEM_PROMPT = [
   "Be practical and specific to their situation.",
   "Use simple language in every user-facing sentence. Keep sentences short. Use common everyday words. Avoid long or nested sentences and rare or fancy words.",
   "Never invent unrelated tasks or micro-steps for productivity apps.",
-  "Reply with JSON only. Include every required field, especially verdict.",
+  "Reply with JSON only. Include every required field, especially calculation and verdict.",
 ].join(" ");
 
 /** Locked shape for every pro and con item. Do not vary these keys. */
@@ -36,10 +36,16 @@ export const DECISION_LISTS_SYSTEM_PROMPT = [
 
 /** Tone/rules for the summary verdict only. */
 export const DECISION_VERDICT_SYSTEM_PROMPT = [
+  "Work in this order, in one reply: write the lists with weights, fill calculation from those weights, then write verdict from those same lists and that calculation.",
   "For the summary verdict: sound nice, balanced, and lightly witty, still in simple words.",
   "No vulgarity, sarcasm that punches down, or shame.",
-  "Return verdict as a JSON array of exactly 5 strings (one sentence each), with a clear lean.",
-  "The lean must rest on the user's most important point to consider. Say which path fits that point better, and why. Timing may appear once if useful, but it must not replace that point as the reason.",
+  "Return verdict as a JSON array of exactly 5 strings (one sentence each).",
+  "The 5 sentences must match calculation.lean.",
+  "Each sentence must use a concrete fact from the lists you just wrote, by name or by the point's meaning. Prefer the highest-weight points.",
+  "Do not write generic observations that could fit any decision. Do not ignore the lists.",
+  "Do not write a score number in the verdict sentences. Do not pick the option with the lower net.",
+  "If calculation.lean is too_close, say the options are close, invite the user to weigh the remaining nuances, and say they can resubmit with more details if that would help. Still use facts from the lists.",
+  "The lean must also rest on the user's most important point to consider.",
   "Each array item must be a complete sentence ending with a period.",
   "Do not pad the lists with timing.",
 ].join(" ");
