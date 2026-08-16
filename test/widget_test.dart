@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:twiffel_app/src/app.dart';
 import 'package:twiffel_app/src/pages/android_onboarding_copy.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
+import 'package:twiffel_app/src/pages/ios_onboarding_copy.dart';
 import 'package:twiffel_app/src/widgets/loop_play_video.dart';
 import 'package:twiffel_app/src/widgets/once_play_video.dart';
 
@@ -135,12 +136,42 @@ void main() {
     });
   });
 
-  testWidgets('iOS first launch skips onboarding until iOS screens exist',
+  testWidgets('first launch opens iOS onboarding, Skip goes to home',
       (tester) async {
     await _withPlatform(TargetPlatform.iOS, () async {
       await _pumpApp(tester, onboardingCompleted: false);
 
-      expect(find.text(AndroidOnboardingCopy.step1Title), findsNothing);
+      expect(find.text(IosOnboardingCopy.step1Title), findsOneWidget);
+      expect(find.text(IosOnboardingCopy.next), findsOneWidget);
+      expect(find.text(IosOnboardingCopy.skip), findsOneWidget);
+      expect(find.text(DecisionCopy.optionsStepTitle), findsNothing);
+
+      await tester.tap(find.text(IosOnboardingCopy.next));
+      await tester.pumpAndSettle();
+      expect(find.text(IosOnboardingCopy.step2Title), findsOneWidget);
+
+      await tester.tap(find.text(IosOnboardingCopy.skip));
+      await tester.pumpAndSettle();
+      expect(find.text(DecisionCopy.optionsStepTitle), findsOneWidget);
+    });
+  });
+
+  testWidgets('last iOS onboarding step uses Get Started and hides Skip',
+      (tester) async {
+    await _withPlatform(TargetPlatform.iOS, () async {
+      await _pumpApp(tester, onboardingCompleted: false);
+
+      for (var i = 0; i < 4; i++) {
+        await tester.tap(find.text(IosOnboardingCopy.next));
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.text(IosOnboardingCopy.step5Title), findsOneWidget);
+      expect(find.text(IosOnboardingCopy.getStarted), findsOneWidget);
+      expect(find.text(IosOnboardingCopy.skip), findsNothing);
+
+      await tester.tap(find.text(IosOnboardingCopy.getStarted));
+      await tester.pumpAndSettle();
       expect(find.text(DecisionCopy.optionsStepTitle), findsOneWidget);
     });
   });

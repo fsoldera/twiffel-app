@@ -7,8 +7,8 @@ void main() {
     expect(isOnboardingEnabledFor(TargetPlatform.android), isTrue);
   });
 
-  test('iOS onboarding stays off until those screens exist', () {
-    expect(isOnboardingEnabledFor(TargetPlatform.iOS), isFalse);
+  test('iOS shows first-launch onboarding', () {
+    expect(isOnboardingEnabledFor(TargetPlatform.iOS), isTrue);
   });
 
   test('desktop and other platforms skip onboarding', () {
