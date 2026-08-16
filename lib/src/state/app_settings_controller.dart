@@ -27,6 +27,7 @@ class AppSettingsController extends ChangeNotifier {
   static const String _keyVibrationEnabled = 'vibration_enabled';
   static const String _keyThemeMode = 'theme_mode';
   static const String _keyTextSize = 'text_size';
+  static const String _keyOnboardingCompleted = 'onboarding_completed';
 
   /// Stored ints: 0 = system, 1 = light, 2 = dark.
   static const int _themeSystem = 0;
@@ -43,12 +44,14 @@ class AppSettingsController extends ChangeNotifier {
   bool _initialized = false;
   bool _soundEnabled = false;
   bool _vibrationEnabled = false;
+  bool _onboardingCompleted = false;
   ThemeMode _themeMode = ThemeMode.system;
   AppTextSize _textSize = AppTextSize.medium;
 
   bool get initialized => _initialized;
   bool get soundEnabled => _soundEnabled;
   bool get vibrationEnabled => _vibrationEnabled;
+  bool get onboardingCompleted => _onboardingCompleted;
   ThemeMode get themeMode => _themeMode;
   AppTextSize get textSize => _textSize;
 
@@ -64,7 +67,16 @@ class AppSettingsController extends ChangeNotifier {
     _textSize = _textSizeFromInt(
       await _store.getInt(_keyTextSize, fallback: _textMedium),
     );
+    _onboardingCompleted =
+        (await _store.getInt(_keyOnboardingCompleted, fallback: 0)) == 1;
     _initialized = true;
+    notifyListeners();
+  }
+
+  Future<void> completeOnboarding() async {
+    if (_onboardingCompleted) return;
+    _onboardingCompleted = true;
+    await _store.setInt(_keyOnboardingCompleted, 1);
     notifyListeners();
   }
 

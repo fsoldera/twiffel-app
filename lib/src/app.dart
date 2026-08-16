@@ -44,7 +44,7 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
     _license = LicenseController(appLicenseConfig);
     _license.init();
     _settings = AppSettingsController();
-    _settings.init();
+    final settingsReady = _settings.init();
     _ai = AiClient();
     _analytics = Analytics();
     _session = SessionController(
@@ -58,13 +58,16 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
       analytics: _analytics,
       settings: _settings,
     );
-    WidgetsBinding.instance.addPostFrameCallback((_) => _finishSplash());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_finishSplash(settingsReady));
+    });
   }
 
-  Future<void> _finishSplash() async {
+  Future<void> _finishSplash(Future<void> settingsReady) async {
     await Future.wait<void>([
       HeroVideo.preload(),
       WaitingVideo.preload(),
+      settingsReady,
     ]);
     final elapsed = DateTime.now().difference(appLaunchAt);
     final remaining = kMinSplashDuration - elapsed;

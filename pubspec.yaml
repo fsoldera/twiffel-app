@@ -40,6 +40,8 @@ flutter:
     - assets/splash/
     - assets/animations/
     - assets/copy/
+    - assets/onboarding/android/
+    - assets/onboarding/ios/
 
 # Native launch splash (Android + iOS). Regenerate with:
 #   dart run flutter_native_splash:create

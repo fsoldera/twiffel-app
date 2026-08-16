@@ -19,6 +19,21 @@ void main() {
     expect(settings.vibrationEnabled, isFalse);
     expect(settings.themeMode, ThemeMode.system);
     expect(settings.textSize, AppTextSize.medium);
+    expect(settings.onboardingCompleted, isFalse);
+  });
+
+  test('persists onboarding completion', () async {
+    final store = LocalStore('app_settings_test_onboarding');
+    final settings = AppSettingsController(store: store);
+    await settings.init();
+    expect(settings.onboardingCompleted, isFalse);
+
+    await settings.completeOnboarding();
+    expect(settings.onboardingCompleted, isTrue);
+
+    final reloaded = AppSettingsController(store: store);
+    await reloaded.init();
+    expect(reloaded.onboardingCompleted, isTrue);
   });
 
   test('keeps sound/vibration off and persists theme mode and text size',

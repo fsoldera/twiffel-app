@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import 'pages/analysis_page.dart';
 import 'pages/decision_form_page.dart';
+import 'pages/onboarding_page.dart';
+import 'pages/onboarding_platform.dart';
 import 'pages/shop_page.dart';
 import 'services/analytics.dart';
 import 'state/app_settings_controller.dart';
@@ -34,7 +36,37 @@ GoRouter buildRouter({
   required AppSettingsController settings,
 }) {
   return GoRouter(
+    refreshListenable: settings,
+    redirect: (context, state) {
+      if (!settings.initialized) return null;
+      final onOnboarding = state.matchedLocation == '/onboarding';
+      if (!isOnboardingEnabled) {
+        if (onOnboarding) return '/';
+        return null;
+      }
+      if (!settings.onboardingCompleted && !onOnboarding) {
+        return '/onboarding';
+      }
+      if (settings.onboardingCompleted && onOnboarding) {
+        return '/';
+      }
+      return null;
+    },
     routes: <RouteBase>[
+      GoRoute(
+        path: '/onboarding',
+        name: 'onboarding',
+        pageBuilder: (context, state) {
+          analytics.track('route_view');
+          return _fadePage(
+            key: state.pageKey,
+            child: OnboardingPage(
+              settings: settings,
+              analytics: analytics,
+            ),
+          );
+        },
+      ),
       GoRoute(
         path: '/',
         name: 'home',
