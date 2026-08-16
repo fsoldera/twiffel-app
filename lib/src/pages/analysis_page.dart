@@ -1339,6 +1339,33 @@ class _StaggeredPointRow extends StatelessWidget {
   }
 }
 
+class _WeightBadge extends StatelessWidget {
+  const _WeightBadge({required this.weight, required this.accent});
+
+  final int weight;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        '$weight',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          height: 1.2,
+          color: accent,
+        ),
+      ),
+    );
+  }
+}
+
 class _PointRow extends StatelessWidget {
   const _PointRow({
     required this.point,
@@ -1374,18 +1401,27 @@ class _PointRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  point.title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    height: 1.25,
-                    color: colors.textPrimary,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        point.tagline,
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          height: 1.25,
+                          color: colors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _WeightBadge(weight: point.weight, accent: accent),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  point.detail,
+                  point.description,
                   style: TextStyle(
                     fontSize: 12.5,
                     height: 1.35,

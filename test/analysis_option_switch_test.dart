@@ -28,16 +28,16 @@ void main() {
         optionA: 'buy a dog',
         optionB: 'buy a cat',
         optionAPros: [
-          AnalysisPoint(title: 'Dog pro', detail: 'Dog detail'),
+          AnalysisPoint(tagline: 'Dog pro', description: 'Dog detail', weight: 80),
         ],
         optionACons: [
-          AnalysisPoint(title: 'Dog con', detail: 'Dog con detail'),
+          AnalysisPoint(tagline: 'Dog con', description: 'Dog con detail', weight: 70),
         ],
         optionBPros: [
-          AnalysisPoint(title: 'Cat pro', detail: 'Cat detail'),
+          AnalysisPoint(tagline: 'Cat pro', description: 'Cat detail', weight: 75),
         ],
         optionBCons: [
-          AnalysisPoint(title: 'Cat con', detail: 'Cat con detail'),
+          AnalysisPoint(tagline: 'Cat con', description: 'Cat con detail', weight: 65),
         ],
         verdictPoints: [
           'Lean carefully.',

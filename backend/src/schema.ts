@@ -8,16 +8,24 @@ const pointSchema = {
   type: "object",
   additionalProperties: false,
   properties: {
-    title: {
+    tagline: {
       type: "string",
-      description: 'Short numbered label, for example "1. Lower maintenance".',
+      description: "Short label, 2 to 6 common words. No number prefix. No period.",
     },
-    detail: {
+    description: {
       type: "string",
-      description: "One concrete sentence tied to the user's options and obstacle.",
+      description:
+        "One short plain sentence ending with a period, tied to the options and the most important point to consider.",
+    },
+    weight: {
+      type: "integer",
+      minimum: 1,
+      maximum: 100,
+      description:
+        "How much this point should count in the evaluation, from 1 (weak) to 100 (decisive).",
     },
   },
-  required: ["title", "detail"],
+  required: ["tagline", "description", "weight"],
 } as const;
 
 function pointsArraySchema(description: string) {
@@ -33,7 +41,7 @@ function pointsArraySchema(description: string) {
 const verdictSchema = {
   type: "array",
   description:
-    "Exactly five complete sentences with a clear lean. Each item is one sentence ending with a period.",
+    "Exactly five complete sentences with a clear lean based on the user's most important point to consider. Each item is one sentence ending with a period.",
   minItems: VERDICTS,
   maxItems: VERDICTS,
   items: {

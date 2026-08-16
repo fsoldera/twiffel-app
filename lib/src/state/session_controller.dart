@@ -113,6 +113,14 @@ class SessionController extends ChangeNotifier {
   }
 
   DecisionAnalysis _localFallback(DecisionRequest request) {
+    AnalysisPoint item(String tagline, String description, int weight) {
+      return AnalysisPoint(
+        tagline: tagline,
+        description: description,
+        weight: weight,
+      );
+    }
+
     if (request.mode == DecisionMode.single) {
       final target = request.target ?? 'this decision';
       final timing = request.timing.toLowerCase();
@@ -120,57 +128,57 @@ class SessionController extends ChangeNotifier {
         mode: DecisionMode.single,
         target: target,
         pros: [
-          AnalysisPoint(
-            title: '1. Clearer direction',
-            detail:
-                'Naming "$target" makes the choice concrete enough to evaluate honestly.',
+          item(
+            'Clearer direction',
+            'Naming "$target" makes the choice concrete enough to evaluate honestly.',
+            88,
           ),
-          AnalysisPoint(
-            title: '2. Timeline awareness',
-            detail:
-                'Wanting this $timing helps you weigh urgency against waiting costs.',
+          item(
+            'Timeline awareness',
+            'Wanting this $timing helps you weigh urgency against waiting costs.',
+            64,
           ),
-          AnalysisPoint(
-            title: '3. Obstacle is named',
-            detail:
-                'Focusing on "${request.obstacle}" keeps the analysis practical instead of vague worry.',
+          item(
+            'Obstacle is named',
+            'Focusing on "${request.obstacle}" keeps the analysis practical instead of vague worry.',
+            92,
           ),
-          AnalysisPoint(
-            title: '4. Values come into view',
-            detail:
-                'Working through "$target" surfaces what you care about protecting most.',
+          item(
+            'Values come into view',
+            'Working through "$target" surfaces what you care about protecting most.',
+            71,
           ),
-          AnalysisPoint(
-            title: '5. Decision becomes testable',
-            detail:
-                'You can define a small next check instead of staying in mental loops.',
+          item(
+            'Decision becomes testable',
+            'You can define a small next check instead of staying in mental loops.',
+            55,
           ),
         ],
         cons: [
-          AnalysisPoint(
-            title: '1. Real trade-offs remain',
-            detail:
-                'Moving ahead on "$target" still means accepting costs, effort, or uncertainty.',
+          item(
+            'Real trade-offs remain',
+            'Moving ahead on "$target" still means accepting costs, effort, or uncertainty.',
+            80,
           ),
-          AnalysisPoint(
-            title: '2. Waiting has a cost too',
-            detail:
-                'Delaying can feel safer, but it may quietly spend time, energy, or opportunity.',
+          item(
+            'Waiting has a cost too',
+            'Delaying can feel safer, but it may quietly spend time, energy, or opportunity.',
+            68,
           ),
-          AnalysisPoint(
-            title: '3. Ambiguity can return',
-            detail:
-                'Without a next checkpoint, the same doubts are likely to resurface.',
+          item(
+            'Ambiguity can return',
+            'Without a next checkpoint, the same doubts are likely to resurface.',
+            52,
           ),
-          AnalysisPoint(
-            title: '4. Obstacle may intensify',
-            detail:
-                'If "${request.obstacle}" is ignored, pressure can grow even while you wait.',
+          item(
+            'Obstacle may intensify',
+            'If "${request.obstacle}" is ignored, pressure can grow even while you wait.',
+            90,
           ),
-          AnalysisPoint(
-            title: '5. Perfect certainty is unlikely',
-            detail:
-                'You may never feel 100% ready, so waiting for that signal can stall you.',
+          item(
+            'Perfect certainty is unlikely',
+            'You may never feel 100% ready, so waiting for that signal can stall you.',
+            47,
           ),
         ],
         verdictPoints: [
@@ -190,106 +198,111 @@ class SessionController extends ChangeNotifier {
       optionA: optionA,
       optionB: optionB,
       optionAPros: [
-        AnalysisPoint(
-          title: '1. Forward movement',
-          detail:
-              '"$optionA" is the more change-oriented path if you want momentum.',
+        item(
+          'Forward movement',
+          '"$optionA" is the more change-oriented path if you want momentum.',
+          78,
         ),
-        AnalysisPoint(
-          title: '2. Matches stated desire',
-          detail: 'It may better reflect what you already feel drawn toward.',
+        item(
+          'Matches stated desire',
+          'It may better reflect what you already feel drawn toward.',
+          66,
         ),
-        AnalysisPoint(
-          title: '3. Forces clarity',
-          detail:
-              'Choosing it creates a concrete plan you can test against reality.',
+        item(
+          'Forces clarity',
+          'Choosing it creates a concrete plan you can test against reality.',
+          70,
         ),
-        AnalysisPoint(
-          title: '4. Learning speed',
-          detail:
-              'You get faster feedback on whether this path fits your real constraints.',
+        item(
+          'Learning speed',
+          'You get faster feedback on whether this path fits your real constraints.',
+          58,
         ),
-        AnalysisPoint(
-          title: '5. Motivational lift',
-          detail:
-              'Acting on the option you lean toward can reduce rumination.',
+        item(
+          'Motivational lift',
+          'Acting on the option you lean toward can reduce rumination.',
+          49,
         ),
       ],
       optionACons: [
-        AnalysisPoint(
-          title: '1. Higher friction',
-          detail:
-              'Obstacle "${request.obstacle}" may hit this option harder at first.',
+        item(
+          'Higher friction',
+          'Obstacle "${request.obstacle}" may hit this option harder at first.',
+          90,
         ),
-        AnalysisPoint(
-          title: '2. Commitment pressure',
-          detail: 'It can feel harder to reverse if the early weeks are rocky.',
+        item(
+          'Commitment pressure',
+          'It can feel harder to reverse if the early weeks are rocky.',
+          62,
         ),
-        AnalysisPoint(
-          title: '3. Upfront cost',
-          detail: 'Time, money, or effort may spike before benefits appear.',
+        item(
+          'Upfront cost',
+          'Time, money, or effort may spike before benefits appear.',
+          71,
         ),
-        AnalysisPoint(
-          title: '4. Transition stress',
-          detail:
-              'Changing lanes often adds temporary chaos even when the destination is good.',
+        item(
+          'Transition stress',
+          'Changing lanes often adds temporary chaos even when the destination is good.',
+          55,
         ),
-        AnalysisPoint(
-          title: '5. Over-optimism risk',
-          detail:
-              'Excitement can underweight practical blockers you already named.',
+        item(
+          'Over-optimism risk',
+          'Excitement can underweight practical blockers you already named.',
+          60,
         ),
       ],
       optionBPros: [
-        AnalysisPoint(
-          title: '1. Continuity',
-          detail:
-              '"$optionB" preserves stability while you gather more information.',
+        item(
+          'Continuity',
+          '"$optionB" preserves stability while you gather more information.',
+          74,
         ),
-        AnalysisPoint(
-          title: '2. Lower immediate stress',
-          detail:
-              'It may reduce short-term pressure around your main obstacle.',
+        item(
+          'Lower immediate stress',
+          'It may reduce short-term pressure around your main obstacle.',
+          82,
         ),
-        AnalysisPoint(
-          title: '3. Room to prepare',
-          detail:
-              'You can strengthen finances, timing, or confidence before a bigger move.',
+        item(
+          'Room to prepare',
+          'You can strengthen finances, timing, or confidence before a bigger move.',
+          61,
         ),
-        AnalysisPoint(
-          title: '4. Familiar systems',
-          detail: 'Existing routines and tools already support this path.',
+        item(
+          'Familiar systems',
+          'Existing routines and tools already support this path.',
+          53,
         ),
-        AnalysisPoint(
-          title: '5. Reversible by default',
-          detail:
-              'Staying closer to the status quo usually keeps more exit options open.',
+        item(
+          'Reversible by default',
+          'Staying closer to the status quo usually keeps more exit options open.',
+          57,
         ),
       ],
       optionBCons: [
-        AnalysisPoint(
-          title: '1. Delayed progress',
-          detail: 'Staying put can quietly extend the indecision window.',
+        item(
+          'Delayed progress',
+          'Staying put can quietly extend the indecision window.',
+          69,
         ),
-        AnalysisPoint(
-          title: '2. Opportunity cost',
-          detail:
-              'If timing is "${request.timing}", waiting may conflict with your preferred window.',
+        item(
+          'Opportunity cost',
+          'If timing is "${request.timing}", waiting may conflict with your preferred window.',
+          48,
         ),
-        AnalysisPoint(
-          title: '3. Habit lock-in',
-          detail:
-              'The status quo can become harder to leave the longer it continues.',
+        item(
+          'Habit lock-in',
+          'The status quo can become harder to leave the longer it continues.',
+          56,
         ),
-        AnalysisPoint(
-          title: '4. Quiet regret risk',
-          detail:
-              'You may later wish you had tested the other path sooner.',
+        item(
+          'Quiet regret risk',
+          'You may later wish you had tested the other path sooner.',
+          51,
         ),
-        AnalysisPoint(
-          title: '5. Obstacle persists',
-          detail:
-              'Avoiding change does not dissolve "${request.obstacle}" by itself.',
+        item(
+          'Obstacle persists',
+          'Avoiding change does not dissolve "${request.obstacle}" by itself.',
+          88,
         ),
       ],
       verdictPoints: [

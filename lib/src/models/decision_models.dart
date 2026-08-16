@@ -3,21 +3,53 @@ import 'dart:convert';
 enum DecisionMode { single, comparison }
 
 class AnalysisPoint {
-  const AnalysisPoint({required this.title, required this.detail});
+  const AnalysisPoint({
+    required this.tagline,
+    required this.description,
+    required this.weight,
+  });
 
-  final String title;
-  final String detail;
+  final String tagline;
+  final String description;
+
+  /// Importance of this point in the evaluation, from 1 (weak) to 100 (decisive).
+  final int weight;
+
+  /// Legacy alias used by older UI helpers.
+  String get title => tagline;
+
+  /// Legacy alias used by older UI helpers.
+  String get detail => description;
 
   factory AnalysisPoint.fromJson(Map<String, dynamic> json) {
+    final tagline = _jsonString(json, const [
+      'tagline',
+      'title',
+      'heading',
+      'label',
+    ]);
+    final description = _jsonString(json, const [
+      'description',
+      'detail',
+      'text',
+      'body',
+      'content',
+    ]);
+    final weight = _jsonWeight(json);
+    if (tagline.isEmpty || description.isEmpty || weight == null) {
+      throw const FormatException('Analysis point must have tagline, description, and weight.');
+    }
     return AnalysisPoint(
-      title: _jsonString(json, const ['title', 'heading', 'label']),
-      detail: _jsonString(json, const ['detail', 'text', 'body', 'content']),
+      tagline: tagline,
+      description: description,
+      weight: weight,
     );
   }
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'title': title,
-        'detail': detail,
+        'tagline': tagline,
+        'description': description,
+        'weight': weight,
       };
 }
 
@@ -92,10 +124,18 @@ class DecisionAnalysis {
         if (raw is! List) continue;
         final parsed = raw
             .whereType<Map>()
-            .map((e) => AnalysisPoint.fromJson(Map<String, dynamic>.from(e)))
-            .where((p) => p.title.isNotEmpty && p.detail.isNotEmpty)
-            .toList(growable: false);
-        if (parsed.isNotEmpty) return parsed;
+            .map((e) {
+              try {
+                return AnalysisPoint.fromJson(Map<String, dynamic>.from(e));
+              } on FormatException {
+                return null;
+              }
+            })
+            .whereType<AnalysisPoint>()
+            .toList();
+        if (parsed.isEmpty) continue;
+        parsed.sort((a, b) => b.weight.compareTo(a.weight));
+        return List<AnalysisPoint>.unmodifiable(parsed);
       }
       return const <AnalysisPoint>[];
     }
@@ -141,6 +181,21 @@ String _jsonString(Map<String, dynamic> json, List<String> keys) {
     if (text.isNotEmpty) return text;
   }
   return '';
+}
+
+int? _jsonWeight(Map<String, dynamic> json) {
+  final raw = json['weight'] ?? json['score'];
+  int? parsed;
+  if (raw is int) {
+    parsed = raw;
+  } else if (raw is num) {
+    parsed = raw.round();
+  } else if (raw is String) {
+    parsed = int.tryParse(raw.trim());
+  }
+  if (parsed == null) return null;
+  if (parsed < 1 || parsed > 100) return parsed.clamp(1, 100);
+  return parsed;
 }
 
 /// Parses API `verdict` as a string[] (preferred) or legacy string.

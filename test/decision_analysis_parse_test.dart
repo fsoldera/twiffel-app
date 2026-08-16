@@ -23,9 +23,11 @@ void main() {
           'optionA': 'buy a snake',
           'optionB': 'buy a bike',
           'optionAPros': [
-            <String, String>{
-              'heading': '1. Habitat fit',
-              'text': 'A snake needs far less outdoor space than a bike commute.',
+            <String, Object>{
+              'tagline': 'Habitat fit',
+              'description':
+                  'A snake needs far less outdoor space than a bike commute.',
+              'weight': 84,
             },
           ],
           'verdict': [
@@ -36,11 +38,43 @@ void main() {
       }),
     );
 
-    expect(analysis.optionAPros.single.title, '1. Habitat fit');
+    expect(analysis.optionAPros.single.tagline, 'Habitat fit');
+    expect(analysis.optionAPros.single.description,
+        'A snake needs far less outdoor space than a bike commute.');
+    expect(analysis.optionAPros.single.weight, 84);
     expect(analysis.verdictPoints, [
       'The snake is the lighter lift this month.',
       'Keep the bike if daily movement is the real goal.',
     ]);
+  });
+
+  test('fromJson requires tagline, description, and weight, then sorts by weight',
+      () {
+    final analysis = DecisionAnalysis.fromJson(
+      <String, dynamic>{
+        'mode': 'single',
+        'pros': [
+          <String, Object>{
+            'tagline': 'Low',
+            'description': 'A weak point.',
+            'weight': 20,
+          },
+          <String, Object>{
+            'tagline': 'High',
+            'description': 'A strong point.',
+            'weight': 90,
+          },
+          <String, String>{
+            'tagline': 'Missing weight',
+            'description': 'This point is dropped.',
+          },
+        ],
+        'verdict': <String>['Lean yes.'],
+      },
+    );
+
+    expect(analysis.pros.map((point) => point.tagline), ['High', 'Low']);
+    expect(analysis.pros.first.weight, 90);
   });
 
   test('AiClient returns parsed analysis from HTTP 200', () async {
@@ -54,9 +88,10 @@ void main() {
               'optionA': 'buy a snake',
               'optionB': 'buy a bike',
               'optionAPros': [
-                <String, String>{
-                  'title': '1. Habitat fit',
-                  'detail': 'Less space than a bike.',
+                <String, Object>{
+                  'tagline': 'Habitat fit',
+                  'description': 'Less space than a bike.',
+                  'weight': 84,
                 },
               ],
               'verdict': <String>[
@@ -83,7 +118,8 @@ void main() {
 
     expect(outcome.analysis, isNotNull);
     expect(outcome.analysis!.verdictPoints.first, contains('Lean snake'));
-    expect(outcome.analysis!.optionAPros.single.title, '1. Habitat fit');
+    expect(outcome.analysis!.optionAPros.single.tagline, 'Habitat fit');
+    expect(outcome.analysis!.optionAPros.single.weight, 84);
   });
 
   test('timeout uses local fallback instead of the error screen', () async {
@@ -112,7 +148,8 @@ void main() {
 
     expect(session.phase, SessionPhase.ready);
     expect(session.analysis, isNotNull);
-    expect(session.analysis!.optionAPros.first.title, '1. Forward movement');
+    expect(session.analysis!.optionAPros.first.tagline, 'Forward movement');
+    expect(session.analysis!.optionAPros.first.weight, 78);
   });
 
   test('HTTP 400 does not use canned fallback copy', () async {

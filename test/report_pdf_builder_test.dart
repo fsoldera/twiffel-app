@@ -8,11 +8,12 @@ List<AnalysisPoint> _points(String kind, int count) {
   return List<AnalysisPoint>.generate(
     count,
     (index) => AnalysisPoint(
-      title: '$kind ${index + 1}: a longer title that may wrap in narrow columns',
-      detail:
+      tagline: '$kind ${index + 1}: a longer title that may wrap in narrow columns',
+      description:
           '$kind ${index + 1} detail for the Twiffel PDF report. '
           'This sentence is intentionally long so two-column layouts exercise '
           'MultiPage pagination instead of packing everything into one unsplittable widget.',
+      weight: 90 - index * 8,
     ),
   );
 }

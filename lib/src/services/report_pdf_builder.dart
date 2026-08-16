@@ -818,17 +818,33 @@ class ReportPdfBuilder {
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(
-                      point.title,
-                      style: pw.TextStyle(
-                        color: _textPrimary,
-                        fontSize: titleSize,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
+                    pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Expanded(
+                          child: pw.Text(
+                            point.tagline,
+                            style: pw.TextStyle(
+                              color: _textPrimary,
+                              fontSize: titleSize,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        pw.SizedBox(width: 6),
+                        pw.Text(
+                          '${point.weight}',
+                          style: pw.TextStyle(
+                            color: accent,
+                            fontSize: titleSize,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ],
                     ),
                     pw.SizedBox(height: 2),
                     pw.Text(
-                      point.detail,
+                      point.description,
                       style: pw.TextStyle(
                         color: _textSecondary,
                         fontSize: detailSize,

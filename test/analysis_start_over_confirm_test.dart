@@ -25,10 +25,10 @@ void main() {
         mode: DecisionMode.single,
         target: 'Should I move?',
         pros: [
-          AnalysisPoint(title: '1. Pro', detail: 'Detail'),
+          AnalysisPoint(tagline: '1. Pro', description: 'Detail', weight: 80),
         ],
         cons: [
-          AnalysisPoint(title: '1. Con', detail: 'Detail'),
+          AnalysisPoint(tagline: '1. Con', description: 'Detail', weight: 70),
         ],
         verdictPoints: [
           'Lean carefully.',
@@ -97,10 +97,10 @@ void main() {
         mode: DecisionMode.single,
         target: 'Should I move?',
         pros: [
-          AnalysisPoint(title: '1. Pro', detail: 'Detail'),
+          AnalysisPoint(tagline: '1. Pro', description: 'Detail', weight: 80),
         ],
         cons: [
-          AnalysisPoint(title: '1. Con', detail: 'Detail'),
+          AnalysisPoint(tagline: '1. Con', description: 'Detail', weight: 70),
         ],
         verdictPoints: [
           'Lean carefully.',

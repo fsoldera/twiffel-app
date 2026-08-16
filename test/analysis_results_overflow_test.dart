@@ -14,10 +14,11 @@ List<AnalysisPoint> _points(String kind, int count) {
   return List<AnalysisPoint>.generate(
     count,
     (index) => AnalysisPoint(
-      title: '$kind ${index + 1} title',
-      detail:
+      tagline: '$kind ${index + 1} title',
+      description:
           '$kind ${index + 1} detail with enough text to keep each row tall '
           'and force vertical overflow on a phone-sized results panel.',
+      weight: 90 - index * 8,
     ),
   );
 }
