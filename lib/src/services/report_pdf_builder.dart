@@ -599,7 +599,7 @@ class ReportPdfBuilder {
     ];
   }
 
-  /// One to five tinted stars, same 20-point buckets as the Detailed Score.
+  /// One to five tinted stars, same log remap as the Detailed Score.
   static pw.Widget _weightStarBadge({
     required int weight,
     required PdfColor accent,

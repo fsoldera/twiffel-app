@@ -110,7 +110,7 @@ void main() {
 
     await tester.tap(find.text(DecisionCopy.analysisDetailsTab));
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.star_rounded), findsNWidgets(5));
+    expect(find.byIcon(Icons.star_rounded), findsNWidgets(4));
     expect(find.text('Cheap to keep'), findsOneWidget);
   });
 }

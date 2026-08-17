@@ -158,9 +158,18 @@ String formatSigned(int value) {
 
 String formatLeanPercent(int percent) => '$percent%';
 
-/// One mark per 20 weight points, 1 to 5.
+/// Inverse of [compressFavorPercent]: pull typical mid-high weights down the
+/// 1-5 star scale so 1 and 2 stars show up. Same k as the favor split.
+double compressWeightForStars(int weight) {
+  final t = weight.clamp(1, 100) / 100.0;
+  final curved = (math.pow(1 + favorLogK, t) - 1) / favorLogK;
+  return (curved * 100).clamp(0.0, 100.0);
+}
+
+/// One mark per 20 display points after the log remap, 1 to 5.
 int weightSignCount(int weight) {
-  return ((weight + 19) ~/ 20).clamp(1, 5);
+  final display = compressWeightForStars(weight).round().clamp(1, 100);
+  return ((display + 19) ~/ 20).clamp(1, 5);
 }
 
 String weightSignLabel(int weight, {required bool favorable}) {

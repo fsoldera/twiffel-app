@@ -195,17 +195,18 @@ void main() {
     expect(score.towardCaption, contains('toward buy a cat'));
   });
 
-  test('weight sign marks map 20-point steps from 1 to 5', () {
+  test('weight sign marks use a log remap so mid weights are not all 4-5 stars', () {
     expect(weightSignCount(1), 1);
-    expect(weightSignCount(20), 1);
-    expect(weightSignCount(21), 2);
-    expect(weightSignCount(40), 2);
-    expect(weightSignCount(80), 4);
-    expect(weightSignCount(81), 5);
+    expect(weightSignCount(40), 1);
+    expect(weightSignCount(50), 2);
+    expect(weightSignCount(70), 3);
+    expect(weightSignCount(80), 3);
+    expect(weightSignCount(90), 4);
+    expect(weightSignCount(95), 5);
     expect(weightSignCount(100), 5);
-    expect(weightSignLabel(90, favorable: true), '+++++');
+    expect(weightSignLabel(90, favorable: true), '++++');
     expect(weightSignLabel(20, favorable: false), '-');
-    expect(weightSignLabel(80, favorable: false), '----');
+    expect(weightSignLabel(80, favorable: false), '---');
   });
 
   test('aligned verdict replaces sentences that pick the losing option', () {
