@@ -40,6 +40,14 @@ class HeroVideo {
     splashCleared = true;
     onSplashCleared?.call();
   }
+
+  /// Rewind so the first screen can play the clip again after Start over.
+  static Future<void> rewind() async {
+    final player = controller;
+    if (player == null || !player.value.isInitialized) return;
+    await player.pause();
+    await player.seekTo(Duration.zero);
+  }
 }
 
 /// Asset video that plays once, then holds the last frame.
@@ -64,6 +72,7 @@ class _OncePlayVideoState extends State<OncePlayVideo> {
   VideoPlayerController? _controller;
   bool _ready = false;
   bool _froze = false;
+  bool _starting = false;
 
   static bool get _inWidgetTest {
     return WidgetsBinding.instance.runtimeType
@@ -85,9 +94,14 @@ class _OncePlayVideoState extends State<OncePlayVideo> {
 
   void _attach(VideoPlayerController controller) {
     _controller = controller;
-    _ready = true;
     controller.addListener(_onTick);
     HeroVideo.onSplashCleared = _playWhenAllowed;
+    final duration = controller.value.duration;
+    final atEnd =
+        duration > Duration.zero && controller.value.position >= duration;
+    if (!atEnd) {
+      _ready = true;
+    }
     if (HeroVideo.splashCleared) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _playWhenAllowed();
@@ -103,25 +117,33 @@ class _OncePlayVideoState extends State<OncePlayVideo> {
     setState(() => _attach(cached));
   }
 
-  void _playWhenAllowed() {
+  Future<void> _playWhenAllowed() async {
     final controller = _controller;
     if (!mounted || controller == null || !controller.value.isInitialized) {
       return;
     }
     if (MediaQuery.disableAnimationsOf(context)) {
-      _freezeOnLastFrame();
+      await _freezeOnLastFrame();
+      if (mounted && !_ready) setState(() => _ready = true);
       return;
     }
-    final duration = controller.value.duration;
-    if (duration > Duration.zero && controller.value.position >= duration) {
-      return;
+    _froze = false;
+    _starting = true;
+    await HeroVideo.rewind();
+    if (!mounted) return;
+    _starting = false;
+    if (!_ready) {
+      setState(() => _ready = true);
     }
-    controller.play();
+    await controller.play();
   }
 
   void _onTick() {
     final controller = _controller;
-    if (controller == null || _froze || !controller.value.isInitialized) {
+    if (controller == null ||
+        _froze ||
+        _starting ||
+        !controller.value.isInitialized) {
       return;
     }
     final duration = controller.value.duration;

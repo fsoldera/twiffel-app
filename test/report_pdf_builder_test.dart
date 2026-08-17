@@ -21,31 +21,9 @@ List<AnalysisPoint> _points(String kind, int count) {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('builds a single-choice PDF with 7 pros and 7 cons', () async {
-    final bytes = await ReportPdfBuilder.build(
-      DecisionAnalysis(
-        mode: DecisionMode.single,
-        target: 'Should I buy the MacBook Pro 16?',
-        pros: _points('Pro', 7),
-        cons: _points('Con', 7),
-        verdictPoints: const [
-          'A careful next step beats a rushed leap.',
-          'Name the real obstacle before you commit.',
-          'Keep the first move small enough to reverse.',
-          'Timing matters once, not in every detail.',
-          'If nothing clears the blocker, waiting is wiser.',
-        ],
-      ),
-    );
-
-    expect(bytes.length, greaterThan(1000));
-    expect(String.fromCharCodes(bytes.take(4)), '%PDF');
-  });
-
   test('builds a comparison PDF with option sections', () async {
     final bytes = await ReportPdfBuilder.build(
       DecisionAnalysis(
-        mode: DecisionMode.comparison,
         optionA: 'Turbo plan',
         optionB: 'Standard plan',
         optionAPros: _points('A Pro', 7),
@@ -64,6 +42,25 @@ void main() {
 
     expect(bytes.length, greaterThan(1000));
     expect(String.fromCharCodes(bytes.take(4)), '%PDF');
+  });
+
+  test('US locale PDF uses Letter page size', () async {
+    final bytes = await ReportPdfBuilder.build(
+      DecisionAnalysis(
+        optionA: 'Turbo plan',
+        optionB: 'Standard plan',
+        optionAPros: _points('A Pro', 1),
+        optionACons: _points('A Con', 1),
+        optionBPros: _points('B Pro', 1),
+        optionBCons: _points('B Con', 1),
+        verdictPoints: const ['Keep it simple.'],
+      ),
+      locale: const Locale('en', 'US'),
+    );
+
+    final pdf = String.fromCharCodes(bytes);
+    expect(pdf.contains('612'), isTrue);
+    expect(pdf.contains('792'), isTrue);
   });
 
   test('filename matches the email subject, with file-safe date and time', () async {

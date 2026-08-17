@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../models/decision_models.dart';
 import '../state/app_settings_controller.dart';
 import '../state/session_controller.dart';
+import '../widgets/input_phase_progress.dart';
 import '../widgets/labeled_text_field.dart';
 import '../widgets/once_play_video.dart';
 import '../widgets/radio_option_list.dart';
@@ -36,6 +37,7 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
 
   /// 0 = options, 1 = consideration, 2 = timing.
   int _step = 0;
+
   /// +1 forward, -1 back, for step slide direction.
   int _stepDirection = 1;
   int? _obstacleIndex;
@@ -124,7 +126,6 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
 
   DecisionRequest _buildRequest() {
     return DecisionRequest(
-      mode: DecisionMode.comparison,
       optionA: _optionAController.text.trim(),
       optionB: _optionBController.text.trim(),
       obstacle: _obstacleLabel(),
@@ -282,9 +283,8 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
   Widget _stepContent() {
     return Column(
       key: ValueKey<int>(_step),
-      mainAxisAlignment: _step == 0
-          ? MainAxisAlignment.start
-          : MainAxisAlignment.center,
+      mainAxisAlignment:
+          _step == 0 ? MainAxisAlignment.start : MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_step == 0) ...[
@@ -315,9 +315,8 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
   @override
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    final duration = reduceMotion
-        ? Duration.zero
-        : const Duration(milliseconds: 320);
+    final duration =
+        reduceMotion ? Duration.zero : const Duration(milliseconds: 320);
     final direction = _stepDirection;
 
     return Scaffold(
@@ -344,7 +343,8 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
                                 reverseDuration: duration,
                                 switchInCurve: Curves.easeOutCubic,
                                 switchOutCurve: Curves.easeInCubic,
-                                layoutBuilder: (currentChild, previousChildren) {
+                                layoutBuilder:
+                                    (currentChild, previousChildren) {
                                   return Stack(
                                     alignment: Alignment.center,
                                     children: <Widget>[
@@ -394,6 +394,7 @@ class _DecisionFormPageState extends State<DecisionFormPage> {
               ),
             ),
           ),
+          InputPhaseProgress(stepIndex: _step),
           StickyNavButtons(
             previousLabel: DecisionCopy.previousLabel,
             nextLabel: _isLastStep

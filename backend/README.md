@@ -10,7 +10,7 @@ xAI keys in the mobile app.
 
 | Method | Path | Body | Response |
 |---|---|---|---|
-| POST | `/api/analyze` | decision payload (`mode`, options/target, `obstacle`, `timing`) | `{ "analysis": … }` |
+| POST | `/api/analyze` | decision payload (`mode: comparison`, `optionA`, `optionB`, `obstacle`, `timing`) | `{ "analysis": … }` |
 | POST | `/api/track` | `{ "event": string, "platform": "android"\|"ios"\|"other" }` | `204` |
 
 ## Local development

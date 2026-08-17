@@ -41,10 +41,12 @@ void main() {
     await settings.init();
       session.debugSetReady(
         DecisionAnalysis(
-          mode: DecisionMode.single,
-          target: 'Should I buy the MacBook Pro 16?',
-          pros: _points('Pro', 7),
-          cons: _points('Con', 7),
+          optionA: 'MacBook Pro 16',
+          optionB: 'Keep the current laptop',
+          optionAPros: _points('Pro', 7),
+          optionACons: _points('Con', 7),
+          optionBPros: _points('B Pro', 7),
+          optionBCons: _points('B Con', 7),
           verdictPoints: const [
             'A careful next step beats a rushed leap.',
             'Name the real obstacle before you commit.',

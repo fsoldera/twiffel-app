@@ -65,6 +65,9 @@ abstract final class TwiffelTokens {
   /// Disabled primary fill (solid; avoid translucent amber + white text).
   static const Color primaryDisabled = Color(0xFFE5E7EB);
   static const Color secondaryDefault = Color(0xFFFBBF24);
+
+  /// Shared height for filled and outlined CTAs, including dialog actions.
+  static const double buttonHeight = 52;
 }
 
 /// Theme-resolved Twiffel colors for light/dark mode.

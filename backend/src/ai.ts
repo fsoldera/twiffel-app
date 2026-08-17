@@ -80,7 +80,7 @@ async function fetchDopplerSecrets(env: Env): Promise<Record<string, string>> {
 
 const REASONING_EFFORTS = ["none", "low", "medium", "high"] as const;
 type ReasoningEffort = (typeof REASONING_EFFORTS)[number];
-const DEFAULT_REASONING_EFFORT: ReasoningEffort = "medium";
+const DEFAULT_REASONING_EFFORT: ReasoningEffort = "low";
 const DEFAULT_TEMPERATURE = 0.7;
 const DEFAULT_XAI_BASE_URL = "https://eu-west-1.api.x.ai/v1";
 
@@ -150,7 +150,7 @@ async function resolveXaiConfig(env: Env): Promise<XaiConfig> {
   }
   return {
     apiKey: pickSecret(secrets, env, ["TWIFFEL_XAI_API_KEY", "XAI_API_KEY", "XAI"]),
-    model: pickSecret(secrets, env, ["TWIFFEL_XAI_MODEL", "XAI_MODEL"]) || "grok-4.3",
+    model: pickSecret(secrets, env, ["TWIFFEL_XAI_MODEL", "XAI_MODEL"]) || "grok-latest",
     baseUrl: parseXaiBaseUrl(pickSecret(secrets, env, ["TWIFFEL_XAI_BASE_URL"])),
     reasoningEffort: parseReasoningEffort(
       pickSecret(secrets, env, ["TWIFFEL_XAI_REASONING_EFFORT"]),
@@ -159,11 +159,20 @@ async function resolveXaiConfig(env: Env): Promise<XaiConfig> {
   };
 }
 
+export interface XaiChatResult {
+  content: string;
+  promptTokens: number;
+  cachedTokens: number;
+}
+
+/** Sticky routing so comparison prefixes reuse the same xAI cache shard. */
+const XAI_PROMPT_CACHE_KEY = "twiffel-analyze";
+
 export async function callXaiChat(
   messages: Array<{ role: "system" | "user"; content: string }>,
   env: Env,
   responseFormat: Record<string, unknown>,
-): Promise<string> {
+): Promise<XaiChatResult> {
   const { apiKey, model, baseUrl, reasoningEffort, temperature } = await resolveXaiConfig(env);
   if (!apiKey) {
     throw new Error(
@@ -175,7 +184,11 @@ export async function callXaiChat(
     `${baseUrl}/chat/completions`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "x-grok-conv-id": XAI_PROMPT_CACHE_KEY,
+      },
       body: JSON.stringify({
         model,
         temperature,
@@ -193,8 +206,18 @@ export async function callXaiChat(
 
   const payload = (await response.json()) as {
     choices?: Array<{ message?: { content?: string } }>;
+    usage?: {
+      prompt_tokens?: number;
+      prompt_tokens_details?: { cached_tokens?: number };
+    };
   };
   const content = payload.choices?.[0]?.message?.content?.trim();
   if (!content) throw new Error("xAI response did not contain message content");
-  return content;
+  const promptTokens =
+    typeof payload.usage?.prompt_tokens === "number" ? payload.usage.prompt_tokens : 0;
+  const cachedTokens =
+    typeof payload.usage?.prompt_tokens_details?.cached_tokens === "number"
+      ? payload.usage.prompt_tokens_details.cached_tokens
+      : 0;
+  return { content, promptTokens, cachedTokens };
 }

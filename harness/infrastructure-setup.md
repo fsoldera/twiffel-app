@@ -19,7 +19,7 @@ variable is prefixed with the app name: `<APP>_*`.
 | Secret | Required in |
 |---|---|
 | `<APP>_XAI_API_KEY` | Doppler `dev` + `prd` |
-| `<APP>_XAI_MODEL` | Doppler `dev` + `prd` (e.g. `grok-4.3`) |
+| `<APP>_XAI_MODEL` | Doppler `dev` + `prd` (e.g. `grok-latest`) |
 | `<APP>_XAI_REASONING_EFFORT` | Doppler `dev` + `prd` (`none` / `low` / `medium` / `high`) |
 | `<APP>_XAI_TEMPERATURE` | Doppler `dev` + `prd` (`0` to `2`) |
 | `<APP>_XAI_BASE_URL` | Doppler `dev` + `prd` (e.g. `https://eu-west-1.api.x.ai/v1`) |
@@ -68,7 +68,7 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 
 1. Create a **new API key** named after the app (`<app>`). Do not reuse another
    app's key. Never paste Joppling / Stikkteller / Twiffel keys into a new project.
-2. Note the model (default: `grok-4.3`), reasoning effort (`low`), temperature (`0.7`),
+2. Note the model (default: `grok-latest`), reasoning effort (`low`), temperature (`0.7`),
    and cluster (`https://eu-west-1.api.x.ai/v1` for EU).
 3. Keep both in a password manager until step 2.
 
@@ -78,6 +78,18 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 > **Gotcha — EU cluster:** region is the request host, not a JSON body field.
 > Set `<APP>_XAI_BASE_URL=https://eu-west-1.api.x.ai/v1`. Global `https://api.x.ai`
 > may hang or miss EU-only models.
+>
+> **Gotcha — `grok-latest` on EU:** `grok-latest` currently aliases to `grok-4.3`,
+> which is available in `eu-west-1`. Newer flagships (`grok-4.5`, `grok-4.6`) are
+> US-only. If xAI later points `grok-latest` at a US-only model, EU regional
+> requests fail. Pin `grok-4.3` if you need a guaranteed EU model.
+
+> **Gotcha — xAI prompt cache:** Grok caches identical leading messages on one
+> server. Send a stable `x-grok-conv-id` (Twiffel uses `twiffel-analyze`), keep
+> system + static user instructions byte-identical, and put unique option text
+> in a following user message. Do not put unique fields first. Check Worker
+> logs for `cached_tokens` on `analyze_ok`. A `0` after a few comparison calls
+> means the prefix changed or the request landed on a cold server.
 
 > **Gotcha — isolation:** after Doppler step 2, optionally hash-compare the new
 > `<APP>_XAI_API_KEY` against other apps’ keys (print hashes only). If equal, rotate.
@@ -96,7 +108,7 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
    | Secret | Configs | When |
    |---|---|---|
    | `<APP>_XAI_API_KEY` | `dev`, `prd` | now |
-   | `<APP>_XAI_MODEL` | `dev`, `prd` | now (`grok-4.3` on EU, or `grok-latest`) |
+   | `<APP>_XAI_MODEL` | `dev`, `prd` | now (`grok-latest`, or pin `grok-4.3` for a guaranteed EU model) |
    | `<APP>_XAI_REASONING_EFFORT` | `dev`, `prd` | now (`none` \| `low` \| `medium` \| `high`; default `low`) |
    | `<APP>_XAI_TEMPERATURE` | `dev`, `prd` | now (`0` to `2`; default `0.7`) |
    | `<APP>_XAI_BASE_URL` | `dev`, `prd` | now (`https://eu-west-1.api.x.ai/v1` for EU) |

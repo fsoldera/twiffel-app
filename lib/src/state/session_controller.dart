@@ -35,12 +35,8 @@ class SessionController extends ChangeNotifier {
   Future<void> submitDecision(DecisionRequest request) async {
     // Content-safety on every free-text field before any AI call.
     final texts = <String>[
-      if (request.target != null && request.target!.trim().isNotEmpty)
-        request.target!.trim(),
-      if (request.optionA != null && request.optionA!.trim().isNotEmpty)
-        request.optionA!.trim(),
-      if (request.optionB != null && request.optionB!.trim().isNotEmpty)
-        request.optionB!.trim(),
+      request.optionA.trim(),
+      request.optionB.trim(),
       request.obstacle.trim(),
       request.timing.trim(),
     ];
@@ -121,80 +117,9 @@ class SessionController extends ChangeNotifier {
       );
     }
 
-    if (request.mode == DecisionMode.single) {
-      final target = request.target ?? 'this decision';
-      final timing = request.timing.toLowerCase();
-      return DecisionAnalysis(
-        mode: DecisionMode.single,
-        target: target,
-        pros: [
-          item(
-            'Clearer direction',
-            'Naming "$target" makes the choice concrete enough to evaluate honestly.',
-            88,
-          ),
-          item(
-            'Timeline awareness',
-            'Wanting this $timing helps you weigh urgency against waiting costs.',
-            64,
-          ),
-          item(
-            'Obstacle is named',
-            'Focusing on "${request.obstacle}" keeps the analysis practical instead of vague worry.',
-            92,
-          ),
-          item(
-            'Values come into view',
-            'Working through "$target" surfaces what you care about protecting most.',
-            71,
-          ),
-          item(
-            'Decision becomes testable',
-            'You can define a small next check instead of staying in mental loops.',
-            55,
-          ),
-        ],
-        cons: [
-          item(
-            'Real trade-offs remain',
-            'Moving ahead on "$target" still means accepting costs, effort, or uncertainty.',
-            80,
-          ),
-          item(
-            'Waiting has a cost too',
-            'Delaying can feel safer, but it may quietly spend time, energy, or opportunity.',
-            68,
-          ),
-          item(
-            'Ambiguity can return',
-            'Without a next checkpoint, the same doubts are likely to resurface.',
-            52,
-          ),
-          item(
-            'Obstacle may intensify',
-            'If "${request.obstacle}" is ignored, pressure can grow even while you wait.',
-            90,
-          ),
-          item(
-            'Perfect certainty is unlikely',
-            'You may never feel 100% ready, so waiting for that signal can stall you.',
-            47,
-          ),
-        ],
-        verdictPoints: [
-          'Based on your timing (${request.timing}) and main obstacle (${request.obstacle}), "$target" deserves a clear lean.',
-          'The named obstacle is real, so treat it as the main constraint rather than a vague worry.',
-          'A careful next step beats waiting for perfect certainty that may never arrive.',
-          'Keep the move small enough to reverse if early feedback looks wrong.',
-          'If the obstacle still blocks every path, waiting is wiser than forcing a leap.',
-        ],
-      );
-    }
-
-    final optionA = request.optionA ?? 'Option A';
-    final optionB = request.optionB ?? 'Option B';
+    final optionA = request.optionA;
+    final optionB = request.optionB;
     return DecisionAnalysis(
-      mode: DecisionMode.comparison,
       optionA: optionA,
       optionB: optionB,
       optionAPros: [

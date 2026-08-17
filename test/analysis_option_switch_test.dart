@@ -24,7 +24,6 @@ void main() {
     await settings.init();
     session.debugSetReady(
       const DecisionAnalysis(
-        mode: DecisionMode.comparison,
         optionA: 'buy a dog',
         optionB: 'buy a cat',
         optionAPros: [

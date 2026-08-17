@@ -18,7 +18,6 @@ void main() {
 
     final submit = session.submitDecision(
       const DecisionRequest(
-        mode: DecisionMode.comparison,
         optionA: 'buy a dog',
         optionB: 'buy a cat',
         obstacle: 'Cost / money',

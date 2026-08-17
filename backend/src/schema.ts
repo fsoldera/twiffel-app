@@ -1,5 +1,3 @@
-import type { DecisionMode } from "./decision";
-
 /** Keep in sync with ANALYSIS_POINTS_TARGET / VERDICT_SENTENCES_TARGET in decision.ts. */
 const POINTS = 5;
 const VERDICTS = 5;
@@ -51,34 +49,6 @@ const verdictSchema = {
   },
 } as const;
 
-const singleCalculationSchema = {
-  type: "object",
-  additionalProperties: false,
-  description:
-    "Add the list weights here before writing verdict. net must equal proSum minus conSum.",
-  properties: {
-    proSum: {
-      type: "integer",
-      description: "Sum of all pro weights.",
-    },
-    conSum: {
-      type: "integer",
-      description: "Sum of all con weights.",
-    },
-    net: {
-      type: "integer",
-      description: "proSum minus conSum.",
-    },
-    lean: {
-      type: "string",
-      enum: ["go", "wait", "too_close"],
-      description:
-        "go if net is clearly positive, wait if net is clearly negative, too_close if the gap is small.",
-    },
-  },
-  required: ["proSum", "conSum", "net", "lean"],
-} as const;
-
 const comparisonCalculationSchema = {
   type: "object",
   additionalProperties: false,
@@ -125,18 +95,6 @@ const comparisonCalculationSchema = {
     "optionBNet",
     "lean",
   ],
-} as const;
-
-const singleAnalysisSchema = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    pros: pointsArraySchema("Exactly five pros for the decision target."),
-    cons: pointsArraySchema("Exactly five cons for the decision target."),
-    calculation: singleCalculationSchema,
-    verdict: verdictSchema,
-  },
-  required: ["pros", "cons", "calculation", "verdict"],
 } as const;
 
 const comparisonAnalysisSchema = {
@@ -188,24 +146,14 @@ export function verdictRewriteResponseFormat(): {
 }
 
 /** xAI Chat Completions structured output. Verdict is required, not optional JSON. */
-export function analysisResponseFormat(mode: DecisionMode): {
+export function analysisResponseFormat(): {
   type: "json_schema";
   json_schema: {
     name: string;
     strict: true;
-    schema: typeof singleAnalysisSchema | typeof comparisonAnalysisSchema;
+    schema: typeof comparisonAnalysisSchema;
   };
 } {
-  if (mode === "single") {
-    return {
-      type: "json_schema",
-      json_schema: {
-        name: "twiffel_single_analysis",
-        strict: true,
-        schema: singleAnalysisSchema,
-      },
-    };
-  }
   return {
     type: "json_schema",
     json_schema: {

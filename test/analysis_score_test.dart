@@ -4,56 +4,10 @@ import 'package:twiffel_app/src/models/analysis_score.dart';
 import 'package:twiffel_app/src/models/decision_models.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
 
-AnalysisPoint _point(int weight) {
-  return AnalysisPoint(
-    tagline: 'Point $weight',
-    description: 'Detail $weight.',
-    weight: weight,
-  );
-}
-
 void main() {
-  test('single net is pros minus cons, with a clear go-ahead lean', () {
-    final score = AnalysisScore.fromAnalysis(
-      DecisionAnalysis(
-        mode: DecisionMode.single,
-        target: 'Buy it?',
-        pros: [_point(90), _point(80), _point(70)],
-        cons: [_point(20), _point(10)],
-        verdictPoints: const ['Go.'],
-      ),
-    );
-
-    expect(score.netPrimary, 210);
-    expect(score.proSumPrimary, 240);
-    expect(score.conSumPrimary, 30);
-    expect(score.leanPercent, closeTo(88.9, 0.1));
-    expect(score.strength, LeanStrength.clear);
-    expect(score.headline, DecisionCopy.analysisLeanClearTo('go ahead'));
-    expect(score.towardCaption, contains('toward go ahead'));
-  });
-
-  test('single close nets stay too close', () {
-    final score = AnalysisScore.fromAnalysis(
-      DecisionAnalysis(
-        mode: DecisionMode.single,
-        target: 'Move?',
-        pros: [_point(80)],
-        cons: [_point(70)],
-        verdictPoints: const ['Wait.'],
-      ),
-    );
-
-    expect(score.netPrimary, 10);
-    expect(score.strength, LeanStrength.tooClose);
-    expect(score.headline, DecisionCopy.analysisLeanTooClose);
-    expect(score.towardCaption, DecisionCopy.analysisLeanNearlyEven);
-  });
-
   test('comparison uses signed nets and a lean percent toward A', () {
     final score = AnalysisScore.fromAnalysis(
       const DecisionAnalysis(
-        mode: DecisionMode.comparison,
         optionA: 'keep the bike',
         optionB: 'buy a car',
         optionAPros: [
@@ -74,22 +28,115 @@ void main() {
 
     expect(score.netPrimary, 70);
     expect(score.netSecondary, -40);
-    expect(score.leanPercent, closeTo(100, 0.1));
+    expect(score.leanPercent, closeTo(86.23, 0.1));
     expect(score.strength, LeanStrength.clear);
     expect(score.headline, DecisionCopy.analysisLeanClearTo('keep the bike'));
-    expect(score.towardCaption, contains('100% toward keep the bike'));
-    expect(score.trackPercent, closeTo(0, 0.1));
+    expect(score.towardCaption, contains('86% toward keep the bike'));
+    expect(score.trackPercent, closeTo(13.77, 0.1));
     expect(formatSigned(score.netPrimary), '+70');
     expect(formatSigned(score.netSecondary), '-40');
+    expect(score.primaryFavorPercent, 86);
+    expect(score.secondaryFavorPercent, 14);
+    expect(formatLeanPercent(score.primaryFavorPercent), '86%');
+  });
+
+  test('mixed lists keep a leftover share for the weaker option', () {
+    final score = AnalysisScore.fromAnalysis(
+      const DecisionAnalysis(
+        optionA: 'buy an apple',
+        optionB: 'buy a croissant',
+        optionAPros: [
+          AnalysisPoint(
+            tagline: 'Healthy',
+            description: 'Better fuel.',
+            weight: 90,
+          ),
+        ],
+        optionACons: [
+          AnalysisPoint(
+            tagline: 'Plain',
+            description: 'Less treat.',
+            weight: 20,
+          ),
+        ],
+        optionBPros: [
+          AnalysisPoint(
+            tagline: 'Tasty',
+            description: 'A treat.',
+            weight: 40,
+          ),
+        ],
+        optionBCons: [
+          AnalysisPoint(
+            tagline: 'Heavy',
+            description: 'Less healthy.',
+            weight: 80,
+          ),
+        ],
+        verdictPoints: ['Buy an apple.'],
+      ),
+    );
+
+    expect(score.primaryFavorPercent, 86);
+    expect(score.secondaryFavorPercent, 14);
+  });
+
+  test('100 percent only when one option has no cons and the other has no pros',
+      () {
+    final score = AnalysisScore.fromAnalysis(
+      const DecisionAnalysis(
+        optionA: 'clear winner',
+        optionB: 'no upside',
+        optionAPros: [
+          AnalysisPoint(tagline: 'Strong', description: 'All upside.', weight: 80),
+        ],
+        optionBCons: [
+          AnalysisPoint(tagline: 'Weak', description: 'All downside.', weight: 20),
+        ],
+        verdictPoints: ['Pick the winner.'],
+      ),
+    );
+
     expect(score.primaryFavorPercent, 100);
     expect(score.secondaryFavorPercent, 0);
-    expect(formatLeanPercent(score.primaryFavorPercent), '100%');
+  });
+
+  test('strong log stretch turns a linear 48/52 split into 43/57', () {
+    expect(compressFavorPercent(52), closeTo(56.68, 0.05));
+    expect(compressFavorPercent(48), closeTo(43.32, 0.05));
+    expect(compressFavorPercent(50), 50);
+    expect(compressFavorPercent(100), 100);
+    expect(compressFavorPercent(0), 0);
+
+    final score = AnalysisScore.fromAnalysis(
+      const DecisionAnalysis(
+        optionA: 'buy a dog',
+        optionB: 'buy a cat',
+        optionAPros: [
+          AnalysisPoint(tagline: 'Loyal', description: 'A friend.', weight: 46),
+        ],
+        optionACons: [
+          AnalysisPoint(tagline: 'Walks', description: 'Hard walks.', weight: 54),
+        ],
+        optionBPros: [
+          AnalysisPoint(tagline: 'Easy', description: 'Low effort.', weight: 50),
+        ],
+        optionBCons: [
+          AnalysisPoint(tagline: 'Aloof', description: 'Less company.', weight: 50),
+        ],
+        verdictPoints: ['Very close.'],
+      ),
+    );
+
+    expect(score.primaryFavorPercent, 43);
+    expect(score.secondaryFavorPercent, 57);
+    expect(score.strength, LeanStrength.tooClose);
+    expect(score.headline, DecisionCopy.analysisLeanTooClose);
   });
 
   test('same-sign nets share 100 percent relative to each other', () {
     final score = AnalysisScore.fromAnalysis(
       const DecisionAnalysis(
-        mode: DecisionMode.comparison,
         optionA: 'stay',
         optionB: 'go',
         optionAPros: [
@@ -110,8 +157,8 @@ void main() {
 
     expect(score.netPrimary, -30);
     expect(score.netSecondary, -10);
-    expect(score.primaryFavorPercent, 25);
-    expect(score.secondaryFavorPercent, 75);
+    expect(score.primaryFavorPercent, 32);
+    expect(score.secondaryFavorPercent, 68);
     expect(
       score.primaryFavorPercent + score.secondaryFavorPercent,
       100,
@@ -121,7 +168,6 @@ void main() {
   test('comparison B win puts the marker on the right and percent toward B', () {
     final score = AnalysisScore.fromAnalysis(
       const DecisionAnalysis(
-        mode: DecisionMode.comparison,
         optionA: 'buy a dog',
         optionB: 'buy a cat',
         optionAPros: [
@@ -143,19 +189,27 @@ void main() {
     expect(score.netPrimary, -70);
     expect(score.netSecondary, 80);
     expect(score.leansPrimary, isFalse);
-    expect(score.towardFavoredPercent, 100);
-    expect(score.trackPercent, closeTo(100, 0.1));
+    expect(score.leanPercent, closeTo(6.45, 0.1));
+    expect(score.towardFavoredPercent, 94);
+    expect(score.trackPercent, closeTo(93.55, 0.1));
     expect(score.towardCaption, contains('toward buy a cat'));
   });
 
-  test('signed weight labels keep stored values unsigned', () {
-    expect(signedWeightLabel(72, favorable: true), '+72');
-    expect(signedWeightLabel(72, favorable: false), '-72');
+  test('weight sign marks map 20-point steps from 1 to 5', () {
+    expect(weightSignCount(1), 1);
+    expect(weightSignCount(20), 1);
+    expect(weightSignCount(21), 2);
+    expect(weightSignCount(40), 2);
+    expect(weightSignCount(80), 4);
+    expect(weightSignCount(81), 5);
+    expect(weightSignCount(100), 5);
+    expect(weightSignLabel(90, favorable: true), '+++++');
+    expect(weightSignLabel(20, favorable: false), '-');
+    expect(weightSignLabel(80, favorable: false), '----');
   });
 
   test('aligned verdict replaces sentences that pick the losing option', () {
     const analysis = DecisionAnalysis(
-      mode: DecisionMode.comparison,
       optionA: 'Holidays in Liguria',
       optionB: 'Holidays in Marche',
       optionAPros: [
@@ -169,14 +223,14 @@ void main() {
         AnalysisPoint(
           tagline: 'Higher cost',
           description: 'The trip costs more.',
-          weight: 45,
+          weight: 80,
         ),
       ],
       optionBPros: [
         AnalysisPoint(
           tagline: 'Quieter stay',
           description: 'The pace is calmer.',
-          weight: 50,
+          weight: 90,
         ),
       ],
       optionBCons: [
@@ -207,7 +261,6 @@ void main() {
 
   test('aligned verdict keeps sentences that already match the score', () {
     const analysis = DecisionAnalysis(
-      mode: DecisionMode.comparison,
       optionA: 'keep the bike',
       optionB: 'buy a car',
       optionAPros: [

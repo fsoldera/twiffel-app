@@ -1,7 +1,5 @@
 import 'dart:convert';
 
-enum DecisionMode { single, comparison }
-
 class AnalysisPoint {
   const AnalysisPoint({
     required this.tagline,
@@ -55,57 +53,41 @@ class AnalysisPoint {
 
 class DecisionRequest {
   const DecisionRequest({
-    required this.mode,
+    required this.optionA,
+    required this.optionB,
     required this.obstacle,
     required this.timing,
-    this.target,
-    this.optionA,
-    this.optionB,
   });
 
-  final DecisionMode mode;
-  final String? target;
-  final String? optionA;
-  final String? optionB;
+  final String optionA;
+  final String optionB;
   final String obstacle;
   final String timing;
 
   Map<String, dynamic> toJson() => <String, dynamic>{
-        'mode': mode == DecisionMode.single ? 'single' : 'comparison',
-        if (target != null) 'target': target,
-        if (optionA != null) 'optionA': optionA,
-        if (optionB != null) 'optionB': optionB,
+        'mode': 'comparison',
+        'optionA': optionA,
+        'optionB': optionB,
         'obstacle': obstacle,
         'timing': timing,
       };
 
-  String get validationText {
-    if (mode == DecisionMode.single) return target ?? '';
-    return '${optionA ?? ''} ${optionB ?? ''}';
-  }
+  String get validationText => '$optionA $optionB';
 }
 
 class DecisionAnalysis {
   const DecisionAnalysis({
-    required this.mode,
+    required this.optionA,
+    required this.optionB,
     required this.verdictPoints,
-    this.target,
-    this.optionA,
-    this.optionB,
-    this.pros = const <AnalysisPoint>[],
-    this.cons = const <AnalysisPoint>[],
     this.optionAPros = const <AnalysisPoint>[],
     this.optionACons = const <AnalysisPoint>[],
     this.optionBPros = const <AnalysisPoint>[],
     this.optionBCons = const <AnalysisPoint>[],
   });
 
-  final DecisionMode mode;
-  final String? target;
-  final String? optionA;
-  final String? optionB;
-  final List<AnalysisPoint> pros;
-  final List<AnalysisPoint> cons;
+  final String optionA;
+  final String optionB;
   final List<AnalysisPoint> optionAPros;
   final List<AnalysisPoint> optionACons;
   final List<AnalysisPoint> optionBPros;
@@ -140,17 +122,9 @@ class DecisionAnalysis {
       return const <AnalysisPoint>[];
     }
 
-    final modeRaw = json['mode']?.toString();
-    final mode =
-        modeRaw == 'comparison' ? DecisionMode.comparison : DecisionMode.single;
-
     return DecisionAnalysis(
-      mode: mode,
-      target: json['target']?.toString(),
-      optionA: json['optionA']?.toString() ?? json['option_a']?.toString(),
-      optionB: json['optionB']?.toString() ?? json['option_b']?.toString(),
-      pros: points(const ['pros']),
-      cons: points(const ['cons']),
+      optionA: json['optionA']?.toString() ?? json['option_a']?.toString() ?? '',
+      optionB: json['optionB']?.toString() ?? json['option_b']?.toString() ?? '',
       optionAPros: points(const ['optionAPros', 'option_a_pros']),
       optionACons: points(const ['optionACons', 'option_a_cons']),
       optionBPros: points(const ['optionBPros', 'option_b_pros']),

@@ -29,7 +29,7 @@ class StickyPrimaryButton extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 12, 24, 8),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(26),
+              borderRadius: BorderRadius.circular(TwiffelTokens.buttonHeight / 2),
               boxShadow: enabled
                   ? const [
                       BoxShadow(

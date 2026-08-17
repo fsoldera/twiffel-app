@@ -3,7 +3,6 @@ import type { AnalysisPoint, DecisionAnalysis } from "./decision";
 export type LeanStrength = "tooClose" | "slight" | "clear";
 
 export interface AnalysisScore {
-  isComparison: boolean;
   proSumPrimary: number;
   conSumPrimary: number;
   netPrimary: number;
@@ -21,6 +20,17 @@ export interface AnalysisScore {
 
 const TOO_CLOSE_MARGIN = 8;
 const SLIGHT_MARGIN = 18;
+/** Stretch small leans away from 50. Keep in sync with Dart compressFavorPercent. */
+const FAVOR_LOG_K = 9;
+
+function compressFavorPercent(linearPercent: number): number {
+  const clamped = Math.min(100, Math.max(0, linearPercent));
+  const signed = (clamped - 50) / 50;
+  if (signed === 0) return 50;
+  const t = Math.abs(signed);
+  const curved = Math.log(1 + FAVOR_LOG_K * t) / Math.log(1 + FAVOR_LOG_K);
+  return Math.min(100, Math.max(0, 50 + 50 * Math.sign(signed) * curved));
+}
 
 const WIN_CUES = [
   "edge",
@@ -79,59 +89,33 @@ function formatSigned(value: number): string {
 
 function headlineFor(score: Omit<AnalysisScore, "headline" | "favoredName">): string {
   const favored = score.leansPrimary ? score.primaryLabel : score.secondaryLabel;
-  if (score.strength === "tooClose") return "Too close, weigh the nuances";
+  if (score.strength === "tooClose") return "Very close, weigh the nuances";
   if (score.strength === "clear") return `Clear lean to ${favored}`;
   return `Slight lean to ${favored}`;
 }
 
 export function computeScore(analysis: DecisionAnalysis): AnalysisScore {
-  if (analysis.mode === "comparison") {
-    const proA = sumWeights(analysis.optionAPros);
-    const conA = sumWeights(analysis.optionACons);
-    const proB = sumWeights(analysis.optionBPros);
-    const conB = sumWeights(analysis.optionBCons);
-    const netA = proA - conA;
-    const netB = proB - conB;
-    const denom = Math.abs(netA) + Math.abs(netB);
-    const percent = denom === 0 ? 50 : 50 + (50 * (netA - netB)) / denom;
-    const clamped = Math.min(100, Math.max(0, percent));
-    const base = {
-      isComparison: true,
-      proSumPrimary: proA,
-      conSumPrimary: conA,
-      netPrimary: netA,
-      proSumSecondary: proB,
-      conSumSecondary: conB,
-      netSecondary: netB,
-      leanPercent: clamped,
-      strength: strengthFor(clamped),
-      leansPrimary: netA >= netB,
-      primaryLabel: optionName(analysis.optionA, "Option A"),
-      secondaryLabel: optionName(analysis.optionB, "Option B"),
-    };
-    const favoredName = base.leansPrimary ? base.primaryLabel : base.secondaryLabel;
-    return { ...base, favoredName, headline: headlineFor(base) };
-  }
-
-  const proSum = sumWeights(analysis.pros);
-  const conSum = sumWeights(analysis.cons);
-  const net = proSum - conSum;
-  const denom = proSum + conSum;
-  const percent = denom === 0 ? 50 : 50 + (50 * net) / denom;
-  const clamped = Math.min(100, Math.max(0, percent));
+  const proA = sumWeights(analysis.optionAPros);
+  const conA = sumWeights(analysis.optionACons);
+  const proB = sumWeights(analysis.optionBPros);
+  const conB = sumWeights(analysis.optionBCons);
+  const netA = proA - conA;
+  const netB = proB - conB;
+  const totalWeight = proA + conA + proB + conB;
+  const linear = totalWeight === 0 ? 50 : 50 + (50 * (netA - netB)) / totalWeight;
+  const clamped = compressFavorPercent(Math.min(100, Math.max(0, linear)));
   const base = {
-    isComparison: false,
-    proSumPrimary: proSum,
-    conSumPrimary: conSum,
-    netPrimary: net,
-    proSumSecondary: 0,
-    conSumSecondary: 0,
-    netSecondary: 0,
+    proSumPrimary: proA,
+    conSumPrimary: conA,
+    netPrimary: netA,
+    proSumSecondary: proB,
+    conSumSecondary: conB,
+    netSecondary: netB,
     leanPercent: clamped,
     strength: strengthFor(clamped),
-    leansPrimary: net >= 0,
-    primaryLabel: "go ahead",
-    secondaryLabel: "wait",
+    leansPrimary: netA >= netB,
+    primaryLabel: optionName(analysis.optionA, "Option A"),
+    secondaryLabel: optionName(analysis.optionB, "Option B"),
   };
   const favoredName = base.leansPrimary ? base.primaryLabel : base.secondaryLabel;
   return { ...base, favoredName, headline: headlineFor(base) };
@@ -184,7 +168,7 @@ export function verdictAgreesWithScore(verdict: string[], score: AnalysisScore):
   const loser = score.leansPrimary ? score.secondaryLabel : score.primaryLabel;
   for (const sentence of verdict) {
     if (claimsWin(sentence, loser, score.favoredName)) return false;
-    if (score.isComparison && claimsOptionLetter(sentence, !score.leansPrimary)) return false;
+    if (claimsOptionLetter(sentence, !score.leansPrimary)) return false;
   }
   return true;
 }
@@ -197,21 +181,6 @@ export function fallbackVerdictPoints(analysis: DecisionAnalysis, score: Analysi
       "The details show which points carry the most weight.",
       "Use those points to see what still feels unresolved.",
       "If a key fact is still missing, resubmit with more details.",
-    ];
-  }
-
-  if (!score.isComparison) {
-    const side = score.leansPrimary ? analysis.pros : analysis.cons;
-    const reason =
-      side.length === 0
-        ? "The listed weights point that way once they are added up."
-        : `The strongest listed point is ${side[0].tagline}.`;
-    return [
-      `${score.headline}.`,
-      `Pros add up to ${formatSigned(score.proSumPrimary)}, cons to ${formatSigned(-score.conSumPrimary)}.`,
-      `That leaves a net of ${formatSigned(score.netPrimary)}.`,
-      reason,
-      "The details show every weighted point.",
     ];
   }
 
@@ -239,41 +208,23 @@ export function fallbackVerdictPoints(analysis: DecisionAnalysis, score: Analysi
 }
 
 export function verifiedCalculation(score: AnalysisScore): Record<string, unknown> {
-  if (score.isComparison) {
-    return {
-      optionAProSum: score.proSumPrimary,
-      optionAConSum: score.conSumPrimary,
-      optionANet: score.netPrimary,
-      optionBProSum: score.proSumSecondary,
-      optionBConSum: score.conSumSecondary,
-      optionBNet: score.netSecondary,
-      lean:
-        score.strength === "tooClose" ? "too_close" : score.leansPrimary ? "a" : "b",
-      headline: score.headline,
-    };
-  }
   return {
-    proSum: score.proSumPrimary,
-    conSum: score.conSumPrimary,
-    net: score.netPrimary,
+    optionAProSum: score.proSumPrimary,
+    optionAConSum: score.conSumPrimary,
+    optionANet: score.netPrimary,
+    optionBProSum: score.proSumSecondary,
+    optionBConSum: score.conSumSecondary,
+    optionBNet: score.netSecondary,
     lean:
-      score.strength === "tooClose" ? "too_close" : score.leansPrimary ? "go" : "wait",
+      score.strength === "tooClose" ? "too_close" : score.leansPrimary ? "a" : "b",
     headline: score.headline,
   };
 }
 
 export function scoreSummaryLines(score: AnalysisScore): string[] {
-  if (score.isComparison) {
-    return [
-      `${score.primaryLabel} net: ${formatSigned(score.netPrimary)}`,
-      `${score.secondaryLabel} net: ${formatSigned(score.netSecondary)}`,
-      `Required lean: ${score.headline}`,
-    ];
-  }
   return [
-    `Pros sum: ${formatSigned(score.proSumPrimary)}`,
-    `Cons sum: ${formatSigned(-score.conSumPrimary)}`,
-    `Net: ${formatSigned(score.netPrimary)}`,
+    `${score.primaryLabel} net: ${formatSigned(score.netPrimary)}`,
+    `${score.secondaryLabel} net: ${formatSigned(score.netSecondary)}`,
     `Required lean: ${score.headline}`,
   ];
 }

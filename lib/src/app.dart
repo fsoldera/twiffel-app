@@ -9,7 +9,6 @@ import 'config/app_config.dart';
 import 'router.dart';
 import 'services/ai_client.dart';
 import 'services/analytics.dart';
-import 'services/android_system_ui.dart';
 import 'state/app_settings_controller.dart';
 import 'state/session_controller.dart';
 import 'theme/app_theme.dart';
@@ -29,7 +28,7 @@ class MyApp extends StatefulWidget {
   State<MyApp> createState() => _MyAppState();
 }
 
-class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
+class _MyAppState extends State<MyApp> {
   late final LicenseController _license;
   late final SessionController _session;
   late final Analytics _analytics;
@@ -40,7 +39,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _license = LicenseController(appLicenseConfig);
     _license.init();
     _settings = AppSettingsController();
@@ -81,19 +79,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
     _session.dispose();
     _license.dispose();
     _settings.dispose();
     _ai.dispose();
     super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      unawaited(hideAndroidNavigationBar());
-    }
   }
 
   @override

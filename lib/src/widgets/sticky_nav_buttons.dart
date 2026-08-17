@@ -23,7 +23,8 @@ class StickyNavButtons extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
     final nextEnabled = onNext != null && !nextLoading;
-    final buttonHeight = MediaQuery.textScalerOf(context).scale(52);
+    final buttonHeight =
+        MediaQuery.textScalerOf(context).scale(TwiffelTokens.buttonHeight);
     final radius = buttonHeight / 2;
     final spinnerSize = MediaQuery.textScalerOf(context).scale(22);
 

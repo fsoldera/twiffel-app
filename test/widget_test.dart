@@ -7,6 +7,7 @@ import 'package:twiffel_app/src/app.dart';
 import 'package:twiffel_app/src/pages/android_onboarding_copy.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
 import 'package:twiffel_app/src/pages/ios_onboarding_copy.dart';
+import 'package:twiffel_app/src/widgets/input_phase_progress.dart';
 import 'package:twiffel_app/src/widgets/loop_play_video.dart';
 import 'package:twiffel_app/src/widgets/once_play_video.dart';
 
@@ -42,6 +43,7 @@ void main() {
   test('video preloads are skipped under the widget test binding', () async {
     await HeroVideo.preload();
     await WaitingVideo.preload();
+    await HeroVideo.rewind();
     expect(HeroVideo.isReady, isFalse);
     expect(WaitingVideo.isReady, isFalse);
   });
@@ -52,6 +54,8 @@ void main() {
     expect(find.text('Twiffel'), findsWidgets);
     expect(find.byIcon(Icons.menu), findsOneWidget);
     expect(find.byKey(OncePlayVideo.slotKey), findsOneWidget);
+    expect(find.byKey(InputPhaseProgress.slotKey), findsOneWidget);
+    expect(find.text(DecisionCopy.inputPhaseStepLabel(0)), findsOneWidget);
     expect(find.text(DecisionCopy.optionsStepTitle), findsOneWidget);
     expect(
       tester.widget<Text>(find.text(DecisionCopy.optionsStepTitle)).textAlign,
@@ -62,7 +66,6 @@ void main() {
     expect(find.text(DecisionCopy.nextLabel), findsOneWidget);
     expect(find.text(DecisionCopy.previousLabel), findsNothing);
     expect(find.text(DecisionCopy.timingMonths), findsNothing);
-    expect(find.text(DecisionCopy.routingTitle), findsNothing);
   });
 
   testWidgets('Next advances through consideration then timing', (tester) async {
@@ -81,6 +84,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(OncePlayVideo.slotKey), findsNothing);
+    expect(find.text(DecisionCopy.inputPhaseStepLabel(1)), findsOneWidget);
     expect(find.text(DecisionCopy.considerationStepTitle), findsOneWidget);
     expect(find.text(DecisionCopy.pathBObstacleCost), findsOneWidget);
 
@@ -90,6 +94,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(DecisionCopy.timingStepTitle), findsOneWidget);
+    expect(find.text(DecisionCopy.inputPhaseStepLabel(2)), findsOneWidget);
     expect(find.text(DecisionCopy.timingAsap), findsOneWidget);
     expect(find.text(DecisionCopy.timingMonths), findsOneWidget);
     expect(find.text(DecisionCopy.timingDateRange), findsOneWidget);

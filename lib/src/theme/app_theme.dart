@@ -89,10 +89,19 @@ class AppTheme {
               isLight ? TwiffelTokens.gray200 : TwiffelTokens.gray700,
           disabledForegroundColor:
               isLight ? TwiffelTokens.gray600 : TwiffelTokens.gray400,
-          minimumSize: const Size.fromHeight(52),
+          minimumSize: const Size.fromHeight(TwiffelTokens.buttonHeight),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(26),
+            borderRadius: BorderRadius.circular(TwiffelTokens.buttonHeight / 2),
           ),
+          textStyle: const TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size.fromHeight(TwiffelTokens.buttonHeight),
           textStyle: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w600,

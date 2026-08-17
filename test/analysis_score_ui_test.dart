@@ -9,6 +9,7 @@ import 'package:twiffel_app/src/pages/analysis_page.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
 import 'package:twiffel_app/src/state/app_settings_controller.dart';
 import 'package:twiffel_app/src/state/session_controller.dart';
+import 'package:twiffel_app/src/theme/tokens.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -24,7 +25,6 @@ void main() {
     await settings.init();
     session.debugSetReady(
       const DecisionAnalysis(
-        mode: DecisionMode.comparison,
         optionA: 'keep the bike',
         optionB: 'buy a car',
         optionAPros: [
@@ -65,6 +65,11 @@ void main() {
       ),
     );
 
+    tester.view.physicalSize = const Size(400, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
     await tester.pumpWidget(
       MaterialApp(
         home: AnalysisPage(session: session, settings: settings),
@@ -73,14 +78,39 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(DecisionCopy.analysisVerdictLabel), findsOneWidget);
-    expect(find.text('100%'), findsOneWidget);
-    expect(find.text('0%'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.text(DecisionCopy.analysisVerdictLabel))
+          .textAlign,
+      TextAlign.center,
+    );
+    expect(
+      tester
+          .widget<Text>(find.text(DecisionCopy.analysisKeyParameters))
+          .textAlign,
+      TextAlign.center,
+    );
+    expect(find.text('86%'), findsOneWidget);
+    expect(find.text('14%'), findsOneWidget);
     expect(find.text('keep the bike'), findsWidgets);
     expect(find.text('Keep the bike.'), findsOneWidget);
 
+    bool hasInsightBorder(Color color) {
+      return tester.widgetList<Container>(find.byType(Container)).any((widget) {
+        final decoration = widget.decoration;
+        if (decoration is! BoxDecoration) return false;
+        final border = decoration.border;
+        if (border is! Border) return false;
+        return border.top.color == color && border.top.width == 1.5;
+      });
+    }
+
+    expect(hasInsightBorder(TwiffelTokens.semanticSuccess), isTrue);
+    expect(hasInsightBorder(TwiffelTokens.semanticError), isTrue);
+
     await tester.tap(find.text(DecisionCopy.analysisDetailsTab));
     await tester.pumpAndSettle();
-    expect(find.text('+90'), findsOneWidget);
+    expect(find.byIcon(Icons.star_rounded), findsNWidgets(5));
     expect(find.text('Cheap to keep'), findsOneWidget);
   });
 }

@@ -10,24 +10,18 @@ import {
 import { isSafeContent, validateAllInputs, type TaskInputValidation } from "./tone";
 import { callXaiChat, type Env } from "./ai";
 
-export type DecisionMode = "single" | "comparison";
+export interface DecisionRequest {
+  optionA: string;
+  optionB: string;
+  obstacle: string;
+  timing: string;
+}
 
-/** How many pros/cons (or per-option points) we ask the model for and keep. */
+/** How many pros/cons per option we ask the model for and keep. */
 export const ANALYSIS_POINTS_TARGET = 5;
 
 /** How many verdict bullet sentences we ask for and keep. */
 export const VERDICT_SENTENCES_TARGET = 5;
-
-export interface DecisionRequest {
-  mode: DecisionMode;
-  /** Path A: the action being considered. */
-  target?: string;
-  /** Path B options. */
-  optionA?: string;
-  optionB?: string;
-  obstacle: string;
-  timing: string;
-}
 
 export interface AnalysisPoint {
   tagline: string;
@@ -36,12 +30,9 @@ export interface AnalysisPoint {
 }
 
 export interface DecisionAnalysis {
-  mode: DecisionMode;
-  target?: string;
-  optionA?: string;
-  optionB?: string;
-  pros: AnalysisPoint[];
-  cons: AnalysisPoint[];
+  mode: "comparison";
+  optionA: string;
+  optionB: string;
   optionAPros: AnalysisPoint[];
   optionACons: AnalysisPoint[];
   optionBPros: AnalysisPoint[];
@@ -108,17 +99,12 @@ function formatPointLines(points: AnalysisPoint[]): string {
 }
 
 function formatLockedLists(analysis: DecisionAnalysis): string {
-  if (analysis.mode === "single") {
-    return ["Pros:", formatPointLines(analysis.pros), "", "Cons:", formatPointLines(analysis.cons)].join(
-      "\n",
-    );
-  }
   return [
-    `Option A (${analysis.optionA ?? "Option A"}) pros:`,
+    `Option A (${analysis.optionA}) pros:`,
     formatPointLines(analysis.optionAPros),
     `Option A cons:`,
     formatPointLines(analysis.optionACons),
-    `Option B (${analysis.optionB ?? "Option B"}) pros:`,
+    `Option B (${analysis.optionB}) pros:`,
     formatPointLines(analysis.optionBPros),
     `Option B cons:`,
     formatPointLines(analysis.optionBCons),
@@ -219,61 +205,13 @@ function pickList(parsed: Record<string, unknown>, keys: string[]): unknown {
   return undefined;
 }
 
-function fallbackSingle(req: DecisionRequest): DecisionAnalysis {
-  const target = (req.target || "this decision").trim();
-  const timing = req.timing.toLowerCase();
-  return withVerifiedCalculation({
-    mode: "single",
-    target,
-    pros: [
-      point("Clearer direction", `Naming "${target}" makes the choice concrete enough to evaluate honestly.`, 88),
-      point(
-        "Timeline awareness",
-        `Wanting this ${timing} helps you weigh urgency against waiting costs.`,
-        64,
-      ),
-      point(
-        "Obstacle is named",
-        `Focusing on "${req.obstacle}" keeps the analysis practical instead of vague worry.`,
-        92,
-      ),
-      point("Values come into view", `Working through "${target}" surfaces what you care about protecting most.`, 71),
-      point("Decision becomes testable", "You can define a small next check instead of staying in mental loops.", 55),
-    ],
-    cons: [
-      point(
-        "Real trade-offs remain",
-        `Moving ahead on "${target}" still means accepting costs, effort, or uncertainty.`,
-        80,
-      ),
-      point("Waiting has a cost too", "Delaying can feel safer, but it may quietly spend time, energy, or opportunity.", 68),
-      point("Ambiguity can return", "Without a next checkpoint, the same doubts are likely to resurface.", 52),
-      point("Obstacle may intensify", `If "${req.obstacle}" is ignored, pressure can grow even while you wait.`, 90),
-      point("Perfect certainty is unlikely", "You may never feel 100% ready, so waiting for that signal can stall you.", 47),
-    ],
-    optionAPros: [],
-    optionACons: [],
-    optionBPros: [],
-    optionBCons: [],
-    verdict: [
-      `Based on your timing (${req.timing}) and main obstacle (${req.obstacle}), "${target}" deserves a clear lean.`,
-      "The named obstacle is real, so treat it as the main constraint rather than a vague worry.",
-      "A careful next step beats waiting for perfect certainty that may never arrive.",
-      "Keep the move small enough to reverse if early feedback looks wrong.",
-      "If the obstacle still blocks every path, waiting is wiser than forcing a leap.",
-    ],
-  });
-}
-
 function fallbackComparison(req: DecisionRequest): DecisionAnalysis {
-  const optionA = (req.optionA || "Option A").trim();
-  const optionB = (req.optionB || "Option B").trim();
+  const optionA = req.optionA.trim();
+  const optionB = req.optionB.trim();
   return withVerifiedCalculation({
     mode: "comparison",
     optionA,
     optionB,
-    pros: [],
-    cons: [],
     optionAPros: [
       point("Forward movement", `"${optionA}" is the more change-oriented path if you want momentum.`, 78),
       point("Matches stated desire", "It may better reflect what you already feel drawn toward.", 66),
@@ -324,23 +262,6 @@ export function parseAnalysisJson(content: string, req: DecisionRequest): Decisi
     const verdict = normalizeVerdict(parsed.verdict);
     if (verdict.length === 0) return null;
 
-    if (req.mode === "single") {
-      const pros = requirePoints(pickList(parsed, ["pros"]));
-      const cons = requirePoints(pickList(parsed, ["cons"]));
-      if (!pros || !cons) return null;
-      return withVerifiedCalculation({
-        mode: "single",
-        target: req.target?.trim(),
-        pros,
-        cons,
-        optionAPros: [],
-        optionACons: [],
-        optionBPros: [],
-        optionBCons: [],
-        verdict,
-      });
-    }
-
     const optionAPros = requirePoints(pickList(parsed, ["optionAPros", "option_a_pros"]));
     const optionACons = requirePoints(pickList(parsed, ["optionACons", "option_a_cons"]));
     const optionBPros = requirePoints(pickList(parsed, ["optionBPros", "option_b_pros"]));
@@ -348,10 +269,8 @@ export function parseAnalysisJson(content: string, req: DecisionRequest): Decisi
     if (!optionAPros || !optionACons || !optionBPros || !optionBCons) return null;
     return withVerifiedCalculation({
       mode: "comparison",
-      optionA: req.optionA?.trim(),
-      optionB: req.optionB?.trim(),
-      pros: [],
-      cons: [],
+      optionA: req.optionA.trim(),
+      optionB: req.optionB.trim(),
       optionAPros,
       optionACons,
       optionBPros,
@@ -363,117 +282,74 @@ export function parseAnalysisJson(content: string, req: DecisionRequest): Decisi
   }
 }
 
-function buildUserPrompt(req: DecisionRequest): string {
-  const n = ANALYSIS_POINTS_TARGET;
-  if (req.mode === "single") {
-    return [
-      `Mode: single (do or buy)`,
-      `Decision target: "${req.target?.trim()}"`,
-      `Most important point to consider (main criterion): "${req.obstacle.trim()}"`,
-      `Preferred timing (background only): "${req.timing.trim()}"`,
-      "",
-      "Evaluation:",
-      "Judge the decision mainly through the most important point to consider.",
-      "That point is the tie-breaker. Timing must not be the main reason for the lean.",
-      "",
-      "Lists:",
-      `Return JSON keys pros and cons. Each key is an array of exactly ${n} objects.`,
-      "Each object MUST be exactly {tagline, description, weight}. No other keys.",
-      'Example: {"tagline":"Lower upkeep","description":"This option costs less to keep up each month.","weight":72}',
-      "tagline: 2 to 6 common words, no number prefix.",
-      "description: one short sentence ending with a period, specific to this decision and the most important point.",
-      "weight: integer 1 to 100. Vary the weights. Higher means the point should count more.",
-      "At least one pro and one con must speak directly to the most important point.",
-      "Do not echo the preferred timing in every description; omit timing from lists unless one point is truly about the deadline.",
-      "Keep list copy factual and balanced, not witty.",
-      "",
-      "Calculation (required, fill this after the lists):",
-      "Return calculation as {proSum, conSum, net, lean}.",
-      "proSum is the sum of the 5 pro weights. conSum is the sum of the 5 con weights. net is proSum minus conSum.",
-      'lean is "go" if net is clearly positive, "wait" if net is clearly negative, "too_close" if the gap is small.',
-      "",
-      "Verdict (required, write this last):",
-      `Return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings (one sentence each).`,
-      "Count the array items before answering; it must be exactly 5.",
-      "The 5 sentences must match calculation.lean.",
-      "Each sentence must use a concrete point from the lists you just wrote, especially the highest weights.",
-      "Do not write generic lines that ignore those points.",
-      "The lean must rest on the most important point to consider. Say how the decision fits that point.",
-      "Verdict tone: nice, balanced, lightly witty, simple words; no vulgarity or shame.",
-      "Timing may appear once in the verdict if useful, but not as the main reason.",
-    ].join("\n");
-  }
+/** Byte-stable user prefix. Unique decision fields follow in a second user message. */
+const DECISION_ANALYSIS_USER_STATIC = [
+  "Mode: comparison (this or that)",
+  "",
+  "Evaluation:",
+  "Judge both options mainly through the most important point to consider.",
+  "That point is the tie-breaker. Say which option fits it better, and why.",
+  "Timing must not be the main reason for the lean.",
+  "",
+  "Lists:",
+  `Return JSON keys optionAPros, optionACons, optionBPros, optionBCons. Each key is an array of exactly ${ANALYSIS_POINTS_TARGET} objects.`,
+  "Each object MUST be exactly {tagline, description, weight}. No other keys.",
+  'Example: {"tagline":"Lower upkeep","description":"This option costs less to keep up each month.","weight":72}',
+  "tagline: 2 to 6 common words, no number prefix.",
+  "description: one short sentence ending with a period, specific to these options and the most important point.",
+  "weight: integer 1 to 100. Vary the weights. Higher means the point should count more.",
+  "At least one point on each option must speak directly to the most important point.",
+  "Do not echo the preferred timing in every description; omit timing from lists unless one point is truly about the deadline.",
+  "Keep list copy factual and balanced, not witty.",
+  "",
+  "Calculation (required, fill this after the lists):",
+  "Return calculation as {optionAProSum, optionAConSum, optionANet, optionBProSum, optionBConSum, optionBNet, lean}.",
+  "Each net is that option's pro sum minus con sum.",
+  'lean is "a" if option A net is higher, "b" if option B net is higher, "too_close" if the nets are close.',
+  "",
+  "Verdict (required, write this last):",
+  `Return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings (one sentence each).`,
+  "Count the array items before answering; it must be exactly 5.",
+  "The 5 sentences must match calculation.lean. Do not pick the lower net.",
+  "Each sentence must use a concrete point from the lists you just wrote, especially the highest weights.",
+  "Do not write generic lines that ignore those points.",
+  "The lean must rest on the most important point to consider.",
+  "Verdict tone: nice, balanced, lightly witty, simple words; no vulgarity or shame.",
+  "Timing may appear once in the verdict if useful, but not as the main reason.",
+].join("\n");
+
+const DECISION_VERDICT_REWRITE_USER_STATIC = [
+  "Rewrite only the summary verdict.",
+  "Keep the lists locked. Use those facts. Do not invent new points.",
+  "Do not write a score number in the sentences.",
+  "Each sentence must use a concrete point from the locked lists, especially the highest weights.",
+  `Return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings.`,
+].join("\n");
+
+function buildUserDecisionFields(req: DecisionRequest): string {
   return [
-    `Mode: comparison (this or that)`,
-    `Option A: "${req.optionA?.trim()}"`,
-    `Option B: "${req.optionB?.trim()}"`,
+    `Option A: "${req.optionA.trim()}"`,
+    `Option B: "${req.optionB.trim()}"`,
     `Most important point to consider (main criterion): "${req.obstacle.trim()}"`,
     `Preferred timing (background only): "${req.timing.trim()}"`,
-    "",
-    "Evaluation:",
-    "Judge both options mainly through the most important point to consider.",
-    "That point is the tie-breaker. Say which option fits it better, and why.",
-    "Timing must not be the main reason for the lean.",
-    "",
-    "Lists:",
-    `Return JSON keys optionAPros, optionACons, optionBPros, optionBCons. Each key is an array of exactly ${n} objects.`,
-    "Each object MUST be exactly {tagline, description, weight}. No other keys.",
-    'Example: {"tagline":"Lower upkeep","description":"This option costs less to keep up each month.","weight":72}',
-    "tagline: 2 to 6 common words, no number prefix.",
-    "description: one short sentence ending with a period, specific to these options and the most important point.",
-    "weight: integer 1 to 100. Vary the weights. Higher means the point should count more.",
-    "At least one point on each option must speak directly to the most important point.",
-    "Do not echo the preferred timing in every description; omit timing from lists unless one point is truly about the deadline.",
-    "Keep list copy factual and balanced, not witty.",
-    "",
-    "Calculation (required, fill this after the lists):",
-    "Return calculation as {optionAProSum, optionAConSum, optionANet, optionBProSum, optionBConSum, optionBNet, lean}.",
-    "Each net is that option's pro sum minus con sum.",
-    'lean is "a" if option A net is higher, "b" if option B net is higher, "too_close" if the nets are close.',
-    "",
-    "Verdict (required, write this last):",
-    `Return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings (one sentence each).`,
-    "Count the array items before answering; it must be exactly 5.",
-    "The 5 sentences must match calculation.lean. Do not pick the lower net.",
-    "Each sentence must use a concrete point from the lists you just wrote, especially the highest weights.",
-    "Do not write generic lines that ignore those points.",
-    "The lean must rest on the most important point to consider.",
-    "Verdict tone: nice, balanced, lightly witty, simple words; no vulgarity or shame.",
-    "Timing may appear once in the verdict if useful, but not as the main reason.",
   ].join("\n");
 }
 
 export function validateDecisionRequest(payload: unknown): DecisionRequest | null {
   if (!payload || typeof payload !== "object") return null;
   const p = payload as Record<string, unknown>;
-  const mode = p.mode === "single" || p.mode === "comparison" ? p.mode : null;
+  if (p.mode != null && p.mode !== "comparison") return null;
   const obstacle = typeof p.obstacle === "string" ? p.obstacle.trim() : "";
   const timing = typeof p.timing === "string" ? p.timing.trim() : "";
-  if (!mode || !obstacle || !timing) return null;
-
-  if (mode === "single") {
-    const target = typeof p.target === "string" ? p.target.trim() : "";
-    if (!target) return null;
-    return { mode, target, obstacle, timing };
-  }
-
   const optionA = typeof p.optionA === "string" ? p.optionA.trim() : "";
   const optionB = typeof p.optionB === "string" ? p.optionB.trim() : "";
-  if (!optionA || !optionB) return null;
-  return { mode, optionA, optionB, obstacle, timing };
+  if (!obstacle || !timing || !optionA || !optionB) return null;
+  return { optionA, optionB, obstacle, timing };
 }
 
 /** Content-safety on every user free-text field before any model call. */
 export function validateDecisionInputs(req: DecisionRequest): TaskInputValidation {
-  const texts: string[] = [];
-  if (req.mode === "single") {
-    if (req.target) texts.push(req.target);
-  } else {
-    if (req.optionA) texts.push(req.optionA);
-    if (req.optionB) texts.push(req.optionB);
-  }
-  texts.push(req.obstacle, req.timing);
-  return validateAllInputs(texts);
+  return validateAllInputs([req.optionA, req.optionB, req.obstacle, req.timing]);
 }
 
 async function rewriteVerdictToMatchScore(
@@ -483,17 +359,15 @@ async function rewriteVerdictToMatchScore(
   env: Env,
 ): Promise<string[] | null> {
   const loser = score.leansPrimary ? score.secondaryLabel : score.primaryLabel;
-  const content = await callXaiChat(
+  const result = await callXaiChat(
     [
       { role: "system", content: DECISION_VERDICT_SYSTEM_PROMPT },
+      { role: "user", content: DECISION_VERDICT_REWRITE_USER_STATIC },
       {
         role: "user",
         content: [
-          "Rewrite only the summary verdict.",
-          "Keep the lists locked. Use those facts. Do not invent new points.",
-          req.mode === "single"
-            ? `Decision: "${req.target?.trim() ?? ""}"`
-            : `Option A: "${req.optionA?.trim() ?? ""}"\nOption B: "${req.optionB?.trim() ?? ""}"`,
+          `Option A: "${req.optionA.trim()}"`,
+          `Option B: "${req.optionB.trim()}"`,
           `Most important point to consider: "${req.obstacle.trim()}"`,
           "",
           "Locked lists:",
@@ -502,16 +376,20 @@ async function rewriteVerdictToMatchScore(
           "Verified calculation, do not contradict:",
           ...scoreSummaryLines(score),
           `Do not say ${loser} is the better choice.`,
-          "Do not write a score number in the sentences.",
-          "Each sentence must use a concrete point from the locked lists, especially the highest weights.",
-          `Return verdict as a JSON array of exactly ${VERDICT_SENTENCES_TARGET} strings.`,
         ].join("\n"),
       },
     ],
     env,
     verdictRewriteResponseFormat(),
   );
-  const payload = extractJsonPayload(content);
+  console.log(
+    JSON.stringify({
+      event: "analyze_verdict_rewrite_xai",
+      prompt_tokens: result.promptTokens,
+      cached_tokens: result.cachedTokens,
+    }),
+  );
+  const payload = extractJsonPayload(result.content);
   if (!payload) return null;
   const parsed = JSON.parse(payload) as Record<string, unknown>;
   const verdict = normalizeVerdict(parsed.verdict).filter((line) => isSafeContent(line));
@@ -545,17 +423,18 @@ export async function generateDecisionAnalysis(
   req: DecisionRequest,
   env: Env,
 ): Promise<DecisionAnalysis> {
-  const localFallback = req.mode === "single" ? fallbackSingle(req) : fallbackComparison(req);
+  const localFallback = fallbackComparison(req);
   try {
-    const content = await callXaiChat(
+    const result = await callXaiChat(
       [
         { role: "system", content: DECISION_ANALYSIS_SYSTEM_PROMPT },
-        { role: "user", content: buildUserPrompt(req) },
+        { role: "user", content: DECISION_ANALYSIS_USER_STATIC },
+        { role: "user", content: buildUserDecisionFields(req) },
       ],
       env,
-      analysisResponseFormat(req.mode),
+      analysisResponseFormat(),
     );
-    const parsed = parseAnalysisJson(content, req);
+    const parsed = parseAnalysisJson(result.content, req);
     if (!parsed) {
       console.log(JSON.stringify({ event: "analyze_fallback", reason: "parse" }));
       return localFallback;
@@ -567,7 +446,14 @@ export async function generateDecisionAnalysis(
         : localFallback.verdict;
     parsed.verdict = await alignVerdictWithScore(req, parsed, env);
     withVerifiedCalculation(parsed);
-    console.log(JSON.stringify({ event: "analyze_ok", verdicts: parsed.verdict.length }));
+    console.log(
+      JSON.stringify({
+        event: "analyze_ok",
+        verdicts: parsed.verdict.length,
+        prompt_tokens: result.promptTokens,
+        cached_tokens: result.cachedTokens,
+      }),
+    );
     return parsed;
   } catch (error) {
     const reason = error instanceof Error ? error.message : "unknown";

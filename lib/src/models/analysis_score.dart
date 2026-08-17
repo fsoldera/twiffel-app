@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../pages/decision_copy.dart';
 import 'decision_models.dart';
 
@@ -7,7 +9,6 @@ enum LeanStrength { tooClose, slight, clear }
 /// Client-computed score from stored 1-100 weights. The model never writes this.
 class AnalysisScore {
   const AnalysisScore({
-    required this.isComparison,
     required this.proSumPrimary,
     required this.conSumPrimary,
     required this.netPrimary,
@@ -21,7 +22,6 @@ class AnalysisScore {
     required this.secondaryLabel,
   });
 
-  final bool isComparison;
   final int proSumPrimary;
   final int conSumPrimary;
   final int netPrimary;
@@ -29,11 +29,11 @@ class AnalysisScore {
   final int conSumSecondary;
   final int netSecondary;
 
-  /// 0-100. Comparison: toward option A. Single: toward go ahead.
+  /// 0-100 toward option A.
   final double leanPercent;
   final LeanStrength strength;
 
-  /// Comparison: option A is ahead. Single: net is not negative.
+  /// Option A is ahead.
   final bool leansPrimary;
   final String primaryLabel;
   final String secondaryLabel;
@@ -42,73 +42,50 @@ class AnalysisScore {
   static const double slightMargin = 18;
 
   factory AnalysisScore.fromAnalysis(DecisionAnalysis analysis) {
-    if (analysis.mode == DecisionMode.comparison) {
-      final proA = sumWeights(analysis.optionAPros);
-      final conA = sumWeights(analysis.optionACons);
-      final proB = sumWeights(analysis.optionBPros);
-      final conB = sumWeights(analysis.optionBCons);
-      final netA = proA - conA;
-      final netB = proB - conB;
-      final denom = netA.abs() + netB.abs();
-      final percent = denom == 0 ? 50.0 : 50 + 50 * (netA - netB) / denom;
-      return AnalysisScore(
-        isComparison: true,
-        proSumPrimary: proA,
-        conSumPrimary: conA,
-        netPrimary: netA,
-        proSumSecondary: proB,
-        conSumSecondary: conB,
-        netSecondary: netB,
-        leanPercent: percent.clamp(0, 100),
-        strength: strengthFor(percent),
-        leansPrimary: netA >= netB,
-        primaryLabel: _optionName(
-          analysis.optionA,
-          DecisionCopy.analysisOptionALabel,
-        ),
-        secondaryLabel: _optionName(
-          analysis.optionB,
-          DecisionCopy.analysisOptionBLabel,
-        ),
-      );
-    }
-
-    final proSum = sumWeights(analysis.pros);
-    final conSum = sumWeights(analysis.cons);
-    final net = proSum - conSum;
-    final denom = proSum + conSum;
-    final percent = denom == 0 ? 50.0 : 50 + 50 * net / denom;
+    final proA = sumWeights(analysis.optionAPros);
+    final conA = sumWeights(analysis.optionACons);
+    final proB = sumWeights(analysis.optionBPros);
+    final conB = sumWeights(analysis.optionBCons);
+    final netA = proA - conA;
+    final netB = proB - conB;
+    final totalWeight = proA + conA + proB + conB;
+    // Share 100% by the listed weight mass, then stretch small leans away
+    // from 50 so a close call is easier to read. Keep in sync with
+    // backend/src/score.ts compressFavorPercent.
+    final linear =
+        totalWeight == 0 ? 50.0 : 50 + 50 * (netA - netB) / totalWeight;
+    final percent = compressFavorPercent(linear.clamp(0, 100));
     return AnalysisScore(
-      isComparison: false,
-      proSumPrimary: proSum,
-      conSumPrimary: conSum,
-      netPrimary: net,
-      proSumSecondary: 0,
-      conSumSecondary: 0,
-      netSecondary: 0,
+      proSumPrimary: proA,
+      conSumPrimary: conA,
+      netPrimary: netA,
+      proSumSecondary: proB,
+      conSumSecondary: conB,
+      netSecondary: netB,
       leanPercent: percent.clamp(0, 100),
       strength: strengthFor(percent),
-      leansPrimary: net >= 0,
-      primaryLabel: DecisionCopy.analysisLeanGoAhead,
-      secondaryLabel: DecisionCopy.analysisLeanWait,
+      leansPrimary: netA >= netB,
+      primaryLabel: _optionName(
+        analysis.optionA,
+        DecisionCopy.analysisOptionALabel,
+      ),
+      secondaryLabel: _optionName(
+        analysis.optionB,
+        DecisionCopy.analysisOptionBLabel,
+      ),
     );
   }
 
   int get leanPercentRounded => leanPercent.round().clamp(0, 100);
 
-  /// Share of favor toward option A / go ahead. Pair always sums to 100.
+  /// Share of favor toward option A. Pair always sums to 100.
   int get primaryFavorPercent => leanPercentRounded;
 
-  /// Share of favor toward option B / wait.
+  /// Share of favor toward option B.
   int get secondaryFavorPercent => 100 - primaryFavorPercent;
 
-  /// Marker position from the left, 0-100.
-  /// Comparison: left is option A, right is option B.
-  /// Single: left is wait, right is go ahead.
-  double get trackPercent {
-    if (isComparison) return (100 - leanPercent).clamp(0, 100);
-    return leanPercent;
-  }
+  /// Marker position from the left, 0-100. Left is option A, right is option B.
+  double get trackPercent => (100 - leanPercent).clamp(0, 100);
 
   int get towardFavoredPercent {
     final towardPrimary = leanPercentRounded;
@@ -117,11 +94,9 @@ class AnalysisScore {
 
   String get favoredName => leansPrimary ? primaryLabel : secondaryLabel;
 
-  String get trackLeftLabel =>
-      isComparison ? primaryLabel : DecisionCopy.analysisLeanWait;
+  String get trackLeftLabel => primaryLabel;
 
-  String get trackRightLabel =>
-      isComparison ? secondaryLabel : DecisionCopy.analysisLeanGoAhead;
+  String get trackRightLabel => secondaryLabel;
 
   String get headline {
     if (strength == LeanStrength.tooClose) {
@@ -150,6 +125,20 @@ class AnalysisScore {
   }
 }
 
+/// Stretch small leans away from 50 so a close call is easier to read.
+/// k=9 maps a linear 52/48 split to about 57/43. Keep in sync with
+/// [compressFavorPercent] in backend/src/score.ts.
+const favorLogK = 9.0;
+
+double compressFavorPercent(double linearPercent) {
+  final clamped = linearPercent.clamp(0.0, 100.0);
+  final signed = (clamped - 50) / 50;
+  if (signed == 0) return 50;
+  final t = signed.abs();
+  final curved = math.log(1 + favorLogK * t) / math.log(1 + favorLogK);
+  return (50 + 50 * signed.sign * curved).clamp(0.0, 100.0);
+}
+
 int sumWeights(List<AnalysisPoint> points) {
   var total = 0;
   for (final point in points) {
@@ -169,8 +158,14 @@ String formatSigned(int value) {
 
 String formatLeanPercent(int percent) => '$percent%';
 
-String signedWeightLabel(int weight, {required bool favorable}) {
-  return favorable ? '+$weight' : '-$weight';
+/// One mark per 20 weight points, 1 to 5.
+int weightSignCount(int weight) {
+  return ((weight + 19) ~/ 20).clamp(1, 5);
+}
+
+String weightSignLabel(int weight, {required bool favorable}) {
+  final mark = favorable ? '+' : '-';
+  return List.filled(weightSignCount(weight), mark).join();
 }
 
 String _optionName(String? raw, String fallback) {
@@ -265,8 +260,7 @@ bool verdictAgreesWithScore(List<String> verdictPoints, AnalysisScore score) {
 
   for (final sentence in verdictPoints) {
     if (_claimsWin(sentence, loser, winner)) return false;
-    if (score.isComparison &&
-        _claimsOptionLetter(sentence, optionA: !score.leansPrimary)) {
+    if (_claimsOptionLetter(sentence, optionA: !score.leansPrimary)) {
       return false;
     }
   }
@@ -284,20 +278,6 @@ List<String> fallbackVerdictPoints(
       'Open Details to see which points carry the most weight.',
       'Use those points to see what still feels unresolved.',
       'If a key fact is still missing, resubmit with more details.',
-    ];
-  }
-
-  if (!score.isComparison) {
-    final side = score.leansPrimary ? analysis.pros : analysis.cons;
-    final reason = side.isEmpty
-        ? 'The listed weights point that way once they are added up.'
-        : 'The strongest listed point is ${side.first.tagline}.';
-    return <String>[
-      '${score.headline}.',
-      'Pros add up to ${formatSigned(score.proSumPrimary)}, cons to ${formatSigned(-score.conSumPrimary)}.',
-      'That leaves a net of ${formatSigned(score.netPrimary)}.',
-      reason,
-      'Open Details to see every weighted point.',
     ];
   }
 

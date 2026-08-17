@@ -52,8 +52,10 @@ void main() {
       () {
     final analysis = DecisionAnalysis.fromJson(
       <String, dynamic>{
-        'mode': 'single',
-        'pros': [
+        'mode': 'comparison',
+        'optionA': 'Stay',
+        'optionB': 'Go',
+        'optionAPros': [
           <String, Object>{
             'tagline': 'Low',
             'description': 'A weak point.',
@@ -73,8 +75,8 @@ void main() {
       },
     );
 
-    expect(analysis.pros.map((point) => point.tagline), ['High', 'Low']);
-    expect(analysis.pros.first.weight, 90);
+    expect(analysis.optionAPros.map((point) => point.tagline), ['High', 'Low']);
+    expect(analysis.optionAPros.first.weight, 90);
   });
 
   test('AiClient returns parsed analysis from HTTP 200', () async {
@@ -108,7 +110,6 @@ void main() {
 
     final outcome = await client.analyze(
       const DecisionRequest(
-        mode: DecisionMode.comparison,
         optionA: 'buy a snake',
         optionB: 'buy a bike',
         obstacle: 'Space',
@@ -138,7 +139,6 @@ void main() {
 
     await session.submitDecision(
       const DecisionRequest(
-        mode: DecisionMode.comparison,
         optionA: 'buy a snake',
         optionB: 'buy a bike',
         obstacle: 'Space',
@@ -168,7 +168,6 @@ void main() {
 
     await session.submitDecision(
       const DecisionRequest(
-        mode: DecisionMode.comparison,
         optionA: 'buy a snake',
         optionB: 'buy a bike',
         obstacle: 'Space',

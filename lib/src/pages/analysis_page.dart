@@ -16,7 +16,7 @@ import '../widgets/loop_play_video.dart';
 import '../widgets/twiffel_header.dart';
 import 'decision_copy.dart';
 
-/// Figma results screens: single (Pros/Cons) and comparison (Option A/B).
+/// Figma results screens: comparison Option A vs Option B.
 class AnalysisPage extends StatefulWidget {
   const AnalysisPage({
     super.key,
@@ -196,7 +196,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
         final loading = session.phase == SessionPhase.loading;
         final error = session.phase == SessionPhase.error;
         final analysis = session.analysis;
-        final isComparison = analysis?.mode == DecisionMode.comparison;
         final reduceMotion = MediaQuery.disableAnimationsOf(context);
 
         final colors = TwiffelColors.of(context);
@@ -222,7 +221,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
             child: _showingDetails
                 ? _ResultsBody(
                     analysis: analysis,
-                    isComparison: isComparison,
                     pageIndex: _detailsPageIndex,
                     optionIndex: _detailsOptionIndex,
                     onPageIndexChanged: (index) {
@@ -236,7 +234,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
                   )
                 : _VerdictPage(
                     analysis: analysis,
-                    isComparison: isComparison,
                     onShare: () => _share(analysis),
                     onStartOver: _confirmStartOver,
                   ),
@@ -327,7 +324,6 @@ class _AnalysisPageState extends State<AnalysisPage> {
 class _ResultsBody extends StatefulWidget {
   const _ResultsBody({
     required this.analysis,
-    required this.isComparison,
     required this.pageIndex,
     required this.optionIndex,
     required this.onPageIndexChanged,
@@ -337,7 +333,6 @@ class _ResultsBody extends StatefulWidget {
   });
 
   final DecisionAnalysis analysis;
-  final bool isComparison;
   final int pageIndex;
   final int optionIndex;
   final ValueChanged<int> onPageIndexChanged;
@@ -399,7 +394,6 @@ class _ResultsBodyState extends State<_ResultsBody> {
     required Color accent,
     required IconData icon,
     required List<AnalysisPoint> points,
-    required bool favorable,
     required Duration switchDuration,
   }) {
     final panel = _PointsPanel(
@@ -408,10 +402,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
       accent: accent,
       icon: icon,
       points: points,
-      favorable: favorable,
     );
-    if (!widget.isComparison) return panel;
-
     final optionDirection = _optionDirection;
     final optionIndex = _optionIndex;
     return AnimatedSwitcher(
@@ -455,22 +446,16 @@ class _ResultsBodyState extends State<_ResultsBody> {
   @override
   Widget build(BuildContext context) {
     final analysis = widget.analysis;
-    final isComparison = widget.isComparison;
     final pageIndex = _pageIndex;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final optionSwitchDuration = reduceMotion
         ? Duration.zero
         : const Duration(milliseconds: 280);
 
-    final List<AnalysisPoint> pros;
-    final List<AnalysisPoint> cons;
-    if (isComparison) {
-      pros = _optionIndex == 0 ? analysis.optionAPros : analysis.optionBPros;
-      cons = _optionIndex == 0 ? analysis.optionACons : analysis.optionBCons;
-    } else {
-      pros = analysis.pros;
-      cons = analysis.cons;
-    }
+    final List<AnalysisPoint> pros =
+        _optionIndex == 0 ? analysis.optionAPros : analysis.optionBPros;
+    final List<AnalysisPoint> cons =
+        _optionIndex == 0 ? analysis.optionACons : analysis.optionBCons;
 
     final pointsPager = PageView(
       controller: _pageController,
@@ -484,7 +469,6 @@ class _ResultsBodyState extends State<_ResultsBody> {
           accent: TwiffelTokens.semanticSuccess,
           icon: Icons.check,
           points: pros,
-          favorable: true,
           switchDuration: optionSwitchDuration,
         ),
         _aspectPage(
@@ -492,7 +476,6 @@ class _ResultsBodyState extends State<_ResultsBody> {
           accent: TwiffelTokens.semanticError,
           icon: Icons.close,
           points: cons,
-          favorable: false,
           switchDuration: optionSwitchDuration,
         ),
       ],
@@ -500,26 +483,24 @@ class _ResultsBodyState extends State<_ResultsBody> {
 
     return Column(
       children: [
-        if (isComparison) ...[
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: _AspectSlider(
-              labels: [
-                analysis.optionA?.trim().isNotEmpty == true
-                    ? analysis.optionA!
-                    : DecisionCopy.analysisOptionALabel,
-                analysis.optionB?.trim().isNotEmpty == true
-                    ? analysis.optionB!
-                    : DecisionCopy.analysisOptionBLabel,
-              ],
-              activeIndex: _optionIndex,
-              onChanged: _selectOption,
-            ),
-          ),
-          const SizedBox(height: 12),
-        ],
         Padding(
-          padding: EdgeInsets.fromLTRB(20, isComparison ? 0 : 8, 20, 0),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+          child: _AspectSlider(
+            labels: [
+              analysis.optionA.trim().isNotEmpty
+                  ? analysis.optionA
+                  : DecisionCopy.analysisOptionALabel,
+              analysis.optionB.trim().isNotEmpty
+                  ? analysis.optionB
+                  : DecisionCopy.analysisOptionBLabel,
+            ],
+            activeIndex: _optionIndex,
+            onChanged: _selectOption,
+          ),
+        ),
+        const SizedBox(height: 12),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 0),
           child: _AspectSlider(
             labels: const [
               DecisionCopy.analysisPros,
@@ -538,9 +519,7 @@ class _ResultsBodyState extends State<_ResultsBody> {
           onSecondary: widget.onStartOver,
           secondaryLabel: DecisionCopy.analysisStartNewDecision,
           onPrimary: widget.onShare,
-          primaryLabel: widget.isComparison
-              ? DecisionCopy.analysisShareComparison
-              : DecisionCopy.analysisShare,
+          primaryLabel: DecisionCopy.analysisShare,
         ),
       ],
     );
@@ -550,13 +529,11 @@ class _ResultsBodyState extends State<_ResultsBody> {
 class _VerdictPage extends StatelessWidget {
   const _VerdictPage({
     required this.analysis,
-    required this.isComparison,
     required this.onShare,
     required this.onStartOver,
   });
 
   final DecisionAnalysis analysis;
-  final bool isComparison;
   final VoidCallback onShare;
   final Future<void> Function() onStartOver;
 
@@ -576,6 +553,7 @@ class _VerdictPage extends StatelessWidget {
               children: [
               Text(
                 DecisionCopy.analysisVerdictLabel,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: colors.textTertiary,
                   fontSize: 12,
@@ -590,6 +568,7 @@ class _VerdictPage extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 DecisionCopy.analysisKeyParameters,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: colors.textPrimary,
                   fontSize: 16,
@@ -609,9 +588,7 @@ class _VerdictPage extends StatelessWidget {
           onSecondary: onStartOver,
           secondaryLabel: DecisionCopy.analysisStartNewDecision,
           onPrimary: onShare,
-          primaryLabel: isComparison
-              ? DecisionCopy.analysisShareComparison
-              : DecisionCopy.analysisShare,
+          primaryLabel: DecisionCopy.analysisShare,
         ),
       ],
     );
@@ -634,7 +611,6 @@ class _StickyResultsActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = TwiffelColors.of(context);
-    final buttonHeight = MediaQuery.textScalerOf(context).scale(47);
 
     return Material(
       color: colors.pageBg,
@@ -649,16 +625,6 @@ class _StickyResultsActions extends StatelessWidget {
           children: [
             FilledButton(
               onPressed: onPrimary,
-              style: FilledButton.styleFrom(
-                minimumSize: Size.fromHeight(buttonHeight),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                alignment: Alignment.center,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(buttonHeight / 2),
-                ),
-              ),
               child: Text(primaryLabel, textAlign: TextAlign.center),
             ),
             const SizedBox(height: 12),
@@ -667,17 +633,10 @@ class _StickyResultsActions extends StatelessWidget {
               style: OutlinedButton.styleFrom(
                 foregroundColor: colors.textPrimary,
                 side: BorderSide(color: colors.borderDefault),
-                minimumSize: Size.fromHeight(buttonHeight),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 alignment: Alignment.center,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                ),
-                textStyle: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
               child: Text(secondaryLabel, textAlign: TextAlign.center),
@@ -828,30 +787,24 @@ class _LoadingSubject extends StatelessWidget {
       height: 1.2,
     );
 
-    if (request.mode == DecisionMode.comparison) {
-      final optionA = request.optionA?.trim() ?? '';
-      final optionB = request.optionB?.trim() ?? '';
-      if (optionA.isEmpty && optionB.isEmpty) {
-        return const SizedBox.shrink();
-      }
-      return Column(
-        children: [
-          if (optionA.isNotEmpty)
-            Text(optionA, textAlign: TextAlign.center, style: style),
-          if (optionA.isNotEmpty && optionB.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            Text(DecisionCopy.analysisVsWord, textAlign: TextAlign.center, style: vsStyle),
-            const SizedBox(height: 10),
-          ],
-          if (optionB.isNotEmpty)
-            Text(optionB, textAlign: TextAlign.center, style: style),
-        ],
-      );
+    final optionA = request.optionA.trim();
+    final optionB = request.optionB.trim();
+    if (optionA.isEmpty && optionB.isEmpty) {
+      return const SizedBox.shrink();
     }
-
-    final target = request.target?.trim() ?? '';
-    if (target.isEmpty) return const SizedBox.shrink();
-    return Text(target, textAlign: TextAlign.center, style: style);
+    return Column(
+      children: [
+        if (optionA.isNotEmpty)
+          Text(optionA, textAlign: TextAlign.center, style: style),
+        if (optionA.isNotEmpty && optionB.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Text(DecisionCopy.analysisVsWord, textAlign: TextAlign.center, style: vsStyle),
+          const SizedBox(height: 10),
+        ],
+        if (optionB.isNotEmpty)
+          Text(optionB, textAlign: TextAlign.center, style: style),
+      ],
+    );
   }
 }
 
@@ -999,7 +952,11 @@ class _VerdictHeadline extends StatelessWidget {
       color: colors.textPrimary,
     );
     if (score.strength == LeanStrength.tooClose) {
-      return Text(score.headline, style: base);
+      return Text(
+        score.headline,
+        textAlign: TextAlign.center,
+        style: base,
+      );
     }
     final prefix = score.strength == LeanStrength.clear
         ? 'Clear lean to '
@@ -1015,6 +972,7 @@ class _VerdictHeadline extends StatelessWidget {
           ),
         ],
       ),
+      textAlign: TextAlign.center,
     );
   }
 }
@@ -1026,12 +984,8 @@ class _SideBySideScores extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primaryLabel = score.isComparison
-        ? score.primaryLabel
-        : DecisionCopy.analysisPros;
-    final secondaryLabel = score.isComparison
-        ? score.secondaryLabel
-        : DecisionCopy.analysisCons;
+    final primaryLabel = score.primaryLabel;
+    final secondaryLabel = score.secondaryLabel;
 
     return Row(
       children: [
@@ -1039,8 +993,7 @@ class _SideBySideScores extends StatelessWidget {
           child: _FavorScoreCard(
             label: primaryLabel,
             percent: score.primaryFavorPercent,
-            highlighted: score.strength != LeanStrength.tooClose &&
-                score.leansPrimary,
+            highlighted: score.leansPrimary,
           ),
         ),
         const SizedBox(width: 12),
@@ -1048,8 +1001,7 @@ class _SideBySideScores extends StatelessWidget {
           child: _FavorScoreCard(
             label: secondaryLabel,
             percent: score.secondaryFavorPercent,
-            highlighted: score.strength != LeanStrength.tooClose &&
-                !score.leansPrimary,
+            highlighted: !score.leansPrimary,
           ),
         ),
       ],
@@ -1153,7 +1105,7 @@ class _InsightCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.softFill,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor),
+        border: Border.all(color: borderColor, width: 1.5),
       ),
       child: Text.rich(
         TextSpan(
@@ -1172,7 +1124,6 @@ class _InsightCard extends StatelessWidget {
 enum _InsightTone { favorable, unfavorable, neutral }
 
 _InsightTone _insightTone(String text, AnalysisScore score) {
-  if (score.strength == LeanStrength.tooClose) return _InsightTone.neutral;
   final lower = text.toLowerCase();
   final winner = score.favoredName;
   final loser = score.leansPrimary ? score.secondaryLabel : score.primaryLabel;
@@ -1203,9 +1154,6 @@ bool _mentionsName(String lowerText, String name, String otherName) {
 }
 
 List<InlineSpan> _highlightNames(String text, AnalysisScore score) {
-  if (!score.isComparison) {
-    return [TextSpan(text: text)];
-  }
   final winner = score.favoredName;
   final loser = score.leansPrimary ? score.secondaryLabel : score.primaryLabel;
   final needles = <({String text, Color color})>[
@@ -1331,7 +1279,11 @@ class _AspectSlider extends StatelessWidget {
                     duration: thumbDuration,
                     curve: Curves.easeOutCubic,
                     decoration: BoxDecoration(
-                      color: outlined ? Colors.transparent : thumbColor,
+                      color: outlined
+                          ? (colors.isDark
+                              ? TwiffelTokens.gray600
+                              : TwiffelTokens.gray300)
+                          : thumbColor,
                       borderRadius: BorderRadius.circular(radius),
                       border: outlined
                           ? Border.all(color: colors.borderStrong)
@@ -1424,14 +1376,12 @@ class _PointsPanel extends StatefulWidget {
     required this.accent,
     required this.icon,
     required this.points,
-    required this.favorable,
   });
 
   final String heading;
   final Color accent;
   final IconData icon;
   final List<AnalysisPoint> points;
-  final bool favorable;
 
   @override
   State<_PointsPanel> createState() => _PointsPanelState();
@@ -1482,7 +1432,6 @@ class _PointsPanelState extends State<_PointsPanel>
                 point: points[i],
                 accent: widget.accent,
                 icon: widget.icon,
-                favorable: widget.favorable,
               )
             else
               _StaggeredPointRow(
@@ -1493,7 +1442,6 @@ class _PointsPanelState extends State<_PointsPanel>
                   point: points[i],
                   accent: widget.accent,
                   icon: widget.icon,
-                  favorable: widget.favorable,
                 ),
               ),
         ],
@@ -1621,29 +1569,26 @@ class _WeightBadge extends StatelessWidget {
   const _WeightBadge({
     required this.weight,
     required this.accent,
-    required this.favorable,
   });
 
   final int weight;
   final Color accent;
-  final bool favorable;
 
   @override
   Widget build(BuildContext context) {
+    final count = weightSignCount(weight);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      padding: const EdgeInsets.fromLTRB(5, 2, 4, 2),
       decoration: BoxDecoration(
         color: accent.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        signedWeightLabel(weight, favorable: favorable),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          height: 1.2,
-          color: accent,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (var i = 0; i < count; i++)
+            Icon(Icons.star_rounded, size: 14, color: accent),
+        ],
       ),
     );
   }
@@ -1654,13 +1599,11 @@ class _PointRow extends StatelessWidget {
     required this.point,
     required this.accent,
     required this.icon,
-    required this.favorable,
   });
 
   final AnalysisPoint point;
   final Color accent;
   final IconData icon;
-  final bool favorable;
 
   @override
   Widget build(BuildContext context) {
@@ -1704,7 +1647,6 @@ class _PointRow extends StatelessWidget {
                     _WeightBadge(
                       weight: point.weight,
                       accent: accent,
-                      favorable: favorable,
                     ),
                   ],
                 ),

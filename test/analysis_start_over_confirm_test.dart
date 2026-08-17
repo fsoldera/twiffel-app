@@ -9,6 +9,32 @@ import 'package:twiffel_app/src/pages/analysis_page.dart';
 import 'package:twiffel_app/src/pages/decision_copy.dart';
 import 'package:twiffel_app/src/state/app_settings_controller.dart';
 import 'package:twiffel_app/src/state/session_controller.dart';
+import 'package:twiffel_app/src/theme/app_theme.dart';
+import 'package:twiffel_app/src/theme/tokens.dart';
+
+const _readyAnalysis = DecisionAnalysis(
+  optionA: 'Stay',
+  optionB: 'Move',
+  optionAPros: [
+    AnalysisPoint(tagline: '1. Pro', description: 'Detail', weight: 80),
+  ],
+  optionACons: [
+    AnalysisPoint(tagline: '1. Con', description: 'Detail', weight: 70),
+  ],
+  optionBPros: [
+    AnalysisPoint(tagline: 'B pro', description: 'Detail', weight: 60),
+  ],
+  optionBCons: [
+    AnalysisPoint(tagline: 'B con', description: 'Detail', weight: 50),
+  ],
+  verdictPoints: [
+    'Lean carefully.',
+    'Name the obstacle.',
+    'Keep the first move small.',
+    'Timing matters.',
+    'Waiting can be wise.',
+  ],
+);
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,25 +46,7 @@ void main() {
     final session = SessionController(license: license);
     final settings = AppSettingsController();
     await settings.init();
-    session.debugSetReady(
-      const DecisionAnalysis(
-        mode: DecisionMode.single,
-        target: 'Should I move?',
-        pros: [
-          AnalysisPoint(tagline: '1. Pro', description: 'Detail', weight: 80),
-        ],
-        cons: [
-          AnalysisPoint(tagline: '1. Con', description: 'Detail', weight: 70),
-        ],
-        verdictPoints: [
-          'Lean carefully.',
-          'Name the obstacle.',
-          'Keep the first move small.',
-          'Timing matters.',
-          'Waiting can be wise.',
-        ],
-      ),
-    );
+    session.debugSetReady(_readyAnalysis);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -92,25 +100,7 @@ void main() {
     final session = SessionController(license: license);
     final settings = AppSettingsController();
     await settings.init();
-    session.debugSetReady(
-      const DecisionAnalysis(
-        mode: DecisionMode.single,
-        target: 'Should I move?',
-        pros: [
-          AnalysisPoint(tagline: '1. Pro', description: 'Detail', weight: 80),
-        ],
-        cons: [
-          AnalysisPoint(tagline: '1. Con', description: 'Detail', weight: 70),
-        ],
-        verdictPoints: [
-          'Lean carefully.',
-          'Name the obstacle.',
-          'Keep the first move small.',
-          'Timing matters.',
-          'Waiting can be wise.',
-        ],
-      ),
-    );
+    session.debugSetReady(_readyAnalysis);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -142,4 +132,61 @@ void main() {
     expect(find.text(DecisionCopy.analysisSummaryTab), findsOneWidget);
     expect(find.text('1. Pro'), findsNothing);
   });
+
+  testWidgets(
+    'Results actions match the dialog Start over button height',
+    (tester) async {
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final license = LicenseController(appLicenseConfig);
+      await license.init();
+      final session = SessionController(license: license);
+      final settings = AppSettingsController();
+      await settings.init();
+      session.debugSetReady(_readyAnalysis);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: AnalysisPage(session: session, settings: settings),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final shareHeight = tester
+          .getSize(
+            find.widgetWithText(FilledButton, DecisionCopy.analysisShare),
+          )
+          .height;
+      final startNewHeight = tester
+          .getSize(
+            find.widgetWithText(
+              OutlinedButton,
+              DecisionCopy.analysisStartNewDecision,
+            ),
+          )
+          .height;
+
+      expect(shareHeight, TwiffelTokens.buttonHeight);
+      expect(startNewHeight, TwiffelTokens.buttonHeight);
+
+      await tester.tap(
+        find.widgetWithText(
+          OutlinedButton,
+          DecisionCopy.analysisStartNewDecision,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final dialogStartOverHeight = tester
+          .getSize(
+            find.widgetWithText(
+              FilledButton,
+              DecisionCopy.analysisStartOverConfirm,
+            ),
+          )
+          .height;
+      expect(dialogStartOverHeight, TwiffelTokens.buttonHeight);
+      expect(startNewHeight, dialogStartOverHeight);
+    },
+  );
 }
