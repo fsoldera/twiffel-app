@@ -84,6 +84,22 @@ class AnalysisScore {
   /// Share of favor toward option B.
   int get secondaryFavorPercent => 100 - primaryFavorPercent;
 
+  /// Share of total pro weight on option A. Pair always sums to 100.
+  int get primaryProsPercent => _sharePercent(proSumPrimary, proSumSecondary);
+
+  int get secondaryProsPercent => 100 - primaryProsPercent;
+
+  /// Share of total con weight on option A. Pair always sums to 100.
+  int get primaryConsPercent => _sharePercent(conSumPrimary, conSumSecondary);
+
+  int get secondaryConsPercent => 100 - primaryConsPercent;
+
+  static int _sharePercent(int left, int right) {
+    final total = left + right;
+    if (total <= 0) return 50;
+    return ((left / total) * 100).round().clamp(0, 100);
+  }
+
   /// Marker position from the left, 0-100. Left is option A, right is option B.
   double get trackPercent => (100 - leanPercent).clamp(0, 100);
 

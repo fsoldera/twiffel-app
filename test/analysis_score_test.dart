@@ -38,6 +38,10 @@ void main() {
     expect(score.primaryFavorPercent, 86);
     expect(score.secondaryFavorPercent, 14);
     expect(formatLeanPercent(score.primaryFavorPercent), '86%');
+    expect(score.primaryProsPercent, 69);
+    expect(score.secondaryProsPercent, 31);
+    expect(score.primaryConsPercent, 20);
+    expect(score.secondaryConsPercent, 80);
   });
 
   test('mixed lists keep a leftover share for the weaker option', () {

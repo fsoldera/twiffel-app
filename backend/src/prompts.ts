@@ -27,7 +27,7 @@ export const DECISION_LISTS_SYSTEM_PROMPT = [
   "For pros and cons lists: stay clear, factual, and balanced.",
   "Each point should be concrete and tied to the user's options and their most important point to consider.",
   "At least one point on each side should speak directly to that most important point.",
-  "Write each tagline and description as short, plain language with common words.",
+  "Write each tagline and description as short, plain, simple language with common words.",
   "Do not repeat the preferred timing in every point. Mentions like \"in 1-3 months\" or \"during that window\" belong in at most one list point total, and only if timing is the real substance of that point; otherwise leave timing out of the lists.",
   "Do not be witty, jokey, or theatrical in taglines or descriptions.",
   "No vulgarity, shame, or pressure.",

@@ -50,7 +50,11 @@ abstract final class DecisionCopy {
   static const String analysisStartOver = 'Start over';
   static const String analysisStartNewDecision = 'Start new decision';
   static const String analysisShare = 'Save & Share';
-  static const String analysisShareSubjectPrefix = 'Twiffel results';
+  static const String analysisShareSubject =
+      'Something I thought through with Twiffel';
+  static const String analysisShareFilenamePrefix = 'Twiffel results';
+  static const String analysisShareBody =
+      'Twiffel put this together for me. Try it yourself if you want a clearer read on a choice, then share it around, friends and family often see something you missed.';
   static const String analysisShareCopied = 'Results copied to clipboard';
   static const String analysisShareFailed =
       'Could not prepare the PDF report. Please try again.';
@@ -89,10 +93,13 @@ abstract final class DecisionCopy {
   static const String reportProsArguments = 'Pros & Arguments';
   static const String reportConsTradeoffs = 'Cons & Trade-offs';
   static const String reportVerdictComparison = 'Summary Verdict';
+  static const String reportLeanSlightToOption = 'Slight lean to option';
+  static const String reportLeanClearToOption = 'Clear lean to option';
+  static const String reportParametersHeading = 'Key parameters';
+  static const String reportConsiderationLabel =
+      'Most important point to consider';
+  static const String reportTimingLabel = 'Timing';
   static const String reportFavor = 'Favor';
-  static const String reportLeanBreakdown = 'Lean breakdown';
-  static const String reportProsWeight = 'Pros weight';
-  static const String reportConsWeight = 'Cons weight';
   static const String reportPointWeight = 'Point weight';
   static const String reportProsDetailed = 'Pros: detailed comparison';
   static const String reportConsDetailed = 'Cons: detailed comparison';

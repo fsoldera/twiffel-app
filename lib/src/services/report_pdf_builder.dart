@@ -37,7 +37,6 @@ class ReportPdfBuilder {
   static const _verdictBorder = PdfColor.fromInt(0xFFFADFA6);
   static const _prosBanner = PdfColor.fromInt(0xFFECFDF5);
   static const _consBanner = PdfColor.fromInt(0xFFFEF2F2);
-  static const _optionB = PdfColor.fromInt(0xFF0F766E);
   static const _bandHeight = 44.0;
   static const _pageBandGap = 6.0;
   /// Keeps header and footer out of the printer's unprintable edge.
@@ -45,6 +44,8 @@ class ReportPdfBuilder {
 
   static Future<Uint8List> build(
     DecisionAnalysis analysis, {
+    String? obstacle,
+    String? timing,
     DateTime? generatedAt,
     Locale? locale,
   }) async {
@@ -64,6 +65,8 @@ class ReportPdfBuilder {
       assets,
       dateLabel,
       _pageFormatFor(resolvedLocale),
+      obstacle: obstacle,
+      timing: timing,
     );
 
     return doc.save();
@@ -83,28 +86,23 @@ class ReportPdfBuilder {
     return PdfPageFormat.a4;
   }
 
-  /// Share filename, same wording as [shareSubjectFor], plus `.pdf`.
+  /// Share filename: `Twiffel results <date> <time>.pdf`.
   ///
   /// Date and time use the device locale (or [locale] when provided). Characters
   /// that are illegal in file names (`/` `:` and similar) are replaced so Save
-  /// and Forward keep a name that still reads like the email subject.
+  /// and Forward keep a readable name.
   static Future<String> filenameFor({
     DateTime? at,
     Locale? locale,
   }) async {
-    final subject = await shareSubjectFor(at: at, locale: locale);
-    return '${_fileSafe(subject)}.pdf';
+    final parts = await _shareDateTimeParts(at: at, locale: locale);
+    final raw =
+        '${DecisionCopy.analysisShareFilenamePrefix} ${parts.date} ${parts.time}';
+    return '${_fileSafe(raw)}.pdf';
   }
 
-  /// Email subject when the user picks Mail from the share sheet:
-  /// `Twiffel results <date> <time>`.
-  static Future<String> shareSubjectFor({
-    DateTime? at,
-    Locale? locale,
-  }) async {
-    final parts = await _shareDateTimeParts(at: at, locale: locale);
-    return '${DecisionCopy.analysisShareSubjectPrefix} ${parts.date} ${parts.time}';
-  }
+  /// Email subject when the user picks Mail from the share sheet.
+  static String shareSubject() => DecisionCopy.analysisShareSubject;
 
   static Future<({String date, String time})> _shareDateTimeParts({
     DateTime? at,
@@ -148,8 +146,10 @@ class ReportPdfBuilder {
     DecisionAnalysis analysis,
     _ReportAssets assets,
     String dateLabel,
-    PdfPageFormat pageFormat,
-  ) {
+    PdfPageFormat pageFormat, {
+    String? obstacle,
+    String? timing,
+  }) {
     final optionA = analysis.optionA.trim().isNotEmpty
         ? analysis.optionA.trim()
         : DecisionCopy.analysisOptionALabel;
@@ -161,80 +161,79 @@ class ReportPdfBuilder {
     final preferB = !score.leansPrimary;
     _layoutFormat = pageFormat;
 
-    _addComparisonSection(
-      doc,
-      assets: assets,
-      dateLabel: dateLabel,
-      children: [
-        _vsBar(optionA: optionA, optionB: optionB),
-        pw.SizedBox(height: 12),
-        _padded(
-          _verdictCard(
-            title: DecisionCopy.reportVerdictComparison,
-            verdictPoints: analysis.verdictPoints,
-            headline: score.headline,
-          ),
-        ),
-        pw.SizedBox(height: 12),
-        _padded(
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
+    doc.addPage(
+      pw.Page(
+        pageFormat: _layoutFormat,
+        margin: const pw.EdgeInsets.all(_printMargin),
+        build: (context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
-              pw.Expanded(
-                child: _favorCard(
-                  title: optionA,
-                  percent: score.primaryFavorPercent,
-                  preferred: preferA,
-                  pros: analysis.optionAPros,
-                  cons: analysis.optionACons,
+              _headerWithGap(
+                subtitle: DecisionCopy.reportComparisonSubtitle,
+              ),
+              _vsBar(optionA: optionA, optionB: optionB),
+              pw.SizedBox(height: 8),
+              if ((obstacle ?? '').trim().isNotEmpty ||
+                  (timing ?? '').trim().isNotEmpty) ...[
+                _padded(
+                  _parametersCard(
+                    obstacle: obstacle?.trim() ?? '',
+                    timing: timing?.trim() ?? '',
+                  ),
+                ),
+                pw.SizedBox(height: 8),
+              ],
+              _padded(
+                _verdictCard(
+                  title: DecisionCopy.reportVerdictComparison,
+                  verdictPoints: analysis.verdictPoints,
+                  strength: score.strength,
+                  leansPrimary: score.leansPrimary,
+                  favoredName: score.favoredName,
                 ),
               ),
-              pw.SizedBox(width: 12),
-              pw.Expanded(
-                child: _favorCard(
-                  title: optionB,
-                  percent: score.secondaryFavorPercent,
-                  preferred: preferB,
-                  pros: analysis.optionBPros,
-                  cons: analysis.optionBCons,
+              pw.SizedBox(height: 8),
+              _padded(
+                pw.Row(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Expanded(
+                      child: _favorCard(
+                        title: optionA,
+                        letter: 'A',
+                        badgeColor: _headerBg,
+                        percent: score.primaryFavorPercent,
+                        preferred: preferA,
+                        pros: analysis.optionAPros,
+                        cons: analysis.optionACons,
+                      ),
+                    ),
+                    pw.SizedBox(width: 12),
+                    pw.Expanded(
+                      child: _favorCard(
+                        title: optionB,
+                        letter: 'B',
+                        badgeColor: _primary,
+                        percent: score.secondaryFavorPercent,
+                        preferred: preferB,
+                        pros: analysis.optionBPros,
+                        cons: analysis.optionBCons,
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ],
-          ),
-        ),
-        pw.SizedBox(height: 12),
-        _padded(
-          _leanBreakdown(
-            leftLabel: optionA,
-            rightLabel: optionB,
-            leftColor: _primary,
-            rightColor: _optionB,
-            rows: [
-              (
-                label: DecisionCopy.reportFavor,
-                left: score.primaryFavorPercent.toDouble(),
-                right: score.secondaryFavorPercent.toDouble(),
-                leftText: formatLeanPercent(score.primaryFavorPercent),
-                rightText: formatLeanPercent(score.secondaryFavorPercent),
-              ),
-              (
-                label: DecisionCopy.reportProsWeight,
-                left: score.proSumPrimary.toDouble(),
-                right: score.proSumSecondary.toDouble(),
-                leftText: '${score.proSumPrimary}',
-                rightText: '${score.proSumSecondary}',
-              ),
-              (
-                label: DecisionCopy.reportConsWeight,
-                left: score.conSumPrimary.toDouble(),
-                right: score.conSumSecondary.toDouble(),
-                leftText: '${score.conSumPrimary}',
-                rightText: '${score.conSumSecondary}',
+              pw.Spacer(),
+              _footerWithGap(
+                context: context,
+                dateLabel: dateLabel,
+                assets: assets,
               ),
             ],
-          ),
-        ),
-      ],
+          );
+        },
+      ),
     );
     _addComparisonSection(
       doc,
@@ -485,50 +484,64 @@ class ReportPdfBuilder {
     required _ReportAssets assets,
   }) {
     return pw.Container(
-      height: _bandHeight,
+      height: 56,
       width: double.infinity,
-      padding: const pw.EdgeInsets.symmetric(horizontal: 28),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 6),
       decoration: const pw.BoxDecoration(
         border: pw.Border(top: pw.BorderSide(color: _border, width: 1)),
       ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        mainAxisAlignment: pw.MainAxisAlignment.center,
         children: [
-          pw.Text(
-            DecisionCopy.reportDownload,
-            style: pw.TextStyle(
-              color: _headerBg,
-              fontSize: 9,
-              fontWeight: pw.FontWeight.bold,
-            ),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Expanded(
+                child: pw.Text(
+                  DecisionCopy.reportDownload,
+                  textAlign: pw.TextAlign.left,
+                  style: pw.TextStyle(
+                    color: _headerBg,
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Text(
+                dateLabel,
+                style: const pw.TextStyle(color: _textMuted, fontSize: 8),
+              ),
+              pw.SizedBox(width: 10),
+              pw.Container(width: 1, height: 10, color: _border),
+              pw.SizedBox(width: 10),
+              pw.Text(
+                'Page ${context.pageNumber} of ${context.pagesCount}',
+                style: pw.TextStyle(
+                  color: _textSecondary,
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ],
           ),
-          pw.SizedBox(width: 10),
-          _storeBadge(
-            artwork: assets.appStore,
-            url: DecisionCopy.reportAppStoreUrl,
-            fallbackLabel: DecisionCopy.reportAppStore,
-          ),
-          pw.SizedBox(width: 6),
-          _storeBadge(
-            artwork: assets.googlePlay,
-            url: DecisionCopy.reportGooglePlayUrl,
-            fallbackLabel: DecisionCopy.reportGooglePlay,
-          ),
-          pw.Spacer(),
-          pw.Text(
-            dateLabel,
-            style: const pw.TextStyle(color: _textMuted, fontSize: 8),
-          ),
-          pw.SizedBox(width: 10),
-          pw.Container(width: 1, height: 10, color: _border),
-          pw.SizedBox(width: 10),
-          pw.Text(
-            'Page ${context.pageNumber} of ${context.pagesCount}',
-            style: pw.TextStyle(
-              color: _textSecondary,
-              fontSize: 8,
-              fontWeight: pw.FontWeight.bold,
-            ),
+          pw.SizedBox(height: 4),
+          pw.Row(
+            mainAxisSize: pw.MainAxisSize.min,
+            children: [
+              _storeBadge(
+                artwork: assets.appStore,
+                url: DecisionCopy.reportAppStoreUrl,
+                fallbackLabel: DecisionCopy.reportAppStore,
+              ),
+              pw.SizedBox(width: 6),
+              _storeBadge(
+                artwork: assets.googlePlay,
+                url: DecisionCopy.reportGooglePlayUrl,
+                fallbackLabel: DecisionCopy.reportGooglePlay,
+              ),
+            ],
           ),
         ],
       ),
@@ -720,30 +733,142 @@ class ReportPdfBuilder {
     );
   }
 
+  static pw.Widget _optionBadge({
+    required String letter,
+    required PdfColor fill,
+    double size = 16,
+    bool prominent = false,
+  }) {
+    final badge = pw.Container(
+      width: size,
+      height: size,
+      alignment: pw.Alignment.center,
+      decoration: pw.BoxDecoration(
+        color: fill,
+        borderRadius: pw.BorderRadius.circular(size / 2),
+      ),
+      child: pw.Text(
+        letter,
+        style: pw.TextStyle(
+          color: _white,
+          fontSize: size * 0.5,
+          fontWeight: pw.FontWeight.bold,
+        ),
+      ),
+    );
+    if (!prominent) return badge;
+    return pw.Container(
+      padding: const pw.EdgeInsets.all(2.5),
+      decoration: pw.BoxDecoration(
+        color: _white,
+        borderRadius: pw.BorderRadius.circular((size + 5) / 2),
+        border: pw.Border.all(color: fill, width: 1.4),
+      ),
+      child: badge,
+    );
+  }
+
+  /// pdf 3.13 has no [pw.TextOverflow.ellipsis]; approximate with clip + "...".
+  static String _fitEllipsis(String text, double maxWidth, double fontSize) {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return trimmed;
+    final maxChars = math.max(4, (maxWidth / (fontSize * 0.52)).floor());
+    if (trimmed.length <= maxChars) return trimmed;
+    final cut = math.max(1, maxChars - 3);
+    return '${trimmed.substring(0, cut).trimRight()}...';
+  }
+
+  static pw.Widget _ellipsisLine(
+    String text, {
+    double fontSize = 10,
+    pw.FontWeight? weight,
+    PdfColor? color,
+    pw.TextAlign align = pw.TextAlign.left,
+  }) {
+    return pw.LayoutBuilder(
+      builder: (context, constraints) {
+        final raw = constraints?.maxWidth;
+        final maxW =
+            (raw == null || !raw.isFinite || raw <= 0) ? 200.0 : raw;
+        return pw.Text(
+          _fitEllipsis(text, maxW, fontSize),
+          maxLines: 1,
+          overflow: pw.TextOverflow.clip,
+          textAlign: align,
+          style: pw.TextStyle(
+            color: color ?? _textPrimary,
+            fontSize: fontSize,
+            fontWeight: weight,
+          ),
+        );
+      },
+    );
+  }
+
+  static pw.Widget _optionLabelRow({
+    required String letter,
+    required String name,
+    required PdfColor fill,
+    double badgeSize = 16,
+    double fontSize = 10,
+    pw.TextAlign align = pw.TextAlign.left,
+  }) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        _optionBadge(letter: letter, fill: fill, size: badgeSize),
+        pw.SizedBox(width: 6),
+        pw.Expanded(
+          child: _ellipsisLine(
+            name,
+            fontSize: fontSize,
+            weight: pw.FontWeight.bold,
+            align: align,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _optionWrapRow({
+    required String letter,
+    required String name,
+    required PdfColor fill,
+    double badgeSize = 24,
+    bool prominent = true,
+  }) {
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        _optionBadge(
+          letter: letter,
+          fill: fill,
+          size: badgeSize,
+          prominent: prominent,
+        ),
+        pw.SizedBox(width: 8),
+        pw.Expanded(
+          child: pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 4),
+            child: pw.Text(
+              name,
+              style: pw.TextStyle(
+                color: _textPrimary,
+                fontSize: 11,
+                fontWeight: pw.FontWeight.bold,
+                lineSpacing: 2,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
   static pw.Widget _vsBar({
     required String optionA,
     required String optionB,
   }) {
-    pw.Widget badge(String letter, PdfColor fill) {
-      return pw.Container(
-        width: 16,
-        height: 16,
-        alignment: pw.Alignment.center,
-        decoration: pw.BoxDecoration(
-          color: fill,
-          borderRadius: pw.BorderRadius.circular(8),
-        ),
-        child: pw.Text(
-          letter,
-          style: pw.TextStyle(
-            color: _white,
-            fontSize: 8,
-            fontWeight: pw.FontWeight.bold,
-          ),
-        ),
-      );
-    }
-
     return pw.Container(
       width: double.infinity,
       padding: const pw.EdgeInsets.symmetric(horizontal: 28, vertical: 10),
@@ -752,43 +877,29 @@ class ReportPdfBuilder {
         border: pw.Border(bottom: pw.BorderSide(color: _border)),
       ),
       child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          badge('A', _headerBg),
-          pw.SizedBox(width: 8),
           pw.Expanded(
-            child: pw.Text(
-              optionA.toUpperCase(),
-              maxLines: 1,
-              textAlign: pw.TextAlign.right,
-              style: pw.TextStyle(
-                color: _textPrimary,
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
-              ),
+            child: _optionWrapRow(
+              letter: 'A',
+              name: optionA,
+              fill: _headerBg,
             ),
           ),
           pw.Padding(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 10),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
             child: pw.Text(
               DecisionCopy.analysisVsWord.toLowerCase(),
               style: const pw.TextStyle(color: _textMuted, fontSize: 11),
             ),
           ),
           pw.Expanded(
-            child: pw.Text(
-              optionB.toUpperCase(),
-              maxLines: 1,
-              textAlign: pw.TextAlign.left,
-              style: pw.TextStyle(
-                color: _textPrimary,
-                fontSize: 10,
-                fontWeight: pw.FontWeight.bold,
-              ),
+            child: _optionWrapRow(
+              letter: 'B',
+              name: optionB,
+              fill: _primary,
             ),
           ),
-          pw.SizedBox(width: 8),
-          badge('B', _primary),
         ],
       ),
     );
@@ -796,6 +907,8 @@ class ReportPdfBuilder {
 
   static pw.Widget _favorCard({
     required String title,
+    required String letter,
+    required PdfColor badgeColor,
     required int percent,
     required bool preferred,
     required List<AnalysisPoint> pros,
@@ -815,10 +928,10 @@ class ReportPdfBuilder {
               fontWeight: pw.FontWeight.bold,
             ),
           ),
-          pw.SizedBox(height: 4),
+          pw.SizedBox(height: 6),
           for (var i = 0; i < points.length && i < 5; i++)
             pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 3),
+              padding: const pw.EdgeInsets.only(bottom: 5),
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -829,6 +942,7 @@ class ReportPdfBuilder {
                       style: const pw.TextStyle(
                         color: _textPrimary,
                         fontSize: 8,
+                        lineSpacing: 2,
                       ),
                     ),
                   ),
@@ -847,7 +961,7 @@ class ReportPdfBuilder {
     }
 
     return pw.Container(
-      padding: const pw.EdgeInsets.all(10),
+      padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         color: _white,
         borderRadius: pw.BorderRadius.circular(8),
@@ -856,21 +970,19 @@ class ReportPdfBuilder {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          pw.Text(
-            title.toUpperCase(),
-            maxLines: 2,
-            style: pw.TextStyle(
-              color: _textPrimary,
-              fontSize: 10,
-              fontWeight: pw.FontWeight.bold,
-            ),
+          _optionLabelRow(
+            letter: letter,
+            name: title,
+            fill: badgeColor,
+            badgeSize: 16,
+            fontSize: 10,
           ),
-          pw.SizedBox(height: 2),
+          pw.SizedBox(height: 4),
           pw.Text(
             DecisionCopy.reportFavor,
             style: const pw.TextStyle(color: _textMuted, fontSize: 8),
           ),
-          pw.SizedBox(height: 6),
+          pw.SizedBox(height: 8),
           pw.Row(
             children: [
               pw.SizedBox(
@@ -893,7 +1005,7 @@ class ReportPdfBuilder {
             ],
           ),
           if (showPros && showCons) ...[
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 10),
             pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
@@ -903,10 +1015,10 @@ class ReportPdfBuilder {
               ],
             ),
           ] else if (showPros) ...[
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 10),
             list(DecisionCopy.analysisPros, pros, _success),
           ] else if (showCons) ...[
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 10),
             list(DecisionCopy.analysisCons, cons, _error),
           ],
         ],
@@ -920,154 +1032,6 @@ class ReportPdfBuilder {
 <circle cx="12" cy="12" r="12" fill="#10B981"/>
 <path d="M6.5 12.2l3.4 3.4 7.6-7.6" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>''',
-    );
-  }
-
-  static pw.Widget _leanBreakdown({
-    required String leftLabel,
-    required String rightLabel,
-    required PdfColor leftColor,
-    required PdfColor rightColor,
-    required List<
-        ({
-          String label,
-          double left,
-          double right,
-          String leftText,
-          String rightText,
-        })> rows,
-  }) {
-    pw.Widget swatch(PdfColor color) {
-      return pw.Container(
-        width: 8,
-        height: 8,
-        decoration: pw.BoxDecoration(
-          color: color,
-          borderRadius: pw.BorderRadius.circular(1.5),
-        ),
-      );
-    }
-
-    return pw.Container(
-      width: double.infinity,
-      padding: const pw.EdgeInsets.fromLTRB(12, 12, 12, 10),
-      decoration: pw.BoxDecoration(
-        color: _white,
-        borderRadius: pw.BorderRadius.circular(8),
-        border: pw.Border.all(color: _border),
-      ),
-      child: pw.Column(
-        children: [
-          pw.Row(
-            children: [
-              pw.Text(
-                DecisionCopy.reportLeanBreakdown.toUpperCase(),
-                style: pw.TextStyle(
-                  color: _textPrimary,
-                  fontSize: 10,
-                  fontWeight: pw.FontWeight.bold,
-                ),
-              ),
-              pw.Spacer(),
-              swatch(leftColor),
-              pw.SizedBox(width: 4),
-              pw.Text(
-                leftLabel,
-                maxLines: 1,
-                style: const pw.TextStyle(color: _textSecondary, fontSize: 8),
-              ),
-              pw.SizedBox(width: 10),
-              swatch(rightColor),
-              pw.SizedBox(width: 4),
-              pw.Text(
-                rightLabel,
-                maxLines: 1,
-                style: const pw.TextStyle(color: _textSecondary, fontSize: 8),
-              ),
-            ],
-          ),
-          pw.SizedBox(height: 14),
-          pw.Row(
-            crossAxisAlignment: pw.CrossAxisAlignment.end,
-            children: [
-              for (var i = 0; i < rows.length; i++) ...[
-                if (i > 0) pw.SizedBox(width: 12),
-                pw.Expanded(
-                  child: _leanCouple(
-                    row: rows[i],
-                    leftColor: leftColor,
-                    rightColor: rightColor,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _leanCouple({
-    required ({
-      String label,
-      double left,
-      double right,
-      String leftText,
-      String rightText,
-    }) row,
-    required PdfColor leftColor,
-    required PdfColor rightColor,
-  }) {
-    const barMax = 132.0;
-    const barWidth = 18.0;
-    final peak = [row.left, row.right, 1.0].reduce((a, b) => a > b ? a : b);
-    double height(double value) => barMax * (value / peak);
-
-    pw.Widget bar(double value, String text, PdfColor color) {
-      return pw.Column(
-        mainAxisSize: pw.MainAxisSize.min,
-        children: [
-          pw.Text(
-            text,
-            style: pw.TextStyle(
-              color: _textPrimary,
-              fontSize: 8,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
-          pw.SizedBox(height: 4),
-          pw.Container(
-            width: barWidth,
-            height: height(value),
-            decoration: pw.BoxDecoration(
-              color: color,
-              borderRadius: const pw.BorderRadius.vertical(
-                top: pw.Radius.circular(3),
-              ),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return pw.Column(
-      children: [
-        pw.Text(
-          row.label,
-          textAlign: pw.TextAlign.center,
-          style: const pw.TextStyle(color: _textSecondary, fontSize: 8),
-        ),
-        pw.SizedBox(height: 8),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.center,
-          crossAxisAlignment: pw.CrossAxisAlignment.end,
-          children: [
-            bar(row.left, row.leftText, leftColor),
-            pw.SizedBox(width: 8),
-            bar(row.right, row.rightText, rightColor),
-          ],
-        ),
-      ],
     );
   }
 
@@ -1097,26 +1061,133 @@ class ReportPdfBuilder {
     return pw.Row(
       children: [
         pw.Expanded(
-          child: pw.Text(
-            optionA,
-            textAlign: pw.TextAlign.center,
-            style: pw.TextStyle(
-              color: _textPrimary,
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-            ),
+          child: _optionLabelRow(
+            letter: 'A',
+            name: optionA,
+            fill: _headerBg,
+            badgeSize: 16,
+            fontSize: 11,
           ),
         ),
         pw.SizedBox(width: 16),
         pw.Expanded(
-          child: pw.Text(
-            optionB,
+          child: _optionLabelRow(
+            letter: 'B',
+            name: optionB,
+            fill: _primary,
+            badgeSize: 16,
+            fontSize: 11,
+          ),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _parametersCard({
+    required String obstacle,
+    required String timing,
+  }) {
+    final items = <({String label, String value})>[
+      if (obstacle.isNotEmpty)
+        (
+          label: DecisionCopy.reportConsiderationLabel,
+          value: obstacle,
+        ),
+      if (timing.isNotEmpty)
+        (label: DecisionCopy.reportTimingLabel, value: timing),
+    ];
+
+    pw.Widget cell(({String label, String value}) item) {
+      return pw.Column(
+        children: [
+          pw.Text(
+            item.label.toUpperCase(),
             textAlign: pw.TextAlign.center,
             style: pw.TextStyle(
-              color: _textPrimary,
-              fontSize: 11,
+              color: _textMuted,
+              fontSize: 7,
               fontWeight: pw.FontWeight.bold,
             ),
+          ),
+          pw.SizedBox(height: 5),
+          pw.Text(
+            item.value,
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(
+              color: _textPrimary,
+              fontSize: 9,
+              lineSpacing: 2,
+            ),
+          ),
+        ],
+      );
+    }
+
+    return pw.Container(
+      width: double.infinity,
+      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: pw.BoxDecoration(
+        color: _softFill,
+        borderRadius: pw.BorderRadius.circular(8),
+        border: pw.Border.all(color: _border),
+      ),
+      child: pw.Column(
+        children: [
+          pw.Text(
+            DecisionCopy.reportParametersHeading.toUpperCase(),
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(
+              color: _textSecondary,
+              fontSize: 9,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 8),
+          pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              for (var i = 0; i < items.length; i++) ...[
+                if (i > 0) pw.SizedBox(width: 12),
+                pw.Expanded(child: cell(items[i])),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _verdictHeadline({
+    required LeanStrength strength,
+    required bool leansPrimary,
+    required String favoredName,
+  }) {
+    final style = pw.TextStyle(
+      color: _textPrimary,
+      fontSize: 11,
+      fontWeight: pw.FontWeight.bold,
+    );
+    if (strength == LeanStrength.tooClose) {
+      return pw.Text(DecisionCopy.analysisLeanTooClose, style: style);
+    }
+    final prefix = strength == LeanStrength.clear
+        ? DecisionCopy.reportLeanClearToOption
+        : DecisionCopy.reportLeanSlightToOption;
+    return pw.Row(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        pw.Text('$prefix ', style: style),
+        _optionBadge(
+          letter: leansPrimary ? 'A' : 'B',
+          fill: leansPrimary ? _headerBg : _primary,
+          size: 16,
+        ),
+        pw.SizedBox(width: 6),
+        pw.Expanded(
+          child: _ellipsisLine(
+            favoredName,
+            fontSize: 11,
+            weight: pw.FontWeight.bold,
           ),
         ),
       ],
@@ -1126,13 +1197,15 @@ class ReportPdfBuilder {
   static pw.Widget _verdictCard({
     required String title,
     required List<String> verdictPoints,
-    required String headline,
+    required LeanStrength strength,
+    required bool leansPrimary,
+    required String favoredName,
   }) {
     final items = verdictPoints.isEmpty ? const <String>[''] : verdictPoints;
 
     return pw.Container(
       width: double.infinity,
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(14),
       decoration: pw.BoxDecoration(
         color: _verdictFill,
         borderRadius: pw.BorderRadius.circular(8),
@@ -1149,19 +1222,16 @@ class ReportPdfBuilder {
               fontWeight: pw.FontWeight.bold,
             ),
           ),
-          pw.SizedBox(height: 6),
-          pw.Text(
-            headline,
-            style: pw.TextStyle(
-              color: _textPrimary,
-              fontSize: 11,
-              fontWeight: pw.FontWeight.bold,
-            ),
-          ),
           pw.SizedBox(height: 8),
+          _verdictHeadline(
+            strength: strength,
+            leansPrimary: leansPrimary,
+            favoredName: favoredName,
+          ),
+          pw.SizedBox(height: 10),
           for (final point in items)
             pw.Padding(
-              padding: const pw.EdgeInsets.only(bottom: 3),
+              padding: const pw.EdgeInsets.only(bottom: 6),
               child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
@@ -1182,7 +1252,7 @@ class ReportPdfBuilder {
                       style: const pw.TextStyle(
                         color: _textPrimary,
                         fontSize: 9,
-                        lineSpacing: 2,
+                        lineSpacing: 3,
                       ),
                     ),
                   ),

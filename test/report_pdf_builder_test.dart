@@ -24,8 +24,10 @@ void main() {
   test('builds a comparison PDF with option sections', () async {
     final bytes = await ReportPdfBuilder.build(
       DecisionAnalysis(
-        optionA: 'Turbo plan',
-        optionB: 'Standard plan',
+        optionA:
+            'Keep the current apartment near work and pay the higher rent',
+        optionB:
+            'Move farther out for a quieter place and a longer commute',
         optionAPros: _points('A Pro', 7),
         optionACons: _points('A Con', 7),
         optionBPros: _points('B Pro', 7),
@@ -38,6 +40,8 @@ void main() {
           'If neither clears the blocker, wait.',
         ],
       ),
+      obstacle: 'Monthly cash flow after rent and commute',
+      timing: 'In 1-3 months',
     );
 
     expect(bytes.length, greaterThan(1000));
@@ -63,7 +67,7 @@ void main() {
     expect(pdf.contains('792'), isTrue);
   });
 
-  test('filename matches the email subject, with file-safe date and time', () async {
+  test('filename uses Twiffel results prefix with file-safe date and time', () async {
     final when = DateTime(2026, 8, 3, 19, 13, 45);
 
     final us = await ReportPdfBuilder.filenameFor(
@@ -79,19 +83,10 @@ void main() {
     expect(it, 'Twiffel results 03-08-2026 19-13-45.pdf');
   });
 
-  test('share subject uses Twiffel results prefix with locale date and time', () async {
-    final when = DateTime(2026, 8, 3, 19, 13, 45);
-
-    final us = await ReportPdfBuilder.shareSubjectFor(
-      at: when,
-      locale: const Locale('en', 'US'),
+  test('share subject uses the friend-tone line, without a timestamp', () {
+    expect(
+      ReportPdfBuilder.shareSubject(),
+      'Something I thought through with Twiffel',
     );
-    expect(us, 'Twiffel results 8/3/2026 7:13:45\u202FPM');
-
-    final it = await ReportPdfBuilder.shareSubjectFor(
-      at: when,
-      locale: const Locale('it', 'IT'),
-    );
-    expect(it, 'Twiffel results 03/08/2026 19:13:45');
   });
 }

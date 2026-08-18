@@ -108,21 +108,21 @@ class _AnalysisPageState extends State<AnalysisPage> {
         analysis,
         locale: locale,
         generatedAt: generatedAt,
+        obstacle: widget.session.request?.obstacle,
+        timing: widget.session.request?.timing,
       );
       final filename = await ReportPdfBuilder.filenameFor(
         at: generatedAt,
         locale: locale,
       );
-      final subject = await ReportPdfBuilder.shareSubjectFor(
-        at: generatedAt,
-        locale: locale,
-      );
+      final subject = ReportPdfBuilder.shareSubject();
       if (!mounted) return;
       closeDialog();
       final shared = await Printing.sharePdf(
         bytes: bytes,
         filename: filename,
         subject: subject,
+        body: DecisionCopy.analysisShareBody,
       );
       if (!shared && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
