@@ -41,7 +41,7 @@ void main() {
         ],
       ),
       obstacle: 'Monthly cash flow after rent and commute',
-      timing: 'In 1-3 months',
+      timing: 'In 1\u20133 months',
     );
 
     expect(bytes.length, greaterThan(1000));
@@ -81,6 +81,13 @@ void main() {
       locale: const Locale('it', 'IT'),
     );
     expect(it, 'Twiffel results 03-08-2026 19-13-45.pdf');
+  });
+
+  test('pdfSafeText maps en-dash ranges to an ASCII hyphen', () {
+    expect(
+      ReportPdfBuilder.pdfSafeText('In 1\u20133 months'),
+      'In 1-3 months',
+    );
   });
 
   test('share subject uses the friend-tone line, without a timestamp', () {

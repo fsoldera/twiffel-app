@@ -7,7 +7,7 @@ import '../services/analytics.dart';
 import '../state/app_settings_controller.dart';
 import 'ios_onboarding_copy.dart';
 
-/// iOS first-launch pager matching Figma `ios-onboarding-1` through `ios-onboarding-5`.
+/// iOS first-launch pager matching Figma `ios-onboarding-1` through `ios-onboarding-6`.
 class IosOnboardingPage extends StatefulWidget {
   const IosOnboardingPage({
     super.key,
@@ -18,7 +18,7 @@ class IosOnboardingPage extends StatefulWidget {
   final AppSettingsController settings;
   final Analytics? analytics;
 
-  static const int stepCount = 5;
+  static const int stepCount = 6;
 
   @override
   State<IosOnboardingPage> createState() => _IosOnboardingPageState();
@@ -37,31 +37,43 @@ class _IosOnboardingPageState extends State<IosOnboardingPage> {
     String title,
     String body,
     String image,
+    bool framed,
   })>[
     (
       title: IosOnboardingCopy.step1Title,
       body: IosOnboardingCopy.step1Body,
       image: 'assets/onboarding/ios/ios-onboarding-1.png',
+      framed: true,
     ),
     (
       title: IosOnboardingCopy.step2Title,
       body: IosOnboardingCopy.step2Body,
       image: 'assets/onboarding/ios/ios-onboarding-2.png',
+      framed: true,
     ),
     (
       title: IosOnboardingCopy.step3Title,
       body: IosOnboardingCopy.step3Body,
       image: 'assets/onboarding/ios/ios-onboarding-3.png',
+      framed: true,
     ),
     (
       title: IosOnboardingCopy.step4Title,
       body: IosOnboardingCopy.step4Body,
       image: 'assets/onboarding/ios/ios-onboarding-4.png',
+      framed: true,
     ),
     (
       title: IosOnboardingCopy.step5Title,
       body: IosOnboardingCopy.step5Body,
       image: 'assets/onboarding/ios/ios-onboarding-5.png',
+      framed: true,
+    ),
+    (
+      title: IosOnboardingCopy.step6Title,
+      body: IosOnboardingCopy.step6Body,
+      image: 'assets/onboarding/ios/ios-onboarding-6.png',
+      framed: false,
     ),
   ];
 
@@ -119,6 +131,7 @@ class _IosOnboardingPageState extends State<IosOnboardingPage> {
                     title: step.title,
                     body: step.body,
                     imageAsset: step.image,
+                    framed: step.framed,
                     ink: _ink,
                     muted: _muted,
                     frameBorder: _frameBorder,
@@ -232,6 +245,7 @@ class _IosOnboardingStep extends StatelessWidget {
     required this.title,
     required this.body,
     required this.imageAsset,
+    required this.framed,
     required this.ink,
     required this.muted,
     required this.frameBorder,
@@ -240,6 +254,7 @@ class _IosOnboardingStep extends StatelessWidget {
   final String title;
   final String body;
   final String imageAsset;
+  final bool framed;
   final Color ink;
   final Color muted;
   final Color frameBorder;
@@ -252,35 +267,7 @@ class _IosOnboardingStep extends StatelessWidget {
         children: [
           Expanded(
             child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280, maxHeight: 380),
-                child: AspectRatio(
-                  aspectRatio: 280 / 380,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(color: frameBorder, width: 4),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x0D000000),
-                          blurRadius: 24,
-                          offset: Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.asset(
-                        imageAsset,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              child: framed ? _framedPreview() : _openPreview(),
             ),
           ),
           const SizedBox(height: 12),
@@ -307,6 +294,48 @@ class _IosOnboardingStep extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+
+  Widget _framedPreview() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280, maxHeight: 380),
+      child: AspectRatio(
+        aspectRatio: 280 / 380,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: frameBorder, width: 4),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x0D000000),
+                blurRadius: 24,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Image.asset(
+              imageAsset,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _openPreview() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 342, maxHeight: 460),
+      child: Image.asset(
+        imageAsset,
+        fit: BoxFit.contain,
       ),
     );
   }

@@ -10,7 +10,7 @@ abstract final class DecisionCopy {
   static const String obstacleHelper =
       'Pick the single most important point to weigh.';
   static const String timingAsap = 'Now';
-  static const String timingMonths = 'In 1–3 months';
+  static const String timingMonths = 'In 1-3 months';
   static const String timingLater = 'Later / Flexible';
   static const String timingDateRange = 'Specific date range';
   static const String timingPickDates = 'Pick date range';

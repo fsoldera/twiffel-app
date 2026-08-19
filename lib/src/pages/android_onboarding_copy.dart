@@ -1,4 +1,4 @@
-/// Android first-launch copy (Figma onboarding-1 to 5).
+/// Android first-launch copy (Figma onboarding-1 to 6).
 abstract final class AndroidOnboardingCopy {
   static const String skip = 'Skip';
   static const String next = 'Next';
@@ -23,4 +23,8 @@ abstract final class AndroidOnboardingCopy {
   static const String step5Title = 'Explore Pros & Cons';
   static const String step5Body =
       'Dive deeper into the advantages and trade-offs of each option.';
+
+  static const String step6Title = 'Share Your Report';
+  static const String step6Body =
+      'Get a detailed PDF report to print or share with friends and family.';
 }

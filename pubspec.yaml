@@ -43,7 +43,9 @@ flutter:
     - assets/onboarding/android/
     - assets/onboarding/ios/
 
-# Native launch splash (Android + iOS). Regenerate with:
+# Native launch splash. Android is generated here. iOS uses the Figma
+# full-bleed LaunchImage in ios/Runner/Assets.xcassets (do not set ios: true
+# or `flutter_native_splash:create` will overwrite those screens).
 #   dart run flutter_native_splash:create
 flutter_native_splash:
   # Figma stacked logo on the launch plate (light/dark).
@@ -53,7 +55,7 @@ flutter_native_splash:
   image: assets/splash/splash_logo_light.png
   image_dark: assets/splash/splash_logo.png
   android: true
-  ios: true
+  ios: false
   android_12:
     color: "#FFFFFF"
     color_dark: "#1F2937"

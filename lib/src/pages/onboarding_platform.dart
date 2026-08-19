@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 
 /// First-launch onboarding is platform-specific.
 ///
-/// Android uses Figma `onboarding-1` through `onboarding-5`.
-/// iOS uses Figma `ios-onboarding-1` through `ios-onboarding-5`.
+/// Android uses Figma `onboarding-1` through `onboarding-6`.
+/// iOS uses Figma `ios-onboarding-1` through `ios-onboarding-6`.
 bool isOnboardingEnabledFor(TargetPlatform platform) {
   switch (platform) {
     case TargetPlatform.android:

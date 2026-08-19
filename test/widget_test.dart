@@ -126,12 +126,12 @@ void main() {
     await _withPlatform(TargetPlatform.android, () async {
       await _pumpApp(tester, onboardingCompleted: false);
 
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < 5; i++) {
         await tester.tap(find.text(AndroidOnboardingCopy.next));
         await tester.pumpAndSettle();
       }
 
-      expect(find.text(AndroidOnboardingCopy.step5Title), findsOneWidget);
+      expect(find.text(AndroidOnboardingCopy.step6Title), findsOneWidget);
       expect(find.text(AndroidOnboardingCopy.getStarted), findsOneWidget);
       expect(find.text(AndroidOnboardingCopy.skip), findsNothing);
 
@@ -166,12 +166,12 @@ void main() {
     await _withPlatform(TargetPlatform.iOS, () async {
       await _pumpApp(tester, onboardingCompleted: false);
 
-      for (var i = 0; i < 4; i++) {
+      for (var i = 0; i < 5; i++) {
         await tester.tap(find.text(IosOnboardingCopy.next));
         await tester.pumpAndSettle();
       }
 
-      expect(find.text(IosOnboardingCopy.step5Title), findsOneWidget);
+      expect(find.text(IosOnboardingCopy.step6Title), findsOneWidget);
       expect(find.text(IosOnboardingCopy.getStarted), findsOneWidget);
       expect(find.text(IosOnboardingCopy.skip), findsNothing);
 

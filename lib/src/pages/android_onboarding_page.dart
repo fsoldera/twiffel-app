@@ -7,7 +7,7 @@ import '../services/analytics.dart';
 import '../state/app_settings_controller.dart';
 import 'android_onboarding_copy.dart';
 
-/// Android first-launch pager matching Figma `onboarding-1` through `onboarding-5`.
+/// Android first-launch pager matching Figma `onboarding-1` through `onboarding-6`.
 class AndroidOnboardingPage extends StatefulWidget {
   const AndroidOnboardingPage({
     super.key,
@@ -18,7 +18,7 @@ class AndroidOnboardingPage extends StatefulWidget {
   final AppSettingsController settings;
   final Analytics? analytics;
 
-  static const int stepCount = 5;
+  static const int stepCount = 6;
 
   @override
   State<AndroidOnboardingPage> createState() => _AndroidOnboardingPageState();
@@ -36,31 +36,43 @@ class _AndroidOnboardingPageState extends State<AndroidOnboardingPage> {
     String title,
     String body,
     String image,
+    bool framed,
   })>[
     (
       title: AndroidOnboardingCopy.step1Title,
       body: AndroidOnboardingCopy.step1Body,
       image: 'assets/onboarding/android/onboarding-1.png',
+      framed: true,
     ),
     (
       title: AndroidOnboardingCopy.step2Title,
       body: AndroidOnboardingCopy.step2Body,
       image: 'assets/onboarding/android/onboarding-2.png',
+      framed: true,
     ),
     (
       title: AndroidOnboardingCopy.step3Title,
       body: AndroidOnboardingCopy.step3Body,
       image: 'assets/onboarding/android/onboarding-3.png',
+      framed: true,
     ),
     (
       title: AndroidOnboardingCopy.step4Title,
       body: AndroidOnboardingCopy.step4Body,
       image: 'assets/onboarding/android/onboarding-4.png',
+      framed: true,
     ),
     (
       title: AndroidOnboardingCopy.step5Title,
       body: AndroidOnboardingCopy.step5Body,
       image: 'assets/onboarding/android/onboarding-5.png',
+      framed: true,
+    ),
+    (
+      title: AndroidOnboardingCopy.step6Title,
+      body: AndroidOnboardingCopy.step6Body,
+      image: 'assets/onboarding/android/onboarding-6.png',
+      framed: false,
     ),
   ];
 
@@ -118,6 +130,7 @@ class _AndroidOnboardingPageState extends State<AndroidOnboardingPage> {
                     title: step.title,
                     body: step.body,
                     imageAsset: step.image,
+                    framed: step.framed,
                     mockFrame: _mockFrame,
                     muted: _muted,
                   );
@@ -259,6 +272,7 @@ class _AndroidOnboardingStep extends StatelessWidget {
     required this.title,
     required this.body,
     required this.imageAsset,
+    required this.framed,
     required this.mockFrame,
     required this.muted,
   });
@@ -266,6 +280,7 @@ class _AndroidOnboardingStep extends StatelessWidget {
   final String title;
   final String body;
   final String imageAsset;
+  final bool framed;
   final Color mockFrame;
   final Color muted;
 
@@ -277,35 +292,7 @@ class _AndroidOnboardingStep extends StatelessWidget {
         children: [
           Expanded(
             child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280, maxHeight: 320),
-                child: AspectRatio(
-                  aspectRatio: 280 / 320,
-                  child: Container(
-                    padding: const EdgeInsets.all(6),
-                    decoration: BoxDecoration(
-                      color: mockFrame,
-                      borderRadius: BorderRadius.circular(28),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x40000000),
-                          blurRadius: 24,
-                          offset: Offset(0, 12),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(22),
-                      child: Image.asset(
-                        imageAsset,
-                        fit: BoxFit.cover,
-                        width: double.infinity,
-                        height: double.infinity,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              child: framed ? _framedPreview() : _openPreview(),
             ),
           ),
           Text(
@@ -331,6 +318,63 @@ class _AndroidOnboardingStep extends StatelessWidget {
           ),
           const SizedBox(height: 16),
         ],
+      ),
+    );
+  }
+
+  Widget _framedPreview() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 280, maxHeight: 320),
+      child: AspectRatio(
+        aspectRatio: 280 / 320,
+        child: Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: mockFrame,
+            borderRadius: BorderRadius.circular(28),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x40000000),
+                blurRadius: 24,
+                offset: Offset(0, 12),
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(22),
+            child: Image.asset(
+              imageAsset,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _openPreview() {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 342, maxHeight: 420),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x40000000),
+              blurRadius: 24,
+              offset: Offset(0, 12),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(28),
+          child: Image.asset(
+            imageAsset,
+            fit: BoxFit.contain,
+          ),
+        ),
       ),
     );
   }

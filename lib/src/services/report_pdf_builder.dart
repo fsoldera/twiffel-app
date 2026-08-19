@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show Locale, PlatformDispatcher;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
@@ -131,6 +132,23 @@ class ReportPdfBuilder {
         .replaceAll(RegExp(r'\s+'), ' ');
   }
 
+  /// Helvetica in pdf 3.13 is WinAnsi. Map common Unicode punctuation so
+  /// ranges like "1-3" do not render as missing-glyph boxes.
+  @visibleForTesting
+  static String pdfSafeText(String text) {
+    return text
+        .replaceAll('\u2013', '-')
+        .replaceAll('\u2014', '-')
+        .replaceAll('\u2212', '-')
+        .replaceAll('\u2026', '...')
+        .replaceAll('\u2018', "'")
+        .replaceAll('\u2019', "'")
+        .replaceAll('\u201C', '"')
+        .replaceAll('\u201D', '"')
+        .replaceAll('\u00A0', ' ')
+        .replaceAll('\u202F', ' ');
+  }
+
   static Future<String> _formatFooterDate(DateTime when, Locale locale) async {
     final localeName = locale.toString();
     try {
@@ -150,12 +168,16 @@ class ReportPdfBuilder {
     String? obstacle,
     String? timing,
   }) {
-    final optionA = analysis.optionA.trim().isNotEmpty
-        ? analysis.optionA.trim()
-        : DecisionCopy.analysisOptionALabel;
-    final optionB = analysis.optionB.trim().isNotEmpty
-        ? analysis.optionB.trim()
-        : DecisionCopy.analysisOptionBLabel;
+    final optionA = pdfSafeText(
+      analysis.optionA.trim().isNotEmpty
+          ? analysis.optionA.trim()
+          : DecisionCopy.analysisOptionALabel,
+    );
+    final optionB = pdfSafeText(
+      analysis.optionB.trim().isNotEmpty
+          ? analysis.optionB.trim()
+          : DecisionCopy.analysisOptionBLabel,
+    );
     final score = AnalysisScore.fromAnalysis(analysis);
     final preferA = score.leansPrimary;
     final preferB = !score.leansPrimary;
@@ -685,7 +707,7 @@ class ReportPdfBuilder {
                 children: [
                   pw.Expanded(
                     child: pw.Text(
-                      point.tagline,
+                      pdfSafeText(point.tagline),
                       style: pw.TextStyle(
                         color: _textPrimary,
                         fontSize: titleSize,
@@ -704,7 +726,7 @@ class ReportPdfBuilder {
               ),
               pw.SizedBox(height: 2),
               pw.Text(
-                point.description,
+                pdfSafeText(point.description),
                 style: pw.TextStyle(
                   color: _textSecondary,
                   fontSize: detailSize,
@@ -770,7 +792,7 @@ class ReportPdfBuilder {
 
   /// pdf 3.13 has no [pw.TextOverflow.ellipsis]; approximate with clip + "...".
   static String _fitEllipsis(String text, double maxWidth, double fontSize) {
-    final trimmed = text.trim();
+    final trimmed = pdfSafeText(text).trim();
     if (trimmed.isEmpty) return trimmed;
     final maxChars = math.max(4, (maxWidth / (fontSize * 0.52)).floor());
     if (trimmed.length <= maxChars) return trimmed;
@@ -851,7 +873,7 @@ class ReportPdfBuilder {
           child: pw.Padding(
             padding: const pw.EdgeInsets.only(top: 4),
             child: pw.Text(
-              name,
+              pdfSafeText(name),
               style: pw.TextStyle(
                 color: _textPrimary,
                 fontSize: 11,
@@ -937,7 +959,7 @@ class ReportPdfBuilder {
                 children: [
                   pw.Expanded(
                     child: pw.Text(
-                      points[i].tagline,
+                      pdfSafeText(points[i].tagline),
                       maxLines: 2,
                       style: const pw.TextStyle(
                         color: _textPrimary,
@@ -1091,10 +1113,10 @@ class ReportPdfBuilder {
       if (obstacle.isNotEmpty)
         (
           label: DecisionCopy.reportConsiderationLabel,
-          value: obstacle,
+          value: pdfSafeText(obstacle),
         ),
       if (timing.isNotEmpty)
-        (label: DecisionCopy.reportTimingLabel, value: timing),
+        (label: DecisionCopy.reportTimingLabel, value: pdfSafeText(timing)),
     ];
 
     pw.Widget cell(({String label, String value}) item) {
@@ -1248,7 +1270,7 @@ class ReportPdfBuilder {
                   ),
                   pw.Expanded(
                     child: pw.Text(
-                      point,
+                      pdfSafeText(point),
                       style: const pw.TextStyle(
                         color: _textPrimary,
                         fontSize: 9,
