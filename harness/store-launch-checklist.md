@@ -68,6 +68,12 @@ Doppler too — see infrastructure-setup step 4.
 4. Listing 512 icon is **listing-only** (not fixed by AAB update).
 5. Internal “`(unreviewed)` + robot + package name” is normal until listing review.
 
+**Gotcha:** uninstalling the debug APK does **not** reset first-launch onboarding if
+Android Auto Backup restores SharedPreferences. The app sets `android:allowBackup="false"`.
+To replay onboarding on a device that still has the old APK, run
+`adb shell pm clear com.uthings.twiffel` and launch again. Do not uninstall/reinstall
+until that build is installed.
+
 ---
 
 ## 4. RevenueCat — Play

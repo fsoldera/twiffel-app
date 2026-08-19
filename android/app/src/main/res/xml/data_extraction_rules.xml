@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep first-launch onboarding from coming back after uninstall.
+     Android Auto Backup otherwise restores SharedPreferences. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" />
+    </device-transfer>
+</data-extraction-rules>
