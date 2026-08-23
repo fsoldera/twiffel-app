@@ -19,7 +19,7 @@ variable is prefixed with the app name: `<APP>_*`.
 | Secret | Required in |
 |---|---|
 | `<APP>_XAI_API_KEY` | Doppler `dev` + `prd` |
-| `<APP>_XAI_MODEL` | Doppler `dev` + `prd` (pin `grok-4.3` for EU) |
+| `<APP>_XAI_MODEL` | Doppler `dev` + `prd` (Twiffel: `grok-latest`; pin `grok-4.3` if that alias 404s) |
 | `<APP>_XAI_REASONING_EFFORT` | Doppler `dev` + `prd` (`none` / `low` / `medium` / `high`) |
 | `<APP>_XAI_TEMPERATURE` | Doppler `dev` + `prd` (`0` to `2`) |
 | `<APP>_XAI_BASE_URL` | Doppler `dev` + `prd` (e.g. `https://eu-west-1.api.x.ai/v1`) |
@@ -68,7 +68,7 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 
 1. Create a **new API key** named after the app (`<app>`). Do not reuse another
    app's key. Never paste Joppling / Stikkteller / Twiffel keys into a new project.
-2. Note the model (default: `grok-4.3` for EU), reasoning effort (`low`), temperature (`0.7`),
+2. Note the model (Twiffel default: `grok-latest`; pin `grok-4.3` if `grok-latest` 404s for that key), reasoning effort (`low`), temperature (`0.7`),
    and cluster (`https://eu-west-1.api.x.ai/v1` for EU).
 3. Keep both in a password manager until step 2.
 
@@ -79,10 +79,11 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
 > Set `<APP>_XAI_BASE_URL=https://eu-west-1.api.x.ai/v1`. Global `https://api.x.ai`
 > may hang or miss EU-only models.
 >
-> **Gotcha — do not use `grok-latest` on EU for shared templates:** `/v1/models` for
-> EU keys lists `grok-4.3` (alias `grok-4.3-latest`). `grok-latest` may 404 for some
-> teams even when `grok-4.3` works. Newer flagships (`grok-4.5`, `grok-4.6`) are
-> often US-only. Always pin `grok-4.3` for EU Workers.
+> **Gotcha — `grok-latest` can 404 per API key on the same team:** some keys
+> (observed on Joppling / Stikkteller) reject `grok-latest` while accepting
+> `grok-4.3` / `grok-4.3-latest`. Twiffel's key currently accepts `grok-latest`
+> (resolves to `grok-4.3`). Newer flagships may still be US-only on regional
+> endpoints. If `grok-latest` fails for a key, pin `grok-4.3`.
 
 > **Gotcha — xAI prompt cache:** Grok caches identical leading messages on one
 > server. Send a stable `x-grok-conv-id` (Twiffel uses `twiffel-analyze`), keep
@@ -108,7 +109,7 @@ For the store/RC click-path and gotchas, also use `harness/store-launch-checklis
    | Secret | Configs | When |
    |---|---|---|
    | `<APP>_XAI_API_KEY` | `dev`, `prd` | now |
-   | `<APP>_XAI_MODEL` | `dev`, `prd` | now (`grok-4.3` for EU) |
+   | `<APP>_XAI_MODEL` | `dev`, `prd` | now (`grok-latest` if the key accepts it; else pin `grok-4.3`) |
    | `<APP>_XAI_REASONING_EFFORT` | `dev`, `prd` | now (`none` \| `low` \| `medium` \| `high`; default `low`) |
    | `<APP>_XAI_TEMPERATURE` | `dev`, `prd` | now (`0` to `2`; default `0.7`) |
    | `<APP>_XAI_BASE_URL` | `dev`, `prd` | now (`https://eu-west-1.api.x.ai/v1` for EU) |

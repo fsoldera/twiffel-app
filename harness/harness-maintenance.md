@@ -45,7 +45,7 @@ short aliases for new apps.
 | Kind | Canonical name | Notes |
 |---|---|---|
 | xAI API key | `<APP>_XAI_API_KEY` | New key in console.x.ai labeled `<app>`. Never share across apps. |
-| xAI model | `<APP>_XAI_MODEL` | pin `grok-4.3` for EU |
+| xAI model | `<APP>_XAI_MODEL` | e.g. `grok-latest` (pin `grok-4.3` if that alias 404s) |
 | xAI reasoning effort | `<APP>_XAI_REASONING_EFFORT` | `none` / `low` / `medium` / `high`. Default `low`. |
 | xAI temperature | `<APP>_XAI_TEMPERATURE` | `0` to `2`. Default `0.7`. |
 | xAI API base URL | `<APP>_XAI_BASE_URL` | e.g. `https://eu-west-1.api.x.ai/v1`. Not `<APP>_API_BASE`. |
