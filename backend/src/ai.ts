@@ -150,7 +150,7 @@ async function resolveXaiConfig(env: Env): Promise<XaiConfig> {
   }
   return {
     apiKey: pickSecret(secrets, env, ["TWIFFEL_XAI_API_KEY", "XAI_API_KEY", "XAI"]),
-    model: pickSecret(secrets, env, ["TWIFFEL_XAI_MODEL", "XAI_MODEL"]) || "grok-latest",
+    model: pickSecret(secrets, env, ["TWIFFEL_XAI_MODEL", "XAI_MODEL"]) || "grok-4.3",
     baseUrl: parseXaiBaseUrl(pickSecret(secrets, env, ["TWIFFEL_XAI_BASE_URL"])),
     reasoningEffort: parseReasoningEffort(
       pickSecret(secrets, env, ["TWIFFEL_XAI_REASONING_EFFORT"]),
