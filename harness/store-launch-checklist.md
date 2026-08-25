@@ -123,10 +123,21 @@ until that build is installed.
 
 ---
 
-## 8. Done when
+## 8. Production version
+
+Store marketing version is `pubspec.yaml` `version:` before `+` (Play `versionName`, iOS `CFBundleShortVersionString`). Android/iOS native files read it from Flutter.
+
+Codemagic already passes `--build-number="$BUILD_NUMBER"`. That value must be higher than any previously uploaded Play `versionCode` and App Store `CFBundleVersion`. Do not upload a local `+1` AAB/IPA if internal testing already used build 1.
+
+Create App Store Connect version **1.0.0** before submitting the IPA. Play production can take the same 1.0.0 AAB on a new release.
+
+---
+
+## 9. Done when
 
 - [ ] Doppler holds XAI + `goog_…` + `appl_…`
 - [ ] Codemagic builds inject RC keys from Doppler (not hand-duplicated)
 - [ ] Play internal: real prices + purchase as license tester
 - [ ] TestFlight: real prices + sandbox purchase
 - [ ] RC offering `default` has Play + App Store on both packages
+- [ ] `pubspec.yaml` is `1.0.0+N` (or later) before production store uploads
