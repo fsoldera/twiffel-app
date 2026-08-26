@@ -67,6 +67,13 @@ Doppler too — see infrastructure-setup step 4.
 3. Subscription: id `<app>_monthly`, base plan `monthly`, auto-renew, activate + price.
 4. Listing 512 icon is **listing-only** (not fixed by AAB update).
 5. Internal “`(unreviewed)` + robot + package name” is normal until listing review.
+6. Play listing **App name** must match `android:label` / the iOS display name
+   (`Twiffel`). Put the tagline in the short description. A title like
+   `Twiffel - weigh two options.` plus a Flutter default launcher icon is a
+   **Misleading claims** rejection (installed icon/name ≠ store listing).
+7. After changing `assets/icons/twiffel-icon-1024.png`, run
+   `dart run flutter_launcher_icons` so mipmap + iOS AppIcon match the 512
+   listing icon. A new `.aab` is required; the listing 512 upload is not enough.
 
 **Gotcha:** uninstalling the debug APK does **not** reset first-launch onboarding if
 Android Auto Backup restores SharedPreferences. The app sets `android:allowBackup="false"`.
@@ -141,3 +148,4 @@ Create App Store Connect version **1.0.0** before submitting the IPA. Play produ
 - [ ] TestFlight: real prices + sandbox purchase
 - [ ] RC offering `default` has Play + App Store on both packages
 - [ ] `pubspec.yaml` is `1.0.0+N` (or later) before production store uploads
+- [ ] Installed launcher icon and app name match the Play listing (not Flutter default)

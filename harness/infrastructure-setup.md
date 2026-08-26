@@ -317,6 +317,12 @@ absent, so local `flutter run --release` still works).
 > **Gotcha — listing icon:** the 512×512 store icon is listing metadata. Shipping a
 > new `.aab` does **not** fix a missing/robot listing icon.
 
+> **Gotcha — launcher icon:** Play compares the listing 512 icon to the
+> **installed** launcher. Default Flutter `mipmap/ic_launcher` fails review even
+> when the listing icon is correct. Generate from `assets/icons/twiffel-icon-1024.png`
+> with `dart run flutter_launcher_icons`, then ship a new `.aab`. Listing **App
+> name** must also match `android:label` (`Twiffel`).
+
 > **Gotcha — `(unreviewed)` + robot + package name:** normal on internal testing
 > until the store listing is reviewed. Does not block internal install or IAP tests.
 

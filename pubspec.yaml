@@ -2,7 +2,7 @@ name: twiffel_app
 description: >-
   Twiffel — Flutter + common_app_kit + Cloudflare Worker.
 publish_to: "none"
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -28,6 +28,7 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
   shared_preferences: ^2.3.2
 
 flutter:
@@ -42,6 +43,18 @@ flutter:
     - assets/copy/
     - assets/onboarding/android/
     - assets/onboarding/ios/
+
+# Launcher / home-screen icon. Play compares this to the 512 listing icon.
+#   dart run flutter_launcher_icons
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icons/twiffel-icon-1024.png
+  adaptive_icon_background: "#1E1E1E"
+  adaptive_icon_foreground: assets/icons/twiffel-icon-1024.png
+  adaptive_icon_foreground_inset: 0
+  min_sdk_android: 21
+  remove_alpha_ios: true
 
 # Native launch splash. Android is generated here. iOS uses the Figma
 # full-bleed LaunchImage in ios/Runner/Assets.xcassets (do not set ios: true
