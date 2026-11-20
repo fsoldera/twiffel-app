@@ -1,3 +1,4 @@
+import 'package:common_app_kit/common_app_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 
@@ -9,6 +10,7 @@ import 'src/widgets/once_play_video.dart';
 Future<void> main() async {
   appLaunchAt = DateTime.now();
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+  PlayAgeSignals.requestOnLaunch();
   // Keep the native launch plate until Flutter is ready and the min duration elapses.
   FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
   await Future.wait<void>([
